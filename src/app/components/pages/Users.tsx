@@ -48,7 +48,7 @@ export function Users() {
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">User Roles</div>
-          <div className="text-2xl font-bold text-gray-900">{roles.length}</div>
+          <div className="text-2xl font-bold text-gray-900">N/A</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Inactive Users</div>
