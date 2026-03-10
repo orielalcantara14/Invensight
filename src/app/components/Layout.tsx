@@ -14,6 +14,7 @@ export function Layout() {
     { name: "Products", path: "/products", icon: PackageSearch },
     { name: "Suppliers", path: "/suppliers", icon: Truck },
     { name: "Orders", path: "/orders", icon: FileText },
+    { name: "Stock Movements", path: "/stock-movements", icon: History },
     { 
       name: "Analytics", 
       path: "/analytics",
