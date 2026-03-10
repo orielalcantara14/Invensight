@@ -76,6 +76,12 @@ export function Suppliers() {
                   Supplier Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Address
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact Info
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -94,7 +100,7 @@ export function Suppliers() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={9} className="px-6 py-12 text-center">
                   <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-gray-500 font-medium">No suppliers available</p>
                   <p className="text-sm text-gray-400 mt-1">Add suppliers to manage your vendor relationships</p>
