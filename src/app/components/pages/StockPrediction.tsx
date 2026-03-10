@@ -10,13 +10,11 @@ const criticalItems: any[] = [];
 export function StockPrediction() {
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Stock Prediction & Analysis</h1>
         <p className="text-gray-600 mt-1">Predict stockouts and optimize inventory levels</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
@@ -55,8 +53,7 @@ export function StockPrediction() {
         </div>
       </div>
 
-      {/* Stockout Risk Chart */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mb-8">
+      <div className="bg-white p-6 rounded-lg shadow border-gray-200 mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Stockout Risk Analysis</h2>
         <div className="flex items-center justify-center h-[300px] text-gray-400">
           <div className="text-center">
@@ -67,8 +64,7 @@ export function StockPrediction() {
         </div>
       </div>
 
-      {/* Stock Predictions Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
+      <div className="bg-white rounded-lg shadow border-gray-200 mb-8">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">30/60/90 Day Stock Predictions</h2>
         </div>
@@ -112,8 +108,7 @@ export function StockPrediction() {
         </div>
       </div>
 
-      {/* Critical Items Alert */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
+      <div className="bg-white rounded-lg shadow border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Critical Items Requiring Immediate Action</h2>
         </div>

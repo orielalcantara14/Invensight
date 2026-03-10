@@ -25,7 +25,6 @@ export function Sales() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -35,8 +34,7 @@ export function Sales() {
         </div>
       </div>
 
-      {/* Sales Chart */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mb-8">
+      <div className="bg-white p-6 rounded-lg shadow border-gray-200 mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Sales Performance</h2>
         <div className="flex items-center justify-center h-[300px] text-gray-400">
           <div className="text-center">
@@ -47,8 +45,7 @@ export function Sales() {
         </div>
       </div>
 
-      {/* Sales Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
+      <div className="bg-white rounded-lg shadow border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">All Sales Transactions</h2>

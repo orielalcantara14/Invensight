@@ -7,7 +7,6 @@ import { Inventory } from "./components/pages/Inventory";
 import { Products } from "./components/pages/Products";
 import { Suppliers } from "./components/pages/Suppliers";
 import { Orders } from "./components/pages/Orders";
-import { Records } from "./components/pages/Records";
 import { Analytics } from "./components/pages/Analytics";
 import { Forecasting } from "./components/pages/Forecasting";
 import { StockPrediction } from "./components/pages/StockPrediction";
@@ -27,13 +26,16 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Layout,
     children: [
-      { index: true, Component: Dashboard },
+      { index: true, Component: () => {
+        window.location.href = "/login";
+        return null;
+      }},
+      { path: "dashboard", Component: Dashboard },
       { path: "sales", Component: Sales },
       { path: "inventory", Component: Inventory },
       { path: "products", Component: Products },
       { path: "suppliers", Component: Suppliers },
       { path: "orders", Component: Orders },
-      { path: "quality-control", Component: Records },
       { path: "analytics", Component: Analytics },
       { path: "forecasting", Component: Forecasting },
       { path: "stock-prediction", Component: StockPrediction },

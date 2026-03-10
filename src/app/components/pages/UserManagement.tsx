@@ -4,13 +4,11 @@ import { Link } from "react-router";
 export function UserManagement() {
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
         <p className="text-gray-600 mt-1">Manage users, roles, and system access with comprehensive audit trails</p>
       </div>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
@@ -49,9 +47,7 @@ export function UserManagement() {
         </div>
       </div>
 
-      {/* Management Modules */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Users & Roles Module */}
         <Link to="/users" className="block group">
           <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-blue-500 transition-all hover:shadow-lg">
             <div className="flex items-start justify-between mb-4">
@@ -88,7 +84,6 @@ export function UserManagement() {
           </div>
         </Link>
 
-        {/* Audit Log Module */}
         <Link to="/audit-log" className="block group">
           <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-orange-500 transition-all hover:shadow-lg">
             <div className="flex items-start justify-between mb-4">
@@ -126,7 +121,6 @@ export function UserManagement() {
         </Link>
       </div>
 
-      {/* Recent Activity Summary */}
       <div className="mt-8 bg-white rounded-lg shadow border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
         <div className="flex items-center justify-center py-8 text-gray-400">

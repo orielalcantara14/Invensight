@@ -1,7 +1,6 @@
 import { TrendingUp, Calendar, Activity } from "lucide-react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-// SSA Decomposition Data
 const ssaData: any[] = [];
 
 const forecastComparison: any[] = [];

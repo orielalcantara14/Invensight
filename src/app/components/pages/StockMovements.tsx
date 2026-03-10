@@ -21,13 +21,11 @@ export function StockMovements() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Stock Movements</h1>
         <p className="text-gray-600 mt-1">Track all inventory movements and adjustments</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
@@ -62,8 +60,7 @@ export function StockMovements() {
         </div>
       </div>
 
-      {/* Low Stock Alerts */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
+      <div className="bg-white rounded-lg shadow border-gray-200 mb-8">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Low Stock Alerts</h2>
         </div>
@@ -78,8 +75,7 @@ export function StockMovements() {
         </div>
       </div>
 
-      {/* Movements Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
+      <div className="bg-white rounded-lg shadow border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">All Stock Movements</h2>

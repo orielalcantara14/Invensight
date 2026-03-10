@@ -9,16 +9,14 @@ export function Login() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Navigate to dashboard on login
     if (employeeId && password) {
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full grid grid-cols-1 md:grid-cols-2">
-        {/* Left Side - Branding */}
         <div className="bg-black flex items-center justify-center p-12 relative">
           <div className="text-center">
             <div className="border-2 border-white/20 rounded-lg p-8 inline-block">
@@ -35,7 +33,6 @@ export function Login() {
           </div>
         </div>
 
-        {/* Right Side - Login Form */}
         <div className="p-12 flex flex-col justify-center">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-blue-600 mb-2">Welcome</h2>
@@ -43,7 +40,6 @@ export function Login() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            {/* Employee ID */}
             <div>
               <label htmlFor="employeeId" className="block text-sm font-medium text-blue-600 mb-2">
                 Employee ID
@@ -62,7 +58,6 @@ export function Login() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-blue-600 mb-2">
                 Password
@@ -80,7 +75,6 @@ export function Login() {
                 />
               </div>
             </div>
-            {/* Login Button */}
             <button
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

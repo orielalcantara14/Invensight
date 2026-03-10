@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { LayoutDashboard, ShoppingCart, Package, TrendingUp, AlertTriangle, Menu, Users, FileText, Truck, Settings, History, BarChart3, PackageSearch, LogOut, ClipboardCheck, ChevronDown, ChevronRight } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, TrendingUp, AlertTriangle, Menu, Users, FileText, Truck, Settings, History, BarChart3, PackageSearch, LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 export function Layout() {
@@ -8,13 +8,12 @@ export function Layout() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   const navigation = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Sales", path: "/sales", icon: ShoppingCart },
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: PackageSearch },
     { name: "Suppliers", path: "/suppliers", icon: Truck },
     { name: "Orders", path: "/orders", icon: FileText },
-    { name: "Records", path: "/quality-control", icon: ClipboardCheck },
     { 
       name: "Analytics", 
       path: "/analytics",

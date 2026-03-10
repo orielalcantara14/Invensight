@@ -22,7 +22,6 @@ export function Users() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -36,7 +35,6 @@ export function Users() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Total Users</div>
@@ -56,7 +54,6 @@ export function Users() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-lg shadow border border-gray-200">
         <div className="border-b border-gray-200">
           <div className="flex">
@@ -89,7 +86,6 @@ export function Users() {
           </div>
         </div>
 
-        {/* Users Tab */}
         {activeTab === "users" && (
           <>
             <div className="p-6 border-b border-gray-200">
@@ -152,7 +148,6 @@ export function Users() {
           </>
         )}
 
-        {/* Roles Tab */}
         {activeTab === "roles" && (
           <div className="p-6">
             <div className="mb-6 flex items-center justify-between">

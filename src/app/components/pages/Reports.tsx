@@ -17,13 +17,11 @@ export function Reports() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
         <p className="text-gray-600 mt-1">Generate and view business intelligence reports</p>
       </div>
 
-      {/* Report Generator */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate New Report</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

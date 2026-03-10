@@ -13,7 +13,6 @@ export function Suppliers() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -27,7 +26,6 @@ export function Suppliers() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Total Suppliers</div>
@@ -47,7 +45,6 @@ export function Suppliers() {
         </div>
       </div>
 
-      {/* Suppliers Table */}
       <div className="bg-white rounded-lg shadow border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
