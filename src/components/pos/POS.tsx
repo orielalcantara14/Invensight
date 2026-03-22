@@ -26,6 +26,7 @@ interface SaleResult {
 // Constants
 // ---------------------------------------------------------------------------
 const TAX_RATE = 0.12;
+const CATALOG_REFRESH_INTERVAL_MS = 15000;
 
 // TODO: replace with real auth context once login is wired up
 const CURRENT_USER = { user_id: 1, full_name: "Admin" };
@@ -274,27 +275,67 @@ export function POS() {
     return () => clearInterval(id);
   }, []);
 
-  // Fetch data on mount
-  useEffect(() => {
-    (async () => {
-      try {
+  const fetchCatalog = useCallback(async (isInitialLoad: boolean) => {
+    try {
+      if (isInitialLoad) {
         setLoading(true);
-        const [prods, cats, terminals] = await Promise.all([
-          api.getProducts(),
-          api.getCategories(),
-          api.getTerminals(),
-        ]);
-        setProducts(prods);
-        setCategories(cats);
-        if (terminals.length > 0) setTerminal(terminals[0]);
-        setError(null);
-      } catch {
+      }
+      const [prods, cats, terminals] = await Promise.all([
+        api.getProducts(),
+        api.getCategories(),
+        api.getTerminals(),
+      ]);
+
+      setProducts(prods);
+      setCategories(cats);
+      setTerminal((prev) => {
+        if (!terminals.length) return null;
+        if (!prev) return terminals[0];
+        return terminals.find((t) => t.terminal_id === prev.terminal_id) ?? terminals[0];
+      });
+      setCartItems((prev) =>
+        prev
+          .filter((item) => prods.some((p) => p.product_id === item.product.product_id))
+          .map((item) => {
+            const latest = prods.find((p) => p.product_id === item.product.product_id);
+            return latest ? { ...item, product: latest } : item;
+          })
+      );
+      setError(null);
+    } catch {
+      if (isInitialLoad) {
         setError("Cannot connect to server. Make sure the FastAPI server is running on port 8000.");
-      } finally {
+      }
+    } finally {
+      if (isInitialLoad) {
         setLoading(false);
       }
-    })();
+    }
   }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchCatalog(true);
+  }, [fetchCatalog]);
+
+  // Live catalog refresh while POS page is open
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchCatalog(false);
+    }, CATALOG_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [fetchCatalog]);
+
+  // Refresh immediately when tab becomes active again
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchCatalog(false);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [fetchCatalog]);
 
   // ---------- Cart operations ----------
   const addToCart = useCallback((product: Product) => {
@@ -488,6 +529,17 @@ export function POS() {
                   onClick={() => addToCart(product)}
                   className="bg-white rounded-xl p-4 text-left border border-gray-200 hover:border-blue-400 hover:shadow-md active:scale-95 transition-all group"
                 >
+                  <div className="w-full h-28 bg-gray-100 rounded-lg overflow-hidden mb-3 flex items-center justify-center">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.product_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">No image</span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400 font-mono mb-1 truncate">
                     {product.sku}
                   </p>

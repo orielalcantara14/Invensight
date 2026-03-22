@@ -6,6 +6,7 @@ export interface Product {
   unit_price: number;
   sku: string;
   description: string;
+  image_url: string;
   category_name: string;
   category_id: number;
 }
@@ -19,6 +20,32 @@ export interface Terminal {
   terminal_id: number;
   terminal_name: string;
   location: string;
+}
+
+export interface PosProduct {
+  pos_id: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  description: string;
+  image_url: string;
+  price_modified: boolean;
+  category_id: number | null;
+  category: string;
+  stock: number;
+  pos_price: number;
+  status: "Active" | "Archived";
+}
+
+export interface PosProductPayload {
+  sku: string;
+  product_name: string;
+  description: string;
+  image_url: string | null;
+  category_id: number | null;
+  pos_price: number;
+  stock: number;
+  status: "Active" | "Archived";
 }
 
 export interface CartItemPayload {
@@ -48,6 +75,23 @@ export interface SaleResult {
   transaction_timestamp: string;
 }
 
+function formatApiError(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === "object" && item !== null && "msg" in item
+          ? String((item as { msg: string }).msg)
+          : JSON.stringify(item)
+      )
+      .join("; ");
+  }
+  if (detail && typeof detail === "object" && "message" in detail) {
+    return String((detail as { message: string }).message);
+  }
+  return "Request failed";
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -55,17 +99,132 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Request failed" }));
-    throw new Error(err.detail ?? "Request failed");
+    throw new Error(formatApiError(err.detail));
   }
   return res.json() as Promise<T>;
+}
+
+export interface ApiUser {
+  id: number;
+  username: string;
+  full_name: string;
+  employee_id: number;
+  role: string;
+  is_active: boolean;
+  last_login: string | null;
+  email?: string | null;
+}
+
+export interface CreateUserPayload {
+  username: string;
+  full_name: string;
+  password: string;
+  role: string;
+  permissions: Record<string, string[]>;
+  email?: string | null;
+  is_active?: boolean;
+}
+
+export interface UpdateUserPayload {
+  username: string;
+  full_name: string;
+  email: string | null;
+  role: string;
+  is_active: boolean;
+  new_password?: string;
+}
+
+export interface ApiRole {
+  id: number;
+  name: string;
+  permissions: string;
+  user_count: number;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  permissions: string;
+}
+
+export interface UpdateRolePayload {
+  name: string;
+  permissions: string;
+}
+
+export interface LoginPayload {
+  username: string;
+  password: string;
+}
+
+/** Matches `LoginResponse` from the API (snake_case). */
+export interface LoginResult {
+  user_id: number;
+  username: string;
+  full_name: string;
+  employee_id: number;
+  role: string;
 }
 
 export const api = {
   getProducts: () => request<Product[]>("/api/products"),
   getCategories: () => request<Category[]>("/api/categories"),
   getTerminals: () => request<Terminal[]>("/api/pos-terminals"),
+  getPosProducts: () => request<PosProduct[]>("/api/pos-products"),
+  createPosProduct: (payload: PosProductPayload) =>
+    request<{ pos_id: number }>("/api/pos-products", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updatePosProduct: (posId: number, payload: PosProductPayload) =>
+    request<{ ok: boolean }>(`/api/pos-products/${posId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  updatePosProductStatus: (posId: number, status: "Active" | "Archived") =>
+    request<{ ok: boolean }>(
+      `/api/pos-products/${posId}/status?status=${encodeURIComponent(status)}`,
+      {
+        method: "PATCH",
+      }
+    ),
+  deletePosProduct: (posId: number) =>
+    request<{ ok: boolean }>(`/api/pos-products/${posId}`, {
+      method: "DELETE",
+    }),
   createSale: (payload: CreateSalePayload) =>
     request<SaleResult>("/api/sales", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getUsers: () => request<ApiUser[]>("/api/users"),
+  createUser: (payload: CreateUserPayload) =>
+    request<ApiUser>("/api/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateUser: (userId: number, payload: UpdateUserPayload) =>
+    request<ApiUser>(`/api/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deactivateUser: (userId: number) =>
+    request<{ ok: boolean }>(`/api/users/${userId}`, { method: "DELETE" }),
+
+  getRoles: () => request<ApiRole[]>("/api/roles"),
+  createRole: (payload: CreateRolePayload) =>
+    request<ApiRole>("/api/roles", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateRole: (roleId: number, payload: UpdateRolePayload) =>
+    request<ApiRole>(`/api/roles/${roleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  login: (payload: LoginPayload) =>
+    request<LoginResult>("/api/login", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

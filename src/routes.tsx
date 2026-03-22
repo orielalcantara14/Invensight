@@ -1,5 +1,6 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "./layouts/Layout";
+import { RequireAuth } from "./components/RequireAuth";
 import { Login } from "./components/pages/Login";
 import { Dashboard } from "./components/pages/Dashboard";
 import { Sales } from "./components/pages/Sales";
@@ -18,6 +19,14 @@ import { AuditLog } from "./components/pages/AuditLog";
 import { POSManagement } from "./components/pages/POSManagement";
 import { NotFound } from "./components/pages/NotFound";
 
+function RootLayout() {
+  return (
+    <RequireAuth>
+      <Layout />
+    </RequireAuth>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: "/login",
@@ -25,12 +34,9 @@ export const router = createBrowserRouter([
   },
   {
     path: "/",
-    Component: Layout,
+    Component: RootLayout,
     children: [
-      { index: true, Component: () => {
-        window.location.href = "/login";
-        return null;
-      }},
+      { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", Component: Dashboard },
       { path: "sales", Component: Sales },
       { path: "inventory", Component: Inventory },

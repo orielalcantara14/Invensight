@@ -6,7 +6,9 @@ interface BaseModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** 'none' = no dimming behind the dialog; 'dim' = light scrim */
+  backdrop?: 'none' | 'dim';
 }
 
 export function BaseModal({ 
@@ -14,7 +16,8 @@ export function BaseModal({
   onClose, 
   title, 
   children, 
-  maxWidth = 'md' 
+  maxWidth = 'md',
+  backdrop = 'dim',
 }: BaseModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -79,17 +82,24 @@ export function BaseModal({
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
-    xl: 'max-w-2xl'
+    xl: 'max-w-2xl',
+    full: 'max-w-[min(100%,calc(100vw-1.5rem))] max-h-[min(100%,calc(100vh-1.5rem))] flex flex-col min-h-0',
   };
+
+  const isFullSize = maxWidth === 'full';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       onClick={handleOverlayClick}
     >
-      {/* Backdrop overlay */}
-      <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+      {/* Backdrop: avoid solid black — use transparent or a light scrim */}
+      <div
+        className={
+          backdrop === 'none'
+            ? 'absolute inset-0 bg-transparent'
+            : 'absolute inset-0 bg-gray-900/40 backdrop-blur-[2px]'
+        }
         aria-hidden="true"
       />
       
@@ -101,9 +111,13 @@ export function BaseModal({
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div
+          className={`bg-white rounded-xl shadow-2xl border border-gray-200/80 flex flex-col min-h-0 ${
+            isFullSize ? 'max-h-full overflow-hidden' : 'overflow-hidden'
+          }`}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
               {title}
             </h2>
@@ -117,7 +131,7 @@ export function BaseModal({
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className={`p-6 ${isFullSize ? 'overflow-y-auto flex-1 min-h-0' : ''}`}>
             {children}
           </div>
         </div>

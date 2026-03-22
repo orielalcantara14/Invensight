@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, type FormEvent } from 'react';
 import { BaseModal } from './BaseModal';
 
 interface AddUserModalProps {
@@ -7,17 +7,32 @@ interface AddUserModalProps {
   onAddUser: (user: {
     username: string;
     fullName: string;
+    email: string;
     password: string;
     role: string;
-  }) => void;
+    status: 'Active' | 'Inactive';
+  }) => void | Promise<void>;
+  /** Role names for the dropdown; defaults to [] if omitted (e.g. legacy call sites). */
+  roleNames?: string[];
+  error?: string | null;
+  saving?: boolean;
 }
 
-export function AddUserModal({ isOpen, onClose, onAddUser }: AddUserModalProps) {
+export function AddUserModal({
+  isOpen,
+  onClose,
+  onAddUser,
+  roleNames = [],
+  error = null,
+  saving = false,
+}: AddUserModalProps) {
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
+    email: '',
     password: '',
-    role: ''
+    role: '',
+    status: 'Active' as 'Active' | 'Inactive',
   });
 
   const initialFocusRef = useRef<HTMLInputElement>(null);
@@ -25,26 +40,33 @@ export function AddUserModal({ isOpen, onClose, onAddUser }: AddUserModalProps) 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => initialFocusRef.current?.focus(), 100);
+    } else {
+      setFormData({
+        username: '',
+        fullName: '',
+        email: '',
+        password: '',
+        role: '',
+        status: 'Active',
+      });
     }
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    onAddUser(formData);
-    setFormData({ username: '', fullName: '', password: '', role: '' });
-    onClose();
+    await onAddUser(formData);
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="Add New User" maxWidth="md">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="username" className="mb-1 block text-sm font-medium text-gray-700">
               Username
             </label>
             <input
@@ -53,14 +75,15 @@ export function AddUserModal({ isOpen, onClose, onAddUser }: AddUserModalProps) 
               type="text"
               value={formData.username}
               onChange={(e) => handleChange('username', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Enter Username"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="username"
               required
+              disabled={saving}
             />
           </div>
 
           <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="fullName" className="mb-1 block text-sm font-medium text-gray-700">
               Full Name
             </label>
             <input
@@ -68,16 +91,33 @@ export function AddUserModal({ isOpen, onClose, onAddUser }: AddUserModalProps) 
               type="text"
               value={formData.fullName}
               onChange={(e) => handleChange('fullName', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Enter Full Name"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="John Doe"
               required
+              disabled={saving}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="user@jonbrix.com"
+            autoComplete="email"
+            disabled={saving}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
               Password
             </label>
             <input
@@ -85,45 +125,75 @@ export function AddUserModal({ isOpen, onClose, onAddUser }: AddUserModalProps) 
               type="password"
               value={formData.password}
               onChange={(e) => handleChange('password', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="***********"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="••••••••"
               required
+              disabled={saving}
+              autoComplete="new-password"
             />
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="role" className="mb-1 block text-sm font-medium text-gray-700">
               Role
             </label>
             <select
               id="role"
               value={formData.role}
               onChange={(e) => handleChange('role', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
+              disabled={roleNames.length === 0 || saving}
             >
-              <option value="" disabled>Select Role</option>
-              <option value="Administrator">Administrator</option>
-              <option value="Manager">Manager</option>
-              <option value="Sales Staff">Sales Staff</option>
-              <option value="Warehouse Staff">Warehouse Staff</option>
+              <option value="" disabled>
+                {roleNames.length === 0 ? 'No roles — add one in Roles tab' : 'Select role'}
+              </option>
+              {roleNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6 pt-4">
+        <div>
+          <label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700">
+            Status
+          </label>
+          <select
+            id="status"
+            value={formData.status}
+            onChange={(e) => handleChange('status', e.target.value as 'Active' | 'Inactive')}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={saving}
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex gap-3 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
+            disabled={saving}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+            disabled={saving || roleNames.length === 0}
+            className="flex-1 rounded-lg bg-gray-900 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
           >
-            Add User
+            {saving ? 'Saving…' : 'Add User'}
           </button>
         </div>
       </form>

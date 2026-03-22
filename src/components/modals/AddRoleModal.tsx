@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, type FormEvent } from 'react';
 import { BaseModal } from './BaseModal';
 
 interface AddRoleModalProps {
@@ -7,10 +7,18 @@ interface AddRoleModalProps {
   onAddRole: (role: {
     name: string;
     permissions: string;
-  }) => void;
+  }) => void | Promise<void>;
+  error?: string | null;
+  saving?: boolean;
 }
 
-export function AddRoleModal({ isOpen, onClose, onAddRole }: AddRoleModalProps) {
+export function AddRoleModal({
+  isOpen,
+  onClose,
+  onAddRole,
+  error = null,
+  saving = false,
+}: AddRoleModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     permissions: ''
@@ -21,14 +29,14 @@ export function AddRoleModal({ isOpen, onClose, onAddRole }: AddRoleModalProps) 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => initialFocusRef.current?.focus(), 100);
+    } else {
+      setFormData({ name: '', permissions: '' });
     }
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    onAddRole(formData);
-    setFormData({ name: '', permissions: '' });
-    onClose();
+    await onAddRole(formData);
   };
 
   const handleChange = (field: string, value: string) => {
@@ -67,19 +75,27 @@ export function AddRoleModal({ isOpen, onClose, onAddRole }: AddRoleModalProps) 
           />
         </div>
 
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+
         <div className="flex gap-3 mt-6 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
+            disabled={saving}
+            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+            disabled={saving}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:opacity-50"
           >
-            Add Role
+            {saving ? "Saving…" : "Add Role"}
           </button>
         </div>
       </form>

@@ -132,7 +132,8 @@ export interface AuditLogEntry {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'Administrator' | 'Manager' | 'Sales Staff' | 'Warehouse Staff';
+/** Display label for a user’s assigned role (may be any name from the roles table). */
+export type UserRole = string;
 export type UserStatus = 'Active' | 'Inactive';
 
 export interface User {
@@ -140,6 +141,7 @@ export interface User {
   username: string;
   fullName: string;
   employeeId: string;
+  email: string;
   role: UserRole;
   status: UserStatus;
   lastLogin: string;
@@ -147,7 +149,7 @@ export interface User {
 
 export interface Role {
   id: number;
-  name: UserRole;
+  name: string;
   permissions: string;
   userCount: number;
 }

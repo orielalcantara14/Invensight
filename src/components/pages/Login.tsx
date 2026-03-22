@@ -1,16 +1,45 @@
-import { useState } from "react";
+import React, { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { Lock, User } from "lucide-react";
+import { api } from "@/services/api";
+import { getSession, setSession } from "@/auth/session";
 
 export function Login() {
   const navigate = useNavigate();
-  const [employeeId, setEmployeeId] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (getSession()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (employeeId && password) {
-      navigate("/dashboard");
+    setError(null);
+    const u = username.trim();
+    if (!u || !password) {
+      setError("Enter your username or employee ID and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await api.login({ username: u, password });
+      setSession({
+        user_id: result.user_id,
+        username: result.username,
+        full_name: result.full_name,
+        employee_id: result.employee_id,
+        role: result.role,
+      });
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,24 +65,26 @@ export function Login() {
         <div className="p-12 flex flex-col justify-center">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-blue-600 mb-2">Welcome</h2>
-            <p className="text-gray-600">Login with Employee ID</p>
+            <p className="text-gray-600">Sign in with the username and password from User Management</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label htmlFor="employeeId" className="block text-sm font-medium text-blue-600 mb-2">
-                Employee ID
+              <label htmlFor="username" className="block text-sm font-medium text-blue-600 mb-2">
+                Username or Employee ID
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  id="employeeId"
+                  id="username"
                   type="text"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="Enter your Employee ID"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. jsmith or EMP-0001"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoComplete="username"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -71,15 +102,25 @@ export function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoComplete="current-password"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
+
+            {error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60"
             >
-              LOGIN
+              {loading ? "Signing in…" : "LOGIN"}
             </button>
           </form>
         </div>

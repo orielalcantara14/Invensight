@@ -1,9 +1,12 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, ShoppingCart, Package, TrendingUp, AlertTriangle, Menu, Users, FileText, Truck, Settings, History, BarChart3, PackageSearch, LogOut, ChevronDown, ChevronRight, Monitor } from "lucide-react";
 import { useState } from "react";
+import { clearSession, getSession } from "@/auth/session";
 
 export function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const session = getSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
@@ -52,7 +55,8 @@ export function Layout() {
   };
 
   const handleLogout = () => {
-    window.location.href = "/login";
+    clearSession();
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -70,6 +74,12 @@ export function Layout() {
               <div>
                 <h1 className="font-bold text-lg">Jonbrix</h1>
                 <p className="text-xs text-gray-400">Motorcycle Parts & Accessories</p>
+                {session && (
+                  <p className="text-xs text-gray-500 mt-2 truncate" title={session.full_name}>
+                    {session.full_name}
+                    {session.role ? ` · ${session.role}` : ""}
+                  </p>
+                )}
               </div>
             )}
             <button

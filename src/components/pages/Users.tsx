@@ -1,58 +1,228 @@
-import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon } from "lucide-react";
-import { useState } from "react";
+import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon, Pencil } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
+import { AddRoleModal } from "../modals/AddRoleModal";
+import { EditRoleModal } from "../modals/EditRoleModal";
+import { EditUserModal } from "../modals/EditUserModal";
+import { ViewRoleUsersModal } from "../modals/ViewRoleUsersModal";
 import { PermissionsModal } from "../modals/PermissionsModal";
-import type { User, Role, UserRole } from "@/types";
+import type { User, Role } from "@/types";
+import { api, type ApiUser, type ApiRole, type UpdateUserPayload } from "@/services/api";
 
-const roles: Role[] = [
-  { id: 1, name: "Administrator", permissions: "Full system access, user management, reports", userCount: 0 },
-  { id: 2, name: "Manager", permissions: "Sales, inventory, forecasting, reports", userCount: 0 },
-  { id: 3, name: "Sales Staff", permissions: "Sales transactions, customer info", userCount: 0 },
-  { id: 4, name: "Warehouse Staff", permissions: "Inventory, stock movements", userCount: 0 },
-];
+function mapApiUser(u: ApiUser): User {
+  return {
+    id: u.id,
+    username: u.username,
+    fullName: u.full_name,
+    employeeId: `EMP-${String(u.employee_id).padStart(4, "0")}`,
+    email: u.email ?? "",
+    role: u.role,
+    status: u.is_active ? "Active" : "Inactive",
+    lastLogin: u.last_login ? u.last_login.slice(0, 10) : "Never",
+  };
+}
+
+function mapApiRole(r: ApiRole): Role {
+  return {
+    id: r.id,
+    name: r.name,
+    permissions: r.permissions,
+    userCount: r.user_count,
+  };
+}
 
 export function Users() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [pendingPermissions, setPendingPermissions] = useState<Record<string, string[]>>({});
+  const [userFormError, setUserFormError] = useState<string | null>(null);
+  const [roleFormError, setRoleFormError] = useState<string | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [savingRole, setSavingRole] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [viewUsersForRole, setViewUsersForRole] = useState<Role | null>(null);
+  const [editRoleError, setEditRoleError] = useState<string | null>(null);
+  const [savingEditRole, setSavingEditRole] = useState(false);
 
-  const handleAddUser = (user: { username: string; fullName: string; password: string; role: string }) => {
-    const newUser: User = {
-      id: Date.now(),
-      username: user.username,
-      fullName: user.fullName,
-      employeeId: `EMP-${Date.now()}`,
-      role: user.role as UserRole,
-      status: 'Active',
-      lastLogin: 'Never',
+  const refreshData = useCallback(async () => {
+    setListError(null);
+    try {
+      const [u, r] = await Promise.all([api.getUsers(), api.getRoles()]);
+      setUsers(u.map(mapApiUser));
+      setRoles(r.map(mapApiRole));
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : "Failed to load users and roles");
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await refreshData();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
     };
-    setUsers(prev => [...prev, newUser]);
+  }, [refreshData]);
+
+  const closeAddUserModal = () => {
+    setIsAddUserModalOpen(false);
+    setPendingPermissions({});
+    setUserFormError(null);
+  };
+
+  const handleAddUser = async (user: {
+    username: string;
+    fullName: string;
+    email: string;
+    password: string;
+    role: string;
+    status: "Active" | "Inactive";
+  }) => {
+    setUserFormError(null);
+    setSavingUser(true);
+    try {
+      await api.createUser({
+        username: user.username.trim(),
+        full_name: user.fullName.trim(),
+        email: user.email.trim() || null,
+        password: user.password,
+        role: user.role,
+        permissions: pendingPermissions,
+        is_active: user.status === "Active",
+      });
+      closeAddUserModal();
+      await refreshData();
+    } catch (e) {
+      setUserFormError(e instanceof Error ? e.message : "Failed to create user");
+    } finally {
+      setSavingUser(false);
+    }
   };
 
   const handleSavePermissions = (permissions: Record<string, string[]>) => {
+    setPendingPermissions(permissions);
     setIsPermissionsModalOpen(false);
     setIsAddUserModalOpen(true);
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleAddRole = async (role: { name: string; permissions: string }) => {
+    setRoleFormError(null);
+    setSavingRole(true);
+    try {
+      await api.createRole({
+        name: role.name.trim(),
+        permissions: role.permissions.trim(),
+      });
+      setIsAddRoleModalOpen(false);
+      await refreshData();
+    } catch (e) {
+      setRoleFormError(e instanceof Error ? e.message : "Failed to create role");
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setEditingUser(null);
+    setEditError(null);
+  };
+
+  const handleSaveEditUser = async (userId: number, payload: UpdateUserPayload) => {
+    setEditError(null);
+    setSavingEdit(true);
+    try {
+      await api.updateUser(userId, payload);
+      closeEditModal();
+      await refreshData();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Failed to update user");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const closeEditRoleModal = () => {
+    setEditingRole(null);
+    setEditRoleError(null);
+  };
+
+  const handleSaveEditRole = async (roleId: number, data: { name: string; permissions: string }) => {
+    setEditRoleError(null);
+    setSavingEditRole(true);
+    try {
+      await api.updateRole(roleId, {
+        name: data.name,
+        permissions: data.permissions,
+      });
+      closeEditRoleModal();
+      await refreshData();
+    } catch (e) {
+      setEditRoleError(e instanceof Error ? e.message : "Failed to update role");
+    } finally {
+      setSavingEditRole(false);
+    }
+  };
+
+  const handleDeactivateUser = async (userId: number) => {
+    if (!window.confirm("Mark this user as inactive? They will keep a record in the system.")) {
+      return;
+    }
+    try {
+      await api.deactivateUser(userId);
+      await refreshData();
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : "Failed to update user");
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      String(user.id).includes(q) ||
+      user.username?.toLowerCase().includes(q) ||
+      user.fullName?.toLowerCase().includes(q) ||
+      user.email?.toLowerCase().includes(q) ||
+      user.employeeId?.toLowerCase().includes(q)
+    );
+  });
+
+  const roleNames = roles.map((r) => r.name);
+  const inactiveCount = users.filter((u) => u.status === "Inactive").length;
 
   return (
     <div className="p-8">
+      {listError ? (
+        <div
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          role="alert"
+        >
+          {listError}
+        </div>
+      ) : null}
+
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
             <p className="text-gray-600 mt-1">Manage users and role-based access control</p>
           </div>
-          <button 
+          <button
             onClick={() => setIsPermissionsModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus className="w-4 h-4" />
             Add User
           </button>
@@ -62,19 +232,21 @@ export function Users() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Total Users</div>
-          <div className="text-2xl font-bold text-gray-900">{users.length}</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : users.length}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Active Users</div>
-          <div className="text-2xl font-bold text-gray-900">{users.filter(u => u.status === 'Active').length}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {loading ? "…" : users.filter((u) => u.status === "Active").length}
+          </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">User Roles</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : roles.length}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Inactive Users</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : inactiveCount}</div>
         </div>
       </div>
 
@@ -136,13 +308,16 @@ export function Users() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Username
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Full Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Employee ID
+                      Email
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Role
@@ -159,26 +334,64 @@ export function Users() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {users.length === 0 ? (
+                  {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center">
+                      <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                        Loading users…
+                      </td>
+                    </tr>
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center">
                         <UsersIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">No users available</p>
                         <p className="text-sm text-gray-400 mt-1">Add users to manage system access</p>
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
+                    filteredUsers.map((user) => (
                       <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {user.username || "—"}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.fullName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.employeeId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {user.email || "—"}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.role}</td>
-                        <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">{user.status}</span></td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              user.status === "Active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {user.status}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastLogin}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                          <button className="text-red-600 hover:text-red-900">Delete</button>
+                          <button
+                            type="button"
+                            className="mr-2 inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-900"
+                            title="Edit user"
+                            onClick={() => {
+                              setEditError(null);
+                              setEditingUser(user);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-red-600 hover:text-red-900"
+                            onClick={() => handleDeactivateUser(user.id)}
+                            disabled={user.status === "Inactive"}
+                          >
+                            Deactivate
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -193,43 +406,114 @@ export function Users() {
           <div className="p-6">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">User Roles</h2>
-              <button className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleFormError(null);
+                  setIsAddRoleModalOpen(true);
+                }}
+                className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
                 <Plus className="w-4 h-4" />
                 Add Role
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {roles.map((role) => (
-                <div key={role.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-blue-600" />
-                      <h3 className="font-semibold text-gray-900">{role.name}</h3>
+            {loading ? (
+              <p className="text-gray-500 text-center py-8">Loading roles…</p>
+            ) : roles.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No roles yet. Add a role to get started.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {roles.map((role) => (
+                  <div
+                    key={role.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-blue-600" />
+                        <h3 className="font-semibold text-gray-900">{role.name}</h3>
+                      </div>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                        {role.userCount} users
+                      </span>
                     </div>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                      {role.userCount} users
-                    </span>
+                    <p className="text-sm text-gray-600 mb-3">{role.permissions || "—"}</p>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          setEditRoleError(null);
+                          setEditingRole(role);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                        onClick={() => setViewUsersForRole(role)}
+                      >
+                        View Users
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">{role.permissions}</p>
-                  <div className="flex gap-2">
-                    <button className="text-sm text-blue-600 hover:text-blue-800">Edit</button>
-                    <button className="text-sm text-gray-600 hover:text-gray-800">View Users</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
       <AddUserModal
         isOpen={isAddUserModalOpen}
-        onClose={() => setIsAddUserModalOpen(false)}
+        onClose={closeAddUserModal}
         onAddUser={handleAddUser}
+        roleNames={roleNames}
+        error={userFormError}
+        saving={savingUser}
+      />
+      <AddRoleModal
+        isOpen={isAddRoleModalOpen}
+        onClose={() => {
+          setIsAddRoleModalOpen(false);
+          setRoleFormError(null);
+        }}
+        onAddRole={handleAddRole}
+        error={roleFormError}
+        saving={savingRole}
       />
       <PermissionsModal
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
         onSave={handleSavePermissions}
+      />
+      <EditUserModal
+        isOpen={editingUser !== null}
+        user={editingUser}
+        onClose={closeEditModal}
+        onSave={handleSaveEditUser}
+        roleNames={
+          editingUser && !roleNames.includes(editingUser.role)
+            ? [...roleNames, editingUser.role]
+            : roleNames
+        }
+        error={editError}
+        saving={savingEdit}
+      />
+      <EditRoleModal
+        isOpen={editingRole !== null}
+        role={editingRole}
+        onClose={closeEditRoleModal}
+        onSave={handleSaveEditRole}
+        error={editRoleError}
+        saving={savingEditRole}
+      />
+      <ViewRoleUsersModal
+        isOpen={viewUsersForRole !== null}
+        onClose={() => setViewUsersForRole(null)}
+        roleName={viewUsersForRole?.name ?? ""}
+        users={viewUsersForRole ? users.filter((u) => u.role === viewUsersForRole.name) : []}
       />
     </div>
   );

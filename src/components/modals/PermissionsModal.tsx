@@ -99,7 +99,13 @@ export function PermissionsModal({
   };
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Select Allowed Modules" maxWidth="xl">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Select Allowed Modules"
+      maxWidth="full"
+      backdrop="none"
+    >
       <div className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {defaultModules.map(({ module, actions }) => (

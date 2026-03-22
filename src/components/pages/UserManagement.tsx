@@ -1,30 +1,61 @@
-import { Users, Shield, Settings, Activity, UserCheck, UserX, Clock, ArrowUpRight, Plus } from "lucide-react";
+import { Users, Shield, Settings, Activity, UserCheck, Clock, ArrowUpRight, Plus } from "lucide-react";
 import { Link } from "react-router";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
-import { AddRoleModal } from "../modals/AddRoleModal";
-import { PermissionsModal } from "../modals/PermissionsModal";
+import { api } from "@/services/api";
 
 export function UserManagement() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
-  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [userCount, setUserCount] = useState(0);
   const [roleCount, setRoleCount] = useState(0);
+  const [roleNames, setRoleNames] = useState<string[]>([]);
+  const [userFormError, setUserFormError] = useState<string | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
 
-  const handleAddUser = (user: { username: string; fullName: string; password: string; role: string }) => {
-    console.log('Adding user:', user);
-    setUserCount(prev => prev + 1);
+  const refreshCounts = useCallback(async () => {
+    try {
+      const [users, roles] = await Promise.all([api.getUsers(), api.getRoles()]);
+      setUserCount(users.length);
+      setRoleCount(roles.length);
+      setRoleNames(roles.map((r) => r.name));
+    } catch {
+      setRoleNames([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCounts();
+  }, [refreshCounts]);
+
+  const handleAddUser = async (user: {
+    username: string;
+    fullName: string;
+    email: string;
+    password: string;
+    role: string;
+    status: "Active" | "Inactive";
+  }) => {
+    setUserFormError(null);
+    setSavingUser(true);
+    try {
+      await api.createUser({
+        username: user.username.trim(),
+        full_name: user.fullName.trim(),
+        email: user.email.trim() || null,
+        password: user.password,
+        role: user.role,
+        permissions: {},
+        is_active: user.status === "Active",
+      });
+      setIsAddUserModalOpen(false);
+      await refreshCounts();
+    } catch (e) {
+      setUserFormError(e instanceof Error ? e.message : "Failed to create user");
+    } finally {
+      setSavingUser(false);
+    }
   };
 
-  const handleAddRole = (role: { name: string; permissions: string }) => {
-    console.log('Adding role:', role);
-    setRoleCount(prev => prev + 1);
-  };
-
-  const handleSavePermissions = (permissions: Record<string, string[]>) => {
-    console.log('Saving permissions:', permissions);
-  };
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -33,33 +64,17 @@ export function UserManagement() {
             <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
             <p className="text-gray-600 mt-1">Manage users, roles, and system access with comprehensive audit trails</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                console.log('Add User button clicked');
-                alert('Button clicked!');
-                setIsAddUserModalOpen(true);
-              }}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add User
-            </button>
-            <button
-              onClick={() => setIsAddRoleModalOpen(true)}
-              className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              <Shield className="w-4 h-4" />
-              Add Role
-            </button>
-            <button
-              onClick={() => setIsPermissionsModalOpen(true)}
-              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              Permissions
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setUserFormError(null);
+              setIsAddUserModalOpen(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add User
+          </button>
         </div>
       </div>
 
@@ -187,20 +202,14 @@ export function UserManagement() {
       </div>
       <AddUserModal
         isOpen={isAddUserModalOpen}
-        onClose={() => setIsAddUserModalOpen(false)}
+        onClose={() => {
+          setIsAddUserModalOpen(false);
+          setUserFormError(null);
+        }}
         onAddUser={handleAddUser}
-      />
-
-      <AddRoleModal
-        isOpen={isAddRoleModalOpen}
-        onClose={() => setIsAddRoleModalOpen(false)}
-        onAddRole={handleAddRole}
-      />
-
-      <PermissionsModal
-        isOpen={isPermissionsModalOpen}
-        onClose={() => setIsPermissionsModalOpen(false)}
-        onSave={handleSavePermissions}
+        roleNames={roleNames}
+        error={userFormError}
+        saving={savingUser}
       />
     </div>
   );
