@@ -15,7 +15,7 @@ import { Reports } from "./components/pages/Reports";
 import { UserManagement } from "./components/pages/UserManagement";
 import { Users } from "./components/pages/Users";
 import { AuditLog } from "./components/pages/AuditLog";
-import { POS } from "./components/pages/POS";
+import { POSManagement } from "./components/pages/POSManagement";
 import { NotFound } from "./components/pages/NotFound";
 
 export const router = createBrowserRouter([
@@ -45,7 +45,7 @@ export const router = createBrowserRouter([
       { path: "user-management", Component: UserManagement },
       { path: "users", Component: Users },
       { path: "audit-log", Component: AuditLog },
-      { path: "pos", Component: POS },
+      { path: "pos-management", Component: POSManagement },
       { path: "*", Component: NotFound },
     ],
   },

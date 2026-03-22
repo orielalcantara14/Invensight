@@ -8,8 +8,8 @@ export function Layout() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   const navigation = [
-    { name: "POS", path: "/pos", icon: Monitor },
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { name: "POS Management", path: "/pos-management", icon: Monitor },
     { name: "Sales", path: "/sales", icon: ShoppingCart },
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: PackageSearch },

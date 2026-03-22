@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, RefreshCw, AlertCircle } from "lucide-react";
 import { api } from "@/services/api";
-import type { Product, Category, Terminal, SaleResult } from "@/services/api";
+import type { Product, Category, Terminal } from "@/services/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -9,6 +9,17 @@ import type { Product, Category, Terminal, SaleResult } from "@/services/api";
 interface CartItem {
   product: Product;
   quantity: number;
+}
+
+interface SaleResult {
+  transaction_id: number;
+  invoice_number: string;
+  transaction_timestamp: string;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  cash_received: number;
+  change: number;
 }
 
 // ---------------------------------------------------------------------------
