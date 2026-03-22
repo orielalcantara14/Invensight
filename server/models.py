@@ -76,6 +76,13 @@ class RoleResponse(BaseModel):
     user_count: int
 
 
+class UserManagementStatsResponse(BaseModel):
+    """KPIs for the User Management dashboard."""
+
+    active_sessions: int
+    audit_log_count: int
+
+
 class CreateRoleRequest(BaseModel):
     name: str
     permissions: str = ""
@@ -99,3 +106,39 @@ class LoginResponse(BaseModel):
     full_name: str
     employee_id: int
     role: str
+    email: Optional[str] = None
+
+
+class ProfileResponse(BaseModel):
+    user_id: int
+    username: str
+    full_name: str
+    email: Optional[str] = None
+    role: str
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    bio: Optional[str] = None
+    employee_id: int
+    created_date: Optional[str] = None
+    last_login: Optional[str] = None
+    password_changed_at: Optional[str] = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    bio: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class ActivityItem(BaseModel):
+    log_id: int
+    action: str
+    details: Optional[str] = None
+    timestamp: str

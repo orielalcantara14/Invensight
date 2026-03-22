@@ -1,10 +1,19 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.products import router as products_router
 from routers.sales import router as sales_router
 from routers.users import router as users_router
 from routers.auth import router as auth_router
-from database import get_connection
+from routers.profile import router as profile_router
+from database import get_connection, verify_database_connection
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger("invensight.main")
 
 app = FastAPI(title="InvenSight API", version="1.0.0")
 
@@ -21,6 +30,7 @@ app.include_router(products_router, prefix="/api")
 app.include_router(sales_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
 
 DEFAULT_ROLE_TEMPLATES = [
     ("Administrator", "Full system access, user management, reports"),
@@ -28,6 +38,12 @@ DEFAULT_ROLE_TEMPLATES = [
     ("Sales Staff", "Sales transactions, customer info"),
     ("Warehouse Staff", "Inventory, stock movements"),
 ]
+
+
+@app.on_event("startup")
+def connect_database_on_startup():
+    """Verify PostgreSQL is up as soon as the API starts (auto-connect)."""
+    verify_database_connection()
 
 
 @app.on_event("startup")
@@ -69,6 +85,16 @@ def ensure_users_roles_schema():
                 ON users (LOWER(username))
                 WHERE username IS NOT NULL AND TRIM(username) <> ''
                 """
+            )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(80)"
+            )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT"
+            )
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at DATE"
             )
             conn.commit()
     finally:

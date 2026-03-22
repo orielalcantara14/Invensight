@@ -8,6 +8,8 @@ export function UserManagement() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [userCount, setUserCount] = useState(0);
   const [roleCount, setRoleCount] = useState(0);
+  const [activeSessions, setActiveSessions] = useState(0);
+  const [auditLogCount, setAuditLogCount] = useState(0);
   const [roleNames, setRoleNames] = useState<string[]>([]);
   const [userFormError, setUserFormError] = useState<string | null>(null);
   const [savingUser, setSavingUser] = useState(false);
@@ -20,6 +22,14 @@ export function UserManagement() {
       setRoleNames(roles.map((r) => r.name));
     } catch {
       setRoleNames([]);
+    }
+    try {
+      const stats = await api.getUserManagementStats();
+      setActiveSessions(stats.active_sessions);
+      setAuditLogCount(stats.audit_log_count);
+    } catch {
+      setActiveSessions(0);
+      setAuditLogCount(0);
     }
   }, []);
 
@@ -111,8 +121,8 @@ export function UserManagement() {
             <span className="text-gray-600">Audit Logs</span>
             <Activity className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">0</div>
-          <div className="text-sm text-gray-500 mt-1">Recent activities</div>
+          <div className="text-3xl font-bold text-gray-900">{auditLogCount}</div>
+          <div className="text-sm text-gray-500 mt-1">Recorded in audit log</div>
         </div>
       </div>
 

@@ -104,6 +104,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function requestWithUser<T>(
+  userId: number,
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "X-User-Id": String(userId),
+      ...(options?.headers as Record<string, string> | undefined),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(formatApiError(err.detail));
+  }
+  return res.json() as Promise<T>;
+}
+
 export interface ApiUser {
   id: number;
   username: string;
@@ -163,6 +183,42 @@ export interface LoginResult {
   full_name: string;
   employee_id: number;
   role: string;
+  email?: string | null;
+}
+
+export interface Profile {
+  user_id: number;
+  username: string;
+  full_name: string;
+  email: string | null;
+  role: string;
+  phone: string | null;
+  address: string | null;
+  bio: string | null;
+  employee_id: number;
+  created_date: string | null;
+  last_login: string | null;
+  password_changed_at: string | null;
+}
+
+export interface ProfileUpdatePayload {
+  full_name?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  bio?: string | null;
+}
+
+export interface ProfileActivityItem {
+  log_id: number;
+  action: string;
+  details: string | null;
+  timestamp: string;
+}
+
+export interface UserManagementStats {
+  active_sessions: number;
+  audit_log_count: number;
 }
 
 export const api = {
@@ -198,6 +254,8 @@ export const api = {
     }),
 
   getUsers: () => request<ApiUser[]>("/api/users"),
+  getUserManagementStats: () =>
+    request<UserManagementStats>("/api/user-management-stats"),
   createUser: (payload: CreateUserPayload) =>
     request<ApiUser>("/api/users", {
       method: "POST",
@@ -228,4 +286,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  getProfile: (userId: number) =>
+    requestWithUser<Profile>(userId, "/api/profile"),
+  updateProfile: (userId: number, payload: ProfileUpdatePayload) =>
+    requestWithUser<Profile>(userId, "/api/profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  changePassword: (
+    userId: number,
+    payload: { current_password: string; new_password: string }
+  ) =>
+    requestWithUser<{ ok: boolean }>(userId, "/api/profile/change-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getProfileActivity: (userId: number, limit = 10) =>
+    requestWithUser<ProfileActivityItem[]>(
+      userId,
+      `/api/profile/activity?limit=${encodeURIComponent(String(limit))}`
+    ),
 };

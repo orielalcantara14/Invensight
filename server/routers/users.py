@@ -7,6 +7,7 @@ from models import (
     UpdateUserRequest,
     UserResponse,
     RoleResponse,
+    UserManagementStatsResponse,
 )
 import psycopg2.extras
 import bcrypt
@@ -14,6 +15,36 @@ import json
 from datetime import date
 
 router = APIRouter()
+
+
+@router.get("/user-management-stats", response_model=UserManagementStatsResponse)
+def user_management_stats():
+    """
+    Active sessions: active users whose last_login date is today (server date).
+    Matches `last_login` updates on sign-in (auth router sets CURRENT_DATE).
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*)::int AS c
+                FROM users
+                WHERE is_active = true
+                  AND last_login IS NOT NULL
+                  AND last_login = CURRENT_DATE
+                """
+            )
+            active_sessions = cur.fetchone()["c"]
+            cur.execute("SELECT COUNT(*)::int AS c FROM auditlog")
+            audit_log_count = cur.fetchone()["c"]
+    finally:
+        conn.close()
+
+    return UserManagementStatsResponse(
+        active_sessions=active_sessions,
+        audit_log_count=audit_log_count,
+    )
 
 
 def _hash_password(plain: str) -> str:

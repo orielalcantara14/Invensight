@@ -17,6 +17,7 @@ import { UserManagement } from "./components/pages/UserManagement";
 import { Users } from "./components/pages/Users";
 import { AuditLog } from "./components/pages/AuditLog";
 import { POSManagement } from "./components/pages/POSManagement";
+import { Profile } from "./components/pages/Profile";
 import { NotFound } from "./components/pages/NotFound";
 
 function RootLayout() {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "users", Component: Users },
       { path: "audit-log", Component: AuditLog },
       { path: "pos-management", Component: POSManagement },
+      { path: "profile", Component: Profile },
       { path: "*", Component: NotFound },
     ],
   },

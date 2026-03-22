@@ -32,7 +32,7 @@ def login(body: LoginRequest):
             row = None
             cur.execute(
                 """
-                SELECT user_id, username, full_name, employee_id, role, is_active, password_hash
+                SELECT user_id, username, full_name, employee_id, role, is_active, password_hash, email
                 FROM users
                 WHERE username IS NOT NULL AND TRIM(username) <> ''
                   AND LOWER(username) = LOWER(%s)
@@ -46,7 +46,7 @@ def login(body: LoginRequest):
                 if eid is not None:
                     cur.execute(
                         """
-                        SELECT user_id, username, full_name, employee_id, role, is_active, password_hash
+                        SELECT user_id, username, full_name, employee_id, role, is_active, password_hash, email
                         FROM users
                         WHERE employee_id = %s
                         """,
@@ -75,6 +75,19 @@ def login(body: LoginRequest):
                 "UPDATE users SET last_login = CURRENT_DATE WHERE user_id = %s",
                 (row["user_id"],),
             )
+            cur.execute(
+                """
+                INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                VALUES (%s, %s, %s, %s, NOW(), %s)
+                """,
+                (
+                    row["user_id"],
+                    "LOGIN",
+                    "user",
+                    row["user_id"],
+                    f"User signed in: {row.get('username') or row['user_id']}",
+                ),
+            )
             conn.commit()
 
             return LoginResponse(
@@ -83,6 +96,7 @@ def login(body: LoginRequest):
                 full_name=row["full_name"],
                 employee_id=row["employee_id"],
                 role=row["role"],
+                email=row.get("email"),
             )
     except HTTPException:
         conn.rollback()

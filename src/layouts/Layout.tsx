@@ -1,6 +1,25 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, ShoppingCart, Package, TrendingUp, AlertTriangle, Menu, Users, FileText, Truck, Settings, History, BarChart3, PackageSearch, LogOut, ChevronDown, ChevronRight, Monitor } from "lucide-react";
-import { useState } from "react";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  TrendingUp,
+  AlertTriangle,
+  Menu,
+  Users,
+  FileText,
+  Truck,
+  Settings,
+  History,
+  BarChart3,
+  PackageSearch,
+  LogOut,
+  ChevronDown,
+  Monitor,
+  Bell,
+  User,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { clearSession, getSession } from "@/auth/session";
 
 export function Layout() {
@@ -9,6 +28,25 @@ export function Layout() {
   const session = getSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const displayName = session?.full_name?.trim() || session?.username || "User";
+  const roleLabel = session?.role || "—";
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(e.target as Node)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [notificationsOpen]);
 
   const navigation = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -178,10 +216,100 @@ export function Layout() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Top header — profile, notifications, settings */}
+        <header className="flex h-16 flex-shrink-0 items-center justify-end gap-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Single profile card: avatar, name, role, notifications (matches profile page reference) */}
+            <div className="flex items-center gap-0 rounded-xl border border-gray-200 bg-white py-2 pl-3 pr-2 shadow-sm sm:pl-4 sm:pr-3">
+              <Link
+                to="/profile"
+                className="flex min-w-0 max-w-[min(100vw-12rem,16rem)] items-center gap-3 pr-2 transition-colors hover:opacity-90 sm:max-w-[18rem]"
+                title="My profile"
+              >
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-violet-500 to-blue-600 text-white shadow-sm ring-2 ring-white">
+                  <User className="h-5 w-5" strokeWidth={2} />
+                </div>
+                <div className="hidden min-w-0 text-left sm:block">
+                  <p className="truncate text-sm font-semibold leading-tight text-gray-900">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-slate-500">{roleLabel}</p>
+                </div>
+              </Link>
+
+              <div className="relative flex items-center" ref={notificationsRef}>
+                <button
+                  type="button"
+                  onClick={() => setNotificationsOpen((o) => !o)}
+                  className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-gray-50 hover:text-slate-800"
+                  aria-expanded={notificationsOpen}
+                  aria-haspopup="true"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-5 w-5" strokeWidth={2} />
+                  <span className="absolute -right-0.5 -top-0.5 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                    5
+                  </span>
+                </button>
+
+              {notificationsOpen ? (
+                <div
+                  className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,20rem)] rounded-xl border border-gray-200 bg-white py-2 shadow-lg ring-1 ring-black/5"
+                  role="dialog"
+                  aria-label="Notifications"
+                >
+                  <div className="border-b border-gray-100 px-4 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Notifications
+                    </p>
+                  </div>
+                  <ul className="max-h-72 overflow-y-auto text-sm">
+                    {[
+                      "Low stock: 3 items below reorder level",
+                      "New order #1042 pending confirmation",
+                      "Weekly sales report is ready",
+                      "Backup completed successfully",
+                      "System maintenance scheduled Sunday 2am",
+                    ].map((text, i) => (
+                      <li
+                        key={i}
+                        className="border-b border-gray-50 px-4 py-3 last:border-0 hover:bg-gray-50"
+                      >
+                        <p className="text-gray-800">{text}</p>
+                        <p className="mt-0.5 text-xs text-gray-400">Just now</p>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="border-t border-gray-100 px-4 py-2">
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                      onClick={() => setNotificationsOpen(false)}
+                    >
+                      Mark all as read
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              </div>
+            </div>
+
+            <Link
+              to="/user-management"
+              className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              title="Settings & user management"
+              aria-label="Settings"
+            >
+              <Settings className="h-5 w-5" strokeWidth={2} />
+            </Link>
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
