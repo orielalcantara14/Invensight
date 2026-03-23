@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException
+import os
+import secrets
+from typing import Optional
+
+from fastapi import APIRouter, Header, HTTPException
 from database import get_connection
 from models import (
     CreateUserRequest,
@@ -13,8 +17,38 @@ import psycopg2.extras
 import bcrypt
 import json
 from datetime import date
+from pydantic import BaseModel
 
 router = APIRouter()
+
+ROOT_ADMIN_USERNAME_ENV = "ROOT_ADMIN_USERNAME"
+ROOT_ADMIN_KEY_ENV = "ROOT_ADMIN_KEY"
+
+
+def _root_admin_username() -> str:
+    return os.getenv(ROOT_ADMIN_USERNAME_ENV, "rootadmin").strip().lower()
+
+
+def _is_root_admin_username(username: str | None) -> bool:
+    if not username:
+        return False
+    return username.strip().lower() == _root_admin_username()
+
+
+def _require_root_admin_key(x_root_admin_key: str | None) -> None:
+    expected = os.getenv(ROOT_ADMIN_KEY_ENV, "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=501,
+            detail=f"{ROOT_ADMIN_KEY_ENV} is not configured on the server",
+        )
+    if not x_root_admin_key or not secrets.compare_digest(x_root_admin_key, expected):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+class RootAdminResetRequest(BaseModel):
+    new_password: str
+    new_username: Optional[str] = None
 
 
 @router.get("/user-management-stats", response_model=UserManagementStatsResponse)
@@ -33,7 +67,10 @@ def user_management_stats():
                 WHERE is_active = true
                   AND last_login IS NOT NULL
                   AND last_login = CURRENT_DATE
+                  AND (username IS NULL OR LOWER(TRIM(username)) <> %s)
                 """
+                ,
+                (_root_admin_username(),),
             )
             active_sessions = cur.fetchone()["c"]
             cur.execute("SELECT COUNT(*)::int AS c FROM auditlog")
@@ -60,8 +97,11 @@ def list_users():
                 """
                 SELECT user_id, username, full_name, employee_id, role, is_active, last_login, email
                 FROM users
+                WHERE (username IS NULL OR LOWER(TRIM(username)) <> %s)
                 ORDER BY user_id
                 """
+                ,
+                (_root_admin_username(),),
             )
             rows = cur.fetchall()
     finally:
@@ -89,6 +129,8 @@ def list_users():
 def create_user(body: CreateUserRequest):
     if not body.username.strip():
         raise HTTPException(status_code=400, detail="Username is required")
+    if _is_root_admin_username(body.username):
+        raise HTTPException(status_code=403, detail="This username is reserved")
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -169,18 +211,29 @@ def create_user(body: CreateUserRequest):
 
 
 @router.patch("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, body: UpdateUserRequest):
+def update_user(
+    user_id: int,
+    body: UpdateUserRequest,
+    x_root_admin_key: str | None = Header(default=None, alias="X-Root-Admin-Key"),
+):
     uname = body.username.strip()
     if not uname:
         raise HTTPException(status_code=400, detail="Username is required")
+    if _is_root_admin_username(uname):
+        raise HTTPException(status_code=403, detail="This username is reserved")
 
     conn = get_connection()
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
-            if not cur.fetchone():
+            cur.execute(
+                "SELECT user_id, username FROM users WHERE user_id = %s", (user_id,)
+            )
+            existing = cur.fetchone()
+            if not existing:
                 raise HTTPException(status_code=404, detail="User not found")
+            if _is_root_admin_username(existing.get("username")):
+                _require_root_admin_key(x_root_admin_key)
 
             cur.execute(
                 """
@@ -277,11 +330,23 @@ def update_user(user_id: int, body: UpdateUserRequest):
 
 
 @router.delete("/users/{user_id}")
-def deactivate_user(user_id: int):
+def deactivate_user(
+    user_id: int,
+    x_root_admin_key: str | None = Header(default=None, alias="X-Root-Admin-Key"),
+):
     conn = get_connection()
     try:
         conn.autocommit = False
-        with conn.cursor() as cur:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT user_id, username FROM users WHERE user_id = %s",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="User not found")
+            if _is_root_admin_username(row.get("username")):
+                _require_root_admin_key(x_root_admin_key)
             cur.execute(
                 "UPDATE users SET is_active = false WHERE user_id = %s RETURNING user_id",
                 (user_id,),
@@ -312,11 +377,14 @@ def list_roles():
                        (
                          SELECT COUNT(*)::int FROM users u
                          WHERE u.role = r.role_name
+                           AND (u.username IS NULL OR LOWER(TRIM(u.username)) <> %s)
                        ) AS user_count
                 FROM roles r
                 WHERE r.user_id IS NULL
                 ORDER BY r.role_name
                 """
+                ,
+                (_root_admin_username(),),
             )
             rows = cur.fetchall()
     finally:
@@ -463,3 +531,84 @@ def update_role(role_id: int, body: UpdateRoleRequest):
         permissions=row["permissions_text"] or "",
         user_count=user_count,
     )
+
+
+@router.post("/root-admin/reset")
+def reset_root_admin(
+    body: RootAdminResetRequest,
+    x_root_admin_key: str | None = Header(default=None, alias="X-Root-Admin-Key"),
+):
+    _require_root_admin_key(x_root_admin_key)
+
+    new_pw = (body.new_password or "").strip()
+    if len(new_pw) < 12:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters")
+
+    new_uname = (body.new_username or "").strip()
+    if new_uname and len(new_uname) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+
+    conn = get_connection()
+    try:
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT user_id, username
+                FROM users
+                WHERE username IS NOT NULL AND LOWER(TRIM(username)) = %s
+                """,
+                (_root_admin_username(),),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Root admin account not found")
+
+            pwd_hash = _hash_password(new_pw)
+
+            if new_uname:
+                cur.execute(
+                    """
+                    SELECT 1 FROM users
+                    WHERE user_id <> %s
+                      AND username IS NOT NULL AND TRIM(username) <> ''
+                      AND LOWER(TRIM(username)) = LOWER(TRIM(%s))
+                    """,
+                    (row["user_id"], new_uname),
+                )
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail="Username already taken")
+
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET username = %s,
+                        password_hash = %s
+                    WHERE user_id = %s
+                    RETURNING user_id, username
+                    """,
+                    (new_uname, pwd_hash, row["user_id"]),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET password_hash = %s
+                    WHERE user_id = %s
+                    RETURNING user_id, username
+                    """,
+                    (pwd_hash, row["user_id"]),
+                )
+
+            out = cur.fetchone()
+            conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return {"ok": True, "user_id": out["user_id"], "username": out["username"]}
