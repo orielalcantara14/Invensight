@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fTc7T1qsekLwzcxQYCm4i3maUa6dez0FM3WO7sfj8u708KF5iRs3tBraIeLWpWF
+\restrict 5BPsDXCO17aOqiXdsNVEjTcnuPbM5eaWQe0JsbwH2cNtu7Y2Zprcog4HRUhQ8Qm
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -343,9 +343,7 @@ CREATE TABLE public.users (
     username character varying(100),
     permissions_json jsonb DEFAULT '{}'::jsonb,
     email character varying(255),
-    phone character varying(80),
     address text,
-    bio text,
     password_changed_at date
 );
 
@@ -365,6 +363,15 @@ COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestam
 6	1	LOGIN	user	1	2026-03-23 13:22:06.60137	User signed in: Totoyz
 7	1	LOGIN	user	1	2026-03-23 14:55:19.193808	User signed in: Totoyz
 8	1	LOGIN	user	1	2026-03-23 15:40:57.186436	User signed in: Totoyz
+9	3	LOGIN	user	3	2026-03-24 00:25:36.873878	User signed in: rootadmin
+10	3	LOGIN	user	3	2026-03-24 00:35:14.989918	User signed in: rootadmin
+11	3	LOGIN	user	3	2026-03-24 00:35:48.242931	User signed in: rootadmin
+12	3	LOGIN	user	3	2026-03-24 00:43:48.495532	User signed in: rootadmin
+13	3	LOGIN	user	3	2026-03-24 00:45:57.731507	User signed in: rootadmin
+14	1	LOGIN	user	1	2026-03-24 03:08:34.858653	User signed in: Totoyz
+15	3	LOGIN	user	3	2026-03-24 03:44:52.922126	User signed in: rootadmin
+16	5	LOGIN	user	5	2026-03-24 03:48:17.599491	User signed in: totoy
+17	3	LOGIN	user	3	2026-03-24 03:53:08.776222	User signed in: rootadmin
 \.
 
 
@@ -479,7 +486,6 @@ COPY public.roles (role_id, role_name, user_id, permissions_text) FROM stdin;
 2	Manager	\N	Sales, inventory, forecasting, reports
 3	Sales Staff	\N	Sales transactions, customer info
 4	Warehouse Staff	\N	Inventory, stock movements
-5	Test	\N	stes
 1	Administrator	\N	Full Access System
 \.
 
@@ -520,9 +526,12 @@ COPY public.supplier (supplier_id, supplier_name, address, email, contact_number
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, phone, address, bio, password_changed_at) FROM stdin;
-2	2	$2b$12$XuFpm98uP7//jZOtcROuBuDMBBHVhzILQjE9j5IQE5sGV08MYZh1S	cedie logatoc	Administrator	t	2026-03-23	2026-03-23	Halcrow01	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	cedie@gmail.com	\N	\N	\N	2026-03-23
-1	1	$2b$12$LYyJ42XcOiBI7RLQ9tUE8el6mUWJ9MvwRzSo.Fse59RGXRN39HZfG	John Rovhic Sohitado	Administrator	t	2026-03-22	2026-03-23	Totoyz	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	rovhicsohitado@gmail.com	\N	\N	\N	2026-03-23
+COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at) FROM stdin;
+2	2	$2b$12$XuFpm98uP7//jZOtcROuBuDMBBHVhzILQjE9j5IQE5sGV08MYZh1S	cedie logatoc	Administrator	t	2026-03-23	2026-03-23	Halcrow01	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	cedie@gmail.com	\N	2026-03-23
+3	3	$2b$12$3xZlCn0UHFfPbqYfJqJsUex22aJBxj1vV0I/DqDVrllhMSXvKSnQu	Root Admin	Administrator	t	2026-03-24	2026-03-24	rootadmin	{}	\N	\N	\N
+1	1	$2b$12$LYyJ42XcOiBI7RLQ9tUE8el6mUWJ9MvwRzSo.Fse59RGXRN39HZfG	John Rovhic Sohitado	Administrator	t	2026-03-22	2026-03-24	Totoyz	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	rovhicsohitado@gmail.com	\N	2026-03-23
+4	4	$2b$12$SyXMYvr7HmjdlHvmu1QP.uY6qNKOcT7hKWWEMd18WYf7w9b/mMBJm	John Doe	Administrator	f	2026-03-24	\N	Robek	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Role Permissions": ["View", "Create", "Edit", "Delete"], "Stock Prediction": ["View", "Run Prediction"]}	Test@gmail.com	\N	\N
+5	5	$2b$12$dxkNFfKECOqzjljE0C3SZumwEFF8va51ie2qzHDasyTsqDUosESqi	John Doe	Manager	t	2026-03-24	2026-03-24	totoy	{"Products": ["View", "Add Product", "Edit", "Delete"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Product Return": ["View", "Process Return", "Edit"], "Stock Prediction": ["View", "Run Prediction"]}	John@gmail.com	\N	\N
 \.
 
 
@@ -530,7 +539,7 @@ COPY public.users (user_id, employee_id, password_hash, full_name, role, is_acti
 -- Name: auditlog_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.auditlog_log_id_seq', 8, true);
+SELECT pg_catalog.setval('public.auditlog_log_id_seq', 17, true);
 
 
 --
@@ -896,5 +905,5 @@ ALTER TABLE ONLY public.stockmovements
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fTc7T1qsekLwzcxQYCm4i3maUa6dez0FM3WO7sfj8u708KF5iRs3tBraIeLWpWF
+\unrestrict 5BPsDXCO17aOqiXdsNVEjTcnuPbM5eaWQe0JsbwH2cNtu7Y2Zprcog4HRUhQ8Qm
 

@@ -104,6 +104,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function requestAsActor<T>(
+  actorUserId: number,
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Actor-User-Id": String(actorUserId),
+      ...(options?.headers as Record<string, string> | undefined),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Request failed" }));
+    throw new Error(formatApiError(err.detail));
+  }
+  return res.json() as Promise<T>;
+}
+
 async function requestWithUser<T>(
   userId: number,
   path: string,
@@ -192,9 +212,7 @@ export interface Profile {
   full_name: string;
   email: string | null;
   role: string;
-  phone: string | null;
   address: string | null;
-  bio: string | null;
   employee_id: number;
   created_date: string | null;
   last_login: string | null;
@@ -204,9 +222,7 @@ export interface Profile {
 export interface ProfileUpdatePayload {
   full_name?: string;
   email?: string | null;
-  phone?: string | null;
   address?: string | null;
-  bio?: string | null;
 }
 
 export interface ProfileActivityItem {
@@ -256,29 +272,35 @@ export const api = {
   getUsers: () => request<ApiUser[]>("/api/users"),
   getUserManagementStats: () =>
     request<UserManagementStats>("/api/user-management-stats"),
-  createUser: (payload: CreateUserPayload) =>
-    request<ApiUser>("/api/users", {
+  createUser: (payload: CreateUserPayload, actorUserId: number) =>
+    requestAsActor<ApiUser>(actorUserId, "/api/users", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateUser: (userId: number, payload: UpdateUserPayload) =>
-    request<ApiUser>(`/api/users/${userId}`, {
+  updateUser: (userId: number, payload: UpdateUserPayload, actorUserId: number) =>
+    requestAsActor<ApiUser>(actorUserId, `/api/users/${userId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  deactivateUser: (userId: number) =>
-    request<{ ok: boolean }>(`/api/users/${userId}`, { method: "DELETE" }),
+  deactivateUser: (userId: number, actorUserId: number) =>
+    requestAsActor<{ ok: boolean }>(actorUserId, `/api/users/${userId}`, {
+      method: "DELETE",
+    }),
 
   getRoles: () => request<ApiRole[]>("/api/roles"),
-  createRole: (payload: CreateRolePayload) =>
-    request<ApiRole>("/api/roles", {
+  createRole: (payload: CreateRolePayload, actorUserId: number) =>
+    requestAsActor<ApiRole>(actorUserId, "/api/roles", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateRole: (roleId: number, payload: UpdateRolePayload) =>
-    request<ApiRole>(`/api/roles/${roleId}`, {
+  updateRole: (roleId: number, payload: UpdateRolePayload, actorUserId: number) =>
+    requestAsActor<ApiRole>(actorUserId, `/api/roles/${roleId}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
+    }),
+  deleteRole: (roleId: number, actorUserId: number) =>
+    requestAsActor<{ ok: boolean }>(actorUserId, `/api/roles/${roleId}`, {
+      method: "DELETE",
     }),
 
   login: (payload: LoginPayload) =>

@@ -20,7 +20,7 @@ class CreateSaleRequest(BaseModel):
 class CreatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    description: str = ""
+    description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     category_id: Optional[int] = None
     pos_price: float
@@ -31,7 +31,7 @@ class CreatePosProductRequest(BaseModel):
 class UpdatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    description: str = ""
+    description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     category_id: Optional[int] = None
     pos_price: float
@@ -115,9 +115,7 @@ class ProfileResponse(BaseModel):
     full_name: str
     email: Optional[str] = None
     role: str
-    phone: Optional[str] = None
     address: Optional[str] = None
-    bio: Optional[str] = None
     employee_id: int
     created_date: Optional[str] = None
     last_login: Optional[str] = None
@@ -127,9 +125,7 @@ class ProfileResponse(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
-    phone: Optional[str] = None
     address: Optional[str] = None
-    bio: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):

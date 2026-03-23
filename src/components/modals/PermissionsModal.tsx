@@ -12,6 +12,8 @@ interface PermissionsModalProps {
   onClose: () => void;
   onSave: (permissions: Record<string, string[]>) => void;
   initialPermissions?: Record<string, string[]>;
+  primaryLabel?: string;
+  saving?: boolean;
 }
 
 const defaultModules: Permission[] = [
@@ -22,6 +24,7 @@ const defaultModules: Permission[] = [
   { module: 'Reports', actions: ['View', 'Generate Report'] },
   { module: 'Stock Movements', actions: ['View', 'Add Movement', 'Edit'] },
   { module: 'User Management', actions: ['View', 'Add User', 'Edit User', 'Delete User'] },
+  { module: 'Role Permissions', actions: ['View', 'Create', 'Edit', 'Delete'] },
   { module: 'Forecasting', actions: ['View', 'Generate Forecast'] },
   { module: 'Stock Prediction', actions: ['View', 'Run Prediction'] },
   { module: 'Audit Log', actions: ['View', 'Export'] },
@@ -33,20 +36,26 @@ export function PermissionsModal({
   isOpen, 
   onClose, 
   onSave,
-  initialPermissions = {}
+  initialPermissions = {},
+  primaryLabel = 'Next',
+  saving = false,
 }: PermissionsModalProps) {
   const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     if (isOpen) {
-      // Initialize with all permissions checked by default
-      const allPermissions: Record<string, string[]> = {};
-      defaultModules.forEach(({ module, actions }) => {
-        allPermissions[module] = actions;
-      });
-      setSelectedPermissions(allPermissions);
+      // Initialize from provided permissions; if empty, default to all checked.
+      if (Object.keys(initialPermissions).length > 0) {
+        setSelectedPermissions(initialPermissions);
+      } else {
+        const allPermissions: Record<string, string[]> = {};
+        defaultModules.forEach(({ module, actions }) => {
+          allPermissions[module] = actions;
+        });
+        setSelectedPermissions(allPermissions);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialPermissions]);
 
   const handleModuleToggle = (module: string) => {
     setSelectedPermissions(prev => {
@@ -103,11 +112,12 @@ export function PermissionsModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Select Allowed Modules"
-      maxWidth="full"
-      backdrop="none"
+      maxWidth="xl"
+      backdrop="dim"
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="max-h-[58vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {defaultModules.map(({ module, actions }) => (
             <div key={module} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               {/* Module Header */}
@@ -162,6 +172,7 @@ export function PermissionsModal({
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* Buttons */}
@@ -169,6 +180,7 @@ export function PermissionsModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
           >
             Cancel
@@ -176,9 +188,10 @@ export function PermissionsModal({
           <button
             type="button"
             onClick={handleSave}
+            disabled={saving}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
           >
-            Next
+            {saving ? 'Saving…' : primaryLabel}
           </button>
         </div>
       </div>

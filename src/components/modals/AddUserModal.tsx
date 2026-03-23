@@ -16,6 +16,7 @@ interface AddUserModalProps {
   roleNames?: string[];
   error?: string | null;
   saving?: boolean;
+  submitLabel?: string;
 }
 
 export function AddUserModal({
@@ -25,6 +26,7 @@ export function AddUserModal({
   roleNames = [],
   error = null,
   saving = false,
+  submitLabel = 'Add User',
 }: AddUserModalProps) {
   const [formData, setFormData] = useState({
     username: '',
@@ -193,7 +195,7 @@ export function AddUserModal({
             disabled={saving || roleNames.length === 0}
             className="flex-1 rounded-lg bg-gray-900 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Add User'}
+            {saving ? 'Saving…' : submitLabel}
           </button>
         </div>
       </form>

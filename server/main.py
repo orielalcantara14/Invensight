@@ -87,12 +87,10 @@ def ensure_users_roles_schema():
                 """
             )
             cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(80)"
-            )
-            cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT"
             )
-            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+            cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS phone")
+            cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS bio")
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at DATE"
             )

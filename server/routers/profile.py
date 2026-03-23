@@ -34,9 +34,7 @@ def _row_to_profile(r: dict) -> ProfileResponse:
         full_name=r["full_name"],
         email=r.get("email"),
         role=r["role"],
-        phone=r.get("phone"),
         address=r.get("address"),
-        bio=r.get("bio"),
         employee_id=r["employee_id"],
         created_date=cd.isoformat() if cd else None,
         last_login=ll.isoformat() if ll else None,
@@ -51,7 +49,7 @@ def get_profile(user_id: int = Depends(get_request_user_id)):
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT user_id, username, full_name, email, role, phone, address, bio,
+                SELECT user_id, username, full_name, email, role, address,
                        employee_id, created_date, last_login, password_changed_at, is_active
                 FROM users WHERE user_id = %s
                 """,
@@ -105,15 +103,9 @@ def update_profile(
                         )
                 updates.append("email = %s")
                 params.append(email)
-            if body.phone is not None:
-                updates.append("phone = %s")
-                params.append((body.phone or "").strip() or None)
             if body.address is not None:
                 updates.append("address = %s")
                 params.append((body.address or "").strip() or None)
-            if body.bio is not None:
-                updates.append("bio = %s")
-                params.append((body.bio or "").strip() or None)
 
             if not updates:
                 raise HTTPException(status_code=400, detail="No fields to update")
@@ -123,7 +115,7 @@ def update_profile(
                 f"""
                 UPDATE users SET {", ".join(updates)}
                 WHERE user_id = %s
-                RETURNING user_id, username, full_name, email, role, phone, address, bio,
+                RETURNING user_id, username, full_name, email, role, address,
                           employee_id, created_date, last_login, password_changed_at
                 """,
                 tuple(params),

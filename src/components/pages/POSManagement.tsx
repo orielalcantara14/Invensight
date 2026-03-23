@@ -29,6 +29,7 @@ type FormState = {
   stock: string;
   status: "Active" | "Archived";
 };
+const MAX_DESCRIPTION_LENGTH = 500;
 
 const initialForm: FormState = {
   sku: "",
@@ -149,6 +150,10 @@ export function POSManagement() {
     }
     if (!Number.isInteger(Number(form.stock)) || Number(form.stock) < 0) {
       toast.error("Stock must be a valid non-negative integer.");
+      return false;
+    }
+    if (form.description.trim().length > MAX_DESCRIPTION_LENGTH) {
+      toast.error(`Description must not exceed ${MAX_DESCRIPTION_LENGTH} characters.`);
       return false;
     }
     return true;
@@ -404,8 +409,18 @@ export function POSManagement() {
               <Textarea
                 id="description"
                 value={form.description}
-                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                className="break-all whitespace-pre-wrap"
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH),
+                  }))
+                }
               />
+              <p className="text-xs text-gray-500 text-right">
+                {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="product-image">Product Image</Label>

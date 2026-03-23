@@ -3,9 +3,6 @@ import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, RefreshCw, AlertCir
 import { api } from "@/services/api";
 import type { Product, Category, Terminal } from "@/services/api";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 interface CartItem {
   product: Product;
   quantity: number;
@@ -22,25 +19,16 @@ interface SaleResult {
   change: number;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 const TAX_RATE = 0.12;
 const CATALOG_REFRESH_INTERVAL_MS = 15000;
 
 // TODO: replace with real auth context once login is wired up
 const CURRENT_USER = { user_id: 1, full_name: "Admin" };
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 function fmt(n: number) {
   return n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ---------------------------------------------------------------------------
-// Receipt component (matches the thermal-printer photo format)
-// ---------------------------------------------------------------------------
 interface ReceiptProps {
   result: SaleResult;
   cartItems: CartItem[];
@@ -137,9 +125,6 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Checkout modal
-// ---------------------------------------------------------------------------
 interface CheckoutModalProps {
   subtotal: number;
   taxAmount: number;

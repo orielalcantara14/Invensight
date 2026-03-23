@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
 import { api } from "@/services/api";
+import { getSession } from "@/auth/session";
 
 export function UserManagement() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -13,6 +14,16 @@ export function UserManagement() {
   const [roleNames, setRoleNames] = useState<string[]>([]);
   const [userFormError, setUserFormError] = useState<string | null>(null);
   const [savingUser, setSavingUser] = useState(false);
+  const session = getSession();
+  const currentRole = (session?.role ?? "").trim().toLowerCase();
+  const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadmin";
+  const isAdministrator = currentRole === "administrator";
+  const canManageAccounts = isRootAdmin || isAdministrator;
+  const allowedCreateRoleKeys = isRootAdmin
+    ? ["administrator", "manager", "sales staff"]
+    : isAdministrator
+      ? ["manager", "sales staff"]
+      : [];
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -45,6 +56,14 @@ export function UserManagement() {
     role: string;
     status: "Active" | "Inactive";
   }) => {
+    if (!canManageAccounts) {
+      setUserFormError("Only Root Admin and Administrators can create accounts.");
+      return;
+    }
+    if (!session?.user_id) {
+      setUserFormError("Session is missing actor context. Please sign in again.");
+      return;
+    }
     setUserFormError(null);
     setSavingUser(true);
     try {
@@ -56,7 +75,7 @@ export function UserManagement() {
         role: user.role,
         permissions: {},
         is_active: user.status === "Active",
-      });
+      }, session.user_id);
       setIsAddUserModalOpen(false);
       await refreshCounts();
     } catch (e) {
@@ -80,6 +99,7 @@ export function UserManagement() {
               setUserFormError(null);
               setIsAddUserModalOpen(true);
             }}
+            disabled={!canManageAccounts}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -217,7 +237,9 @@ export function UserManagement() {
           setUserFormError(null);
         }}
         onAddUser={handleAddUser}
-        roleNames={roleNames}
+        roleNames={roleNames.filter((name) =>
+          allowedCreateRoleKeys.includes(name.trim().toLowerCase())
+        )}
         error={userFormError}
         saving={savingUser}
       />

@@ -8,6 +8,7 @@ import { ViewRoleUsersModal } from "../modals/ViewRoleUsersModal";
 import { PermissionsModal } from "../modals/PermissionsModal";
 import type { User, Role } from "@/types";
 import { api, type ApiUser, type ApiRole, type UpdateUserPayload } from "@/services/api";
+import { getSession } from "@/auth/session";
 
 function mapApiUser(u: ApiUser): User {
   return {
@@ -32,6 +33,14 @@ function mapApiRole(r: ApiRole): Role {
 }
 
 export function Users() {
+  type PendingNewUser = {
+    username: string;
+    fullName: string;
+    email: string;
+    password: string;
+    role: string;
+    status: "Active" | "Inactive";
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -53,6 +62,13 @@ export function Users() {
   const [viewUsersForRole, setViewUsersForRole] = useState<Role | null>(null);
   const [editRoleError, setEditRoleError] = useState<string | null>(null);
   const [savingEditRole, setSavingEditRole] = useState(false);
+  const [pendingNewUser, setPendingNewUser] = useState<PendingNewUser | null>(null);
+  const [savingPermissionsStep, setSavingPermissionsStep] = useState(false);
+  const session = getSession();
+  const currentRole = (session?.role ?? "").trim().toLowerCase();
+  const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadmin";
+  const isAdministrator = currentRole === "administrator";
+  const canManageAccounts = isRootAdmin || isAdministrator;
 
   const refreshData = useCallback(async () => {
     setListError(null);
@@ -79,7 +95,6 @@ export function Users() {
 
   const closeAddUserModal = () => {
     setIsAddUserModalOpen(false);
-    setPendingPermissions({});
     setUserFormError(null);
   };
 
@@ -91,41 +106,66 @@ export function Users() {
     role: string;
     status: "Active" | "Inactive";
   }) => {
+    if (!canManageAccounts) {
+      setUserFormError("Only Root Admin and Administrators can create accounts.");
+      return;
+    }
     setUserFormError(null);
-    setSavingUser(true);
+    setPendingPermissions({});
+    setPendingNewUser(user);
+    setIsAddUserModalOpen(false);
+    setIsPermissionsModalOpen(true);
+  };
+
+  const handleSavePermissions = async (permissions: Record<string, string[]>) => {
+    if (!pendingNewUser) {
+      setIsPermissionsModalOpen(false);
+      return;
+    }
+    if (!session?.user_id) {
+      setIsPermissionsModalOpen(false);
+      setIsAddUserModalOpen(true);
+      setUserFormError("Session is missing actor context. Please sign in again.");
+      return;
+    }
+    setSavingPermissionsStep(true);
+    setPendingPermissions(permissions);
+    setUserFormError(null);
     try {
       await api.createUser({
-        username: user.username.trim(),
-        full_name: user.fullName.trim(),
-        email: user.email.trim() || null,
-        password: user.password,
-        role: user.role,
-        permissions: pendingPermissions,
-        is_active: user.status === "Active",
-      });
-      closeAddUserModal();
+        username: pendingNewUser.username.trim(),
+        full_name: pendingNewUser.fullName.trim(),
+        email: pendingNewUser.email.trim() || null,
+        password: pendingNewUser.password,
+        role: pendingNewUser.role,
+        permissions,
+        is_active: pendingNewUser.status === "Active",
+      }, session.user_id);
+      setIsPermissionsModalOpen(false);
+      setPendingNewUser(null);
+      setPendingPermissions({});
       await refreshData();
     } catch (e) {
+      setIsPermissionsModalOpen(false);
+      setIsAddUserModalOpen(true);
       setUserFormError(e instanceof Error ? e.message : "Failed to create user");
     } finally {
-      setSavingUser(false);
+      setSavingPermissionsStep(false);
     }
   };
 
-  const handleSavePermissions = (permissions: Record<string, string[]>) => {
-    setPendingPermissions(permissions);
-    setIsPermissionsModalOpen(false);
-    setIsAddUserModalOpen(true);
-  };
-
   const handleAddRole = async (role: { name: string; permissions: string }) => {
+    if (!session?.user_id) {
+      setRoleFormError("Session is missing actor context. Please sign in again.");
+      return;
+    }
     setRoleFormError(null);
     setSavingRole(true);
     try {
       await api.createRole({
         name: role.name.trim(),
         permissions: role.permissions.trim(),
-      });
+      }, session.user_id);
       setIsAddRoleModalOpen(false);
       await refreshData();
     } catch (e) {
@@ -141,10 +181,14 @@ export function Users() {
   };
 
   const handleSaveEditUser = async (userId: number, payload: UpdateUserPayload) => {
+    if (!session?.user_id) {
+      setEditError("Session is missing actor context. Please sign in again.");
+      return;
+    }
     setEditError(null);
     setSavingEdit(true);
     try {
-      await api.updateUser(userId, payload);
+      await api.updateUser(userId, payload, session.user_id);
       closeEditModal();
       await refreshData();
     } catch (e) {
@@ -160,13 +204,17 @@ export function Users() {
   };
 
   const handleSaveEditRole = async (roleId: number, data: { name: string; permissions: string }) => {
+    if (!session?.user_id) {
+      setEditRoleError("Session is missing actor context. Please sign in again.");
+      return;
+    }
     setEditRoleError(null);
     setSavingEditRole(true);
     try {
       await api.updateRole(roleId, {
         name: data.name,
         permissions: data.permissions,
-      });
+      }, session.user_id);
       closeEditRoleModal();
       await refreshData();
     } catch (e) {
@@ -176,12 +224,32 @@ export function Users() {
     }
   };
 
+  const handleDeleteRole = async (role: Role) => {
+    if (!window.confirm(`Delete role "${role.name}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      if (!session?.user_id) {
+        setListError("Session is missing actor context. Please sign in again.");
+        return;
+      }
+      await api.deleteRole(role.id, session.user_id);
+      await refreshData();
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : "Failed to delete role");
+    }
+  };
+
   const handleDeactivateUser = async (userId: number) => {
     if (!window.confirm("Mark this user as inactive? They will keep a record in the system.")) {
       return;
     }
     try {
-      await api.deactivateUser(userId);
+      if (!session?.user_id) {
+        setListError("Session is missing actor context. Please sign in again.");
+        return;
+      }
+      await api.deactivateUser(userId, session.user_id);
       await refreshData();
     } catch (e) {
       setListError(e instanceof Error ? e.message : "Failed to update user");
@@ -199,8 +267,21 @@ export function Users() {
     );
   });
 
-  const roleNames = roles.map((r) => r.name);
+  const allowedCreateRoleKeys = isRootAdmin
+    ? ["administrator", "manager", "sales staff"]
+    : isAdministrator
+      ? ["manager", "sales staff"]
+      : [];
+  const roleNames = roles
+    .filter((r) => allowedCreateRoleKeys.includes(r.name.trim().toLowerCase()))
+    .map((r) => r.name);
   const inactiveCount = users.filter((u) => u.status === "Inactive").length;
+  const canManageTargetUser = (user: User) => {
+    if (isRootAdmin) return true;
+    if (!isAdministrator) return false;
+    const roleKey = (user.role ?? "").trim().toLowerCase();
+    return roleKey === "manager" || roleKey === "sales staff";
+  };
 
   return (
     <div className="p-8">
@@ -220,7 +301,11 @@ export function Users() {
             <p className="text-gray-600 mt-1">Manage users and role-based access control</p>
           </div>
           <button
-            onClick={() => setIsPermissionsModalOpen(true)}
+            onClick={() => {
+              setUserFormError(null);
+              setIsAddUserModalOpen(true);
+            }}
+            disabled={!canManageAccounts}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -373,25 +458,31 @@ export function Users() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastLogin}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-                            type="button"
-                            className="mr-2 inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-900"
-                            title="Edit user"
-                            onClick={() => {
-                              setEditError(null);
-                              setEditingUser(user);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="text-red-600 hover:text-red-900"
-                            onClick={() => handleDeactivateUser(user.id)}
-                            disabled={user.status === "Inactive"}
-                          >
-                            Deactivate
-                          </button>
+                          {canManageTargetUser(user) ? (
+                            <>
+                              <button
+                                type="button"
+                                className="mr-2 inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-900"
+                                title="Edit user"
+                                onClick={() => {
+                                  setEditError(null);
+                                  setEditingUser(user);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="text-red-600 hover:text-red-900"
+                                onClick={() => handleDeactivateUser(user.id)}
+                                disabled={user.status === "Inactive"}
+                              >
+                                Deactivate
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400">No access</span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -412,6 +503,7 @@ export function Users() {
                   setRoleFormError(null);
                   setIsAddRoleModalOpen(true);
                 }}
+                disabled={!canManageAccounts}
                 className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -443,6 +535,7 @@ export function Users() {
                       <button
                         type="button"
                         className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        disabled={!canManageAccounts}
                         onClick={() => {
                           setEditRoleError(null);
                           setEditingRole(role);
@@ -456,6 +549,14 @@ export function Users() {
                         onClick={() => setViewUsersForRole(role)}
                       >
                         View Users
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                        disabled={!canManageAccounts}
+                        onClick={() => handleDeleteRole(role)}
+                      >
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -472,6 +573,7 @@ export function Users() {
         roleNames={roleNames}
         error={userFormError}
         saving={savingUser}
+        submitLabel="Next"
       />
       <AddRoleModal
         isOpen={isAddRoleModalOpen}
@@ -485,8 +587,15 @@ export function Users() {
       />
       <PermissionsModal
         isOpen={isPermissionsModalOpen}
-        onClose={() => setIsPermissionsModalOpen(false)}
+        onClose={() => {
+          setIsPermissionsModalOpen(false);
+          setPendingNewUser(null);
+          setPendingPermissions({});
+        }}
         onSave={handleSavePermissions}
+        initialPermissions={pendingPermissions}
+        primaryLabel="Add User"
+        saving={savingPermissionsStep}
       />
       <EditUserModal
         isOpen={editingUser !== null}

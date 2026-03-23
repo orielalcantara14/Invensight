@@ -4,7 +4,6 @@ import {
   Lock,
   MapPin,
   Pencil,
-  Phone,
   Shield,
   User,
 } from "lucide-react";
@@ -94,9 +93,7 @@ export function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [bio, setBio] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -121,9 +118,7 @@ export function Profile() {
       setFirstName(first);
       setLastName(last);
       setEmail(p.email ?? "");
-      setPhone(p.phone ?? "");
       setAddress(p.address ?? "");
-      setBio(p.bio ?? "");
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Failed to load profile");
     } finally {
@@ -148,9 +143,7 @@ export function Profile() {
       const updated = await api.updateProfile(userId, {
         full_name,
         email: email.trim() || null,
-        phone: phone.trim() || null,
         address: address.trim() || null,
-        bio: bio.trim() || null,
       });
       setProfile(updated);
       setEditing(false);
@@ -285,12 +278,6 @@ export function Profile() {
                   {formatMemberSince(profile.created_date)}
                 </span>
               </li>
-              <li className="flex justify-between gap-4 py-3">
-                <span className="text-gray-500">Phone</span>
-                <span className="text-right font-medium text-gray-900">
-                  {profile.phone?.trim() || "—"}
-                </span>
-              </li>
               <li className="flex items-start justify-between gap-4 py-3">
                 <span className="flex items-center gap-1 text-gray-500">
                   <MapPin className="h-4 w-4 flex-shrink-0" />
@@ -331,9 +318,7 @@ export function Profile() {
                       setFirstName(first);
                       setLastName(last);
                       setEmail(profile.email ?? "");
-                      setPhone(profile.phone ?? "");
                       setAddress(profile.address ?? "");
-                      setBio(profile.bio ?? "");
                     }}
                     className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
@@ -408,23 +393,6 @@ export function Profile() {
                 )}
               </div>
               <div className="sm:col-span-2">
-                <label className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <Phone className="h-3.5 w-3.5" />
-                  Phone number
-                </label>
-                {editing ? (
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm text-gray-900">
-                    {profile.phone?.trim() || "—"}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
                   Address
                 </label>
@@ -438,23 +406,6 @@ export function Profile() {
                 ) : (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">
                     {profile.address?.trim() || "—"}
-                  </p>
-                )}
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Bio
-                </label>
-                {editing ? (
-                  <textarea
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    rows={3}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                ) : (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">
-                    {profile.bio?.trim() || "—"}
                   </p>
                 )}
               </div>

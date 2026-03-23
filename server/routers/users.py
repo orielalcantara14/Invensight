@@ -23,6 +23,18 @@ router = APIRouter()
 
 ROOT_ADMIN_USERNAME_ENV = "ROOT_ADMIN_USERNAME"
 ROOT_ADMIN_KEY_ENV = "ROOT_ADMIN_KEY"
+ROLE_ADMINISTRATOR = "administrator"
+ROLE_MANAGER = "manager"
+ROLE_SALES_STAFF = "sales staff"
+MANAGEABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF}
+ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF}
+ASSIGNABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF}
+RESTRICTED_MODULES_FOR_NON_ADMIN_ROLES = {"user management", "role permissions"}
+ROLE_LABELS = {
+    ROLE_ADMINISTRATOR: "Administrator",
+    ROLE_MANAGER: "Manager",
+    ROLE_SALES_STAFF: "Sales Staff",
+}
 
 
 def _root_admin_username() -> str:
@@ -88,6 +100,142 @@ def _hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def _normalize_role(role: str | None) -> str:
+    return (role or "").strip().lower()
+
+
+def _canonical_role_or_400(role: str) -> str:
+    role_key = _normalize_role(role)
+    if role_key not in ASSIGNABLE_BY_ROOT:
+        raise HTTPException(
+            status_code=400,
+            detail="Role must be one of: Administrator, Manager, Sales Staff",
+        )
+    return role_key
+
+
+def _role_label(role_key: str) -> str:
+    return ROLE_LABELS[role_key]
+
+
+def _normalize_permissions(perms: object) -> dict[str, set[str]]:
+    if not isinstance(perms, dict):
+        return {}
+    normalized: dict[str, set[str]] = {}
+    for module_raw, actions_raw in perms.items():
+        module = str(module_raw).strip().lower()
+        if not module:
+            continue
+        actions: set[str] = set()
+        if isinstance(actions_raw, list):
+            for action_raw in actions_raw:
+                action = str(action_raw).strip().lower()
+                if action:
+                    actions.add(action)
+        if actions:
+            normalized[module] = actions
+    return normalized
+
+
+def _sanitize_permissions_for_storage(perms: object) -> dict[str, list[str]]:
+    if not isinstance(perms, dict):
+        return {}
+    cleaned: dict[str, list[str]] = {}
+    for module_raw, actions_raw in perms.items():
+        module = str(module_raw).strip()
+        if not module:
+            continue
+        seen: set[str] = set()
+        ordered_actions: list[str] = []
+        if isinstance(actions_raw, list):
+            for action_raw in actions_raw:
+                action = str(action_raw).strip()
+                key = action.lower()
+                if not action or key in seen:
+                    continue
+                seen.add(key)
+                ordered_actions.append(action)
+        if ordered_actions:
+            cleaned[module] = ordered_actions
+    return cleaned
+
+
+def _is_subset_permissions(
+    child: dict[str, set[str]],
+    parent: dict[str, set[str]],
+) -> bool:
+    for module, actions in child.items():
+        parent_actions = parent.get(module, set())
+        if not actions.issubset(parent_actions):
+            return False
+    return True
+
+
+def _parse_actor_user_id_or_401(x_actor_user_id: str | None) -> int:
+    if not x_actor_user_id or not x_actor_user_id.strip():
+        raise HTTPException(status_code=401, detail="Missing actor identity")
+    try:
+        return int(x_actor_user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid actor user id")
+
+
+def _get_actor_or_403(cur, actor_user_id: int) -> dict:
+    cur.execute(
+        """
+        SELECT user_id, username, role, is_active, permissions_json
+        FROM users
+        WHERE user_id = %s
+        """,
+        (actor_user_id,),
+    )
+    actor = cur.fetchone()
+    if not actor:
+        raise HTTPException(status_code=403, detail="Actor not found")
+    if not actor["is_active"]:
+        raise HTTPException(status_code=403, detail="Inactive actor account")
+    actor["role_key"] = _normalize_role(actor.get("role"))
+    actor["is_root_admin"] = _is_root_admin_username(actor.get("username"))
+    actor["permissions_norm"] = _normalize_permissions(actor.get("permissions_json"))
+    return actor
+
+
+def _actor_has_permission(actor: dict, module: str, action: str) -> bool:
+    if actor.get("is_root_admin"):
+        return True
+    module_key = module.strip().lower()
+    action_key = action.strip().lower()
+    return action_key in actor.get("permissions_norm", {}).get(module_key, set())
+
+
+def _enforce_non_admin_target_module_restrictions(
+    target_role_key: str,
+    assigned_permissions_norm: dict[str, set[str]],
+) -> None:
+    if target_role_key not in MANAGEABLE_BY_ADMIN:
+        return
+    forbidden = [
+        m for m in assigned_permissions_norm.keys() if m in RESTRICTED_MODULES_FOR_NON_ADMIN_ROLES
+    ]
+    if forbidden:
+        raise HTTPException(
+            status_code=400,
+            detail="Manager and Sales Staff cannot be assigned user-management permissions",
+        )
+
+
+def _require_role_management_access(cur, x_actor_user_id: str | None, action: str) -> dict:
+    actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+    actor = _get_actor_or_403(cur, actor_user_id)
+    if actor["is_root_admin"]:
+        return actor
+    if actor["role_key"] != ROLE_ADMINISTRATOR:
+        raise HTTPException(status_code=403, detail="Only Root Admin and Administrators can manage roles")
+    if not _actor_has_permission(actor, "Role Permissions", action):
+        raise HTTPException(status_code=403, detail=f"Missing {action} permission for Role Permissions module")
+    return actor
+
+
 @router.get("/users", response_model=list[UserResponse])
 def list_users():
     conn = get_connection()
@@ -126,21 +274,59 @@ def list_users():
 
 
 @router.post("/users", response_model=UserResponse)
-def create_user(body: CreateUserRequest):
+def create_user(
+    body: CreateUserRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
     if not body.username.strip():
         raise HTTPException(status_code=400, detail="Username is required")
     if _is_root_admin_username(body.username):
         raise HTTPException(status_code=403, detail="This username is reserved")
+    target_role_key = _canonical_role_or_400(body.role)
+    requested_permissions_for_storage = _sanitize_permissions_for_storage(body.permissions or {})
+    requested_permissions_norm = _normalize_permissions(requested_permissions_for_storage)
     conn = get_connection()
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+
+            if actor["is_root_admin"]:
+                allowed_target_roles = ASSIGNABLE_BY_ROOT
+            elif actor["role_key"] == ROLE_ADMINISTRATOR:
+                if not _actor_has_permission(actor, "User Management", "Add User"):
+                    raise HTTPException(status_code=403, detail="Missing Add User permission")
+                if not _is_subset_permissions(
+                    requested_permissions_norm,
+                    actor["permissions_norm"],
+                ):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Cannot assign permissions outside your own access",
+                    )
+                allowed_target_roles = ASSIGNABLE_BY_ADMIN
+            else:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only Root Admin and Administrators can create accounts",
+                )
+
+            if target_role_key not in allowed_target_roles:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You are not allowed to create this role type",
+                )
+            _enforce_non_admin_target_module_restrictions(
+                target_role_key,
+                requested_permissions_norm,
+            )
             cur.execute(
                 """
                 SELECT 1 FROM roles
-                WHERE user_id IS NULL AND role_name = %s
+                WHERE user_id IS NULL AND LOWER(role_name) = LOWER(%s)
                 """,
-                (body.role,),
+                (_role_label(target_role_key),),
             )
             if not cur.fetchone():
                 raise HTTPException(
@@ -159,8 +345,7 @@ def create_user(body: CreateUserRequest):
             next_uid = cur.fetchone()["n"] + 1
             cur.execute("SELECT COALESCE(MAX(employee_id), 0) AS n FROM users")
             next_eid = cur.fetchone()["n"] + 1
-
-            perms_json = json.dumps(body.permissions or {})
+            perms_json = json.dumps(requested_permissions_for_storage)
             pwd_hash = _hash_password(body.password)
             email_val = (body.email or "").strip() or None
 
@@ -178,7 +363,7 @@ def create_user(body: CreateUserRequest):
                     next_eid,
                     pwd_hash,
                     body.full_name.strip(),
-                    body.role,
+                    _role_label(target_role_key),
                     body.is_active,
                     date.today(),
                     body.username.strip(),
@@ -214,6 +399,7 @@ def create_user(body: CreateUserRequest):
 def update_user(
     user_id: int,
     body: UpdateUserRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
     x_root_admin_key: str | None = Header(default=None, alias="X-Root-Admin-Key"),
 ):
     uname = body.username.strip()
@@ -226,14 +412,38 @@ def update_user(
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            requested_role_key = _canonical_role_or_400(body.role)
             cur.execute(
-                "SELECT user_id, username FROM users WHERE user_id = %s", (user_id,)
+                "SELECT user_id, username, role FROM users WHERE user_id = %s", (user_id,)
             )
             existing = cur.fetchone()
             if not existing:
                 raise HTTPException(status_code=404, detail="User not found")
+            existing_role_key = _normalize_role(existing.get("role"))
             if _is_root_admin_username(existing.get("username")):
                 _require_root_admin_key(x_root_admin_key)
+                if not actor.get("is_root_admin"):
+                    raise HTTPException(status_code=403, detail="Only Root Admin can manage Root Admin account")
+
+            if actor["is_root_admin"]:
+                pass
+            elif actor["role_key"] == ROLE_ADMINISTRATOR:
+                if not _actor_has_permission(actor, "User Management", "Edit User"):
+                    raise HTTPException(status_code=403, detail="Missing Edit User permission")
+                if existing_role_key not in MANAGEABLE_BY_ADMIN:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Administrators can only manage Manager and Sales Staff accounts",
+                    )
+                if requested_role_key not in ASSIGNABLE_BY_ADMIN:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Administrators cannot assign this role type",
+                    )
+            else:
+                raise HTTPException(status_code=403, detail="Not allowed to manage users")
 
             cur.execute(
                 """
@@ -248,8 +458,8 @@ def update_user(
                 raise HTTPException(status_code=409, detail="Username already taken")
 
             cur.execute(
-                "SELECT 1 FROM roles WHERE user_id IS NULL AND role_name = %s",
-                (body.role,),
+                "SELECT 1 FROM roles WHERE user_id IS NULL AND LOWER(role_name) = LOWER(%s)",
+                (_role_label(requested_role_key),),
             )
             if not cur.fetchone():
                 raise HTTPException(
@@ -278,7 +488,7 @@ def update_user(
                         uname,
                         body.full_name.strip(),
                         email_val,
-                        body.role,
+                        _role_label(requested_role_key),
                         body.is_active,
                         pwd_hash,
                         user_id,
@@ -300,7 +510,7 @@ def update_user(
                         uname,
                         body.full_name.strip(),
                         email_val,
-                        body.role,
+                        _role_label(requested_role_key),
                         body.is_active,
                         user_id,
                     ),
@@ -332,14 +542,17 @@ def update_user(
 @router.delete("/users/{user_id}")
 def deactivate_user(
     user_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
     x_root_admin_key: str | None = Header(default=None, alias="X-Root-Admin-Key"),
 ):
     conn = get_connection()
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
             cur.execute(
-                "SELECT user_id, username FROM users WHERE user_id = %s",
+                "SELECT user_id, username, role FROM users WHERE user_id = %s",
                 (user_id,),
             )
             row = cur.fetchone()
@@ -347,6 +560,21 @@ def deactivate_user(
                 raise HTTPException(status_code=404, detail="User not found")
             if _is_root_admin_username(row.get("username")):
                 _require_root_admin_key(x_root_admin_key)
+                if not actor.get("is_root_admin"):
+                    raise HTTPException(status_code=403, detail="Only Root Admin can manage Root Admin account")
+            elif actor["is_root_admin"]:
+                pass
+            elif actor["role_key"] == ROLE_ADMINISTRATOR:
+                if not _actor_has_permission(actor, "User Management", "Delete User"):
+                    raise HTTPException(status_code=403, detail="Missing Delete User permission")
+                target_role_key = _normalize_role(row.get("role"))
+                if target_role_key not in MANAGEABLE_BY_ADMIN:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Administrators can only manage Manager and Sales Staff accounts",
+                    )
+            else:
+                raise HTTPException(status_code=403, detail="Not allowed to manage users")
             cur.execute(
                 "UPDATE users SET is_active = false WHERE user_id = %s RETURNING user_id",
                 (user_id,),
@@ -402,7 +630,10 @@ def list_roles():
 
 
 @router.post("/roles", response_model=RoleResponse)
-def create_role(body: CreateRoleRequest):
+def create_role(
+    body: CreateRoleRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
     name = body.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Role name is required")
@@ -413,6 +644,7 @@ def create_role(body: CreateRoleRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _require_role_management_access(cur, x_actor_user_id, "Create")
             cur.execute(
                 """
                 SELECT 1 FROM roles
@@ -454,7 +686,11 @@ def create_role(body: CreateRoleRequest):
 
 
 @router.patch("/roles/{role_id}", response_model=RoleResponse)
-def update_role(role_id: int, body: UpdateRoleRequest):
+def update_role(
+    role_id: int,
+    body: UpdateRoleRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
     new_name = body.name.strip()
     if not new_name:
         raise HTTPException(status_code=400, detail="Role name is required")
@@ -467,6 +703,7 @@ def update_role(role_id: int, body: UpdateRoleRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _require_role_management_access(cur, x_actor_user_id, "Edit")
             cur.execute(
                 """
                 SELECT role_id, role_name FROM roles
@@ -531,6 +768,66 @@ def update_role(role_id: int, body: UpdateRoleRequest):
         permissions=row["permissions_text"] or "",
         user_count=user_count,
     )
+
+
+@router.delete("/roles/{role_id}")
+def delete_role(
+    role_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
+    conn = get_connection()
+    try:
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _require_role_management_access(cur, x_actor_user_id, "Delete")
+            cur.execute(
+                """
+                SELECT role_id, role_name
+                FROM roles
+                WHERE role_id = %s AND user_id IS NULL
+                """,
+                (role_id,),
+            )
+            role_row = cur.fetchone()
+            if not role_row:
+                raise HTTPException(status_code=404, detail="Role not found")
+
+            cur.execute(
+                """
+                SELECT COUNT(*)::int AS c
+                FROM users
+                WHERE role = %s
+                """,
+                (role_row["role_name"],),
+            )
+            assigned_count = cur.fetchone()["c"]
+            if assigned_count > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot delete role with assigned users",
+                )
+
+            cur.execute(
+                """
+                DELETE FROM roles
+                WHERE role_id = %s AND user_id IS NULL
+                RETURNING role_id
+                """,
+                (role_id,),
+            )
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Role not found")
+            conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return {"ok": True}
 
 
 @router.post("/root-admin/reset")
