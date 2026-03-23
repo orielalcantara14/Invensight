@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZIIJgw2lZiVT3XxQxqR3h7M88ehuwVOZhJQwsWPVNYzPtfJ0Qt4ptd2gKb79IDS
+\restrict fTc7T1qsekLwzcxQYCm4i3maUa6dez0FM3WO7sfj8u708KF5iRs3tBraIeLWpWF
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -39,6 +39,20 @@ CREATE TABLE public.auditlog (
 
 
 ALTER TABLE public.auditlog OWNER TO postgres;
+
+--
+-- Name: auditlog_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.auditlog ALTER COLUMN log_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.auditlog_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
 
 --
 -- Name: categories; Type: TABLE; Schema: public; Owner: postgres
@@ -200,7 +214,8 @@ CREATE TABLE public.products (
     description text,
     unit_price numeric(10,2) NOT NULL,
     sku character varying(20) NOT NULL,
-    date_added date
+    date_added date,
+    image_url text
 );
 
 
@@ -231,7 +246,8 @@ ALTER TABLE public.reports OWNER TO postgres;
 CREATE TABLE public.roles (
     role_id integer NOT NULL,
     role_name character varying(50) NOT NULL,
-    user_id integer
+    user_id integer,
+    permissions_text text
 );
 
 
@@ -323,7 +339,14 @@ CREATE TABLE public.users (
     role character varying(50) NOT NULL,
     is_active boolean NOT NULL,
     created_date date NOT NULL,
-    last_login date
+    last_login date,
+    username character varying(100),
+    permissions_json jsonb DEFAULT '{}'::jsonb,
+    email character varying(255),
+    phone character varying(80),
+    address text,
+    bio text,
+    password_changed_at date
 );
 
 
@@ -334,6 +357,14 @@ ALTER TABLE public.users OWNER TO postgres;
 --
 
 COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestamp", details) FROM stdin;
+1	1	LOGIN	user	1	2026-03-23 02:58:00.710422	User signed in: Totoyz
+2	2	LOGIN	user	2	2026-03-23 02:58:12.980758	User signed in: Halcrow01
+3	1	LOGIN	user	1	2026-03-23 02:59:55.407342	User signed in: Totoyz
+4	1	LOGIN	user	1	2026-03-23 03:02:58.88475	User signed in: Totoyz
+5	2	LOGIN	user	2	2026-03-23 03:20:06.063578	User signed in: Halcrow01
+6	1	LOGIN	user	1	2026-03-23 13:22:06.60137	User signed in: Totoyz
+7	1	LOGIN	user	1	2026-03-23 14:55:19.193808	User signed in: Totoyz
+8	1	LOGIN	user	1	2026-03-23 15:40:57.186436	User signed in: Totoyz
 \.
 
 
@@ -342,6 +373,12 @@ COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestam
 --
 
 COPY public.categories (category_id, category_name, is_active) FROM stdin;
+1	Engine Parts	t
+2	Braking System	t
+3	Drive Train	t
+4	Electronics	t
+5	Tires & Wheels	t
+6	Accessories	t
 \.
 
 
@@ -350,6 +387,9 @@ COPY public.categories (category_id, category_name, is_active) FROM stdin;
 --
 
 COPY public.inventory (inventory_id, product_id, location_shelf, reorder_level, last_updated) FROM stdin;
+1	1	N/A	5	2026-03-22
+3	3	N/A	5	2026-03-22
+5	5	N/A	5	2026-03-22
 \.
 
 
@@ -382,6 +422,9 @@ COPY public.payments (payment_id, invoice_id, payment_method, amount_paid, trans
 --
 
 COPY public.pos_management (pos_id, product_id, inventory_id, category_id, sku, product_name, category, stock, pos_price, status) FROM stdin;
+2	3	3	2	BRK-PAD-003	Front Brake Pad	Braking System	12	112.00	Archived
+5	1	1	2	BRK-PAD-001	FWEFLKWEJLKFJEWFJL	Braking System	12	45.00	Active
+4	5	5	2	BRK-PAD-002	Front Brake Pad	Braking System	12	300.00	Active
 \.
 
 
@@ -413,7 +456,10 @@ COPY public.product_return (return_id, product_id, supplier_id, created_by, retu
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.products (product_id, category_id, supplier_id, product_name, description, unit_price, sku, date_added) FROM stdin;
+COPY public.products (product_id, category_id, supplier_id, product_name, description, unit_price, sku, date_added, image_url) FROM stdin;
+3	2	\N	Front Brake Pad	123	850.00	BRK-PAD-003	2026-03-22	\N
+1	2	\N	FWEFLKWEJLKFJEWFJL	LALA MO	850.00	BRK-PAD-001	2026-03-22	\N
+5	2	\N	Front Brake Pad	SALE	65.00	BRK-PAD-002	2026-03-22	\N
 \.
 
 
@@ -429,7 +475,12 @@ COPY public.reports (report_id, user_id, report_type, generated_date, date_range
 -- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.roles (role_id, role_name, user_id) FROM stdin;
+COPY public.roles (role_id, role_name, user_id, permissions_text) FROM stdin;
+2	Manager	\N	Sales, inventory, forecasting, reports
+3	Sales Staff	\N	Sales transactions, customer info
+4	Warehouse Staff	\N	Inventory, stock movements
+5	Test	\N	stes
+1	Administrator	\N	Full Access System
 \.
 
 
@@ -469,8 +520,17 @@ COPY public.supplier (supplier_id, supplier_name, address, email, contact_number
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login) FROM stdin;
+COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, phone, address, bio, password_changed_at) FROM stdin;
+2	2	$2b$12$XuFpm98uP7//jZOtcROuBuDMBBHVhzILQjE9j5IQE5sGV08MYZh1S	cedie logatoc	Administrator	t	2026-03-23	2026-03-23	Halcrow01	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	cedie@gmail.com	\N	\N	\N	2026-03-23
+1	1	$2b$12$LYyJ42XcOiBI7RLQ9tUE8el6mUWJ9MvwRzSo.Fse59RGXRN39HZfG	John Rovhic Sohitado	Administrator	t	2026-03-22	2026-03-23	Totoyz	{"Sales": ["View", "Add", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "Products": ["View", "Add Product", "Edit", "Delete"], "Audit Log": ["View", "Export"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Stock Movements": ["View", "Add Movement", "Edit"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Stock Prediction": ["View", "Run Prediction"]}	rovhicsohitado@gmail.com	\N	\N	\N	2026-03-23
 \.
+
+
+--
+-- Name: auditlog_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.auditlog_log_id_seq', 8, true);
 
 
 --
@@ -623,6 +683,13 @@ ALTER TABLE ONLY public.supplier
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: users_username_unique; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_username_unique ON public.users USING btree (lower((username)::text)) WHERE ((username IS NOT NULL) AND (TRIM(BOTH FROM username) <> ''::text));
 
 
 --
@@ -829,5 +896,5 @@ ALTER TABLE ONLY public.stockmovements
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZIIJgw2lZiVT3XxQxqR3h7M88ehuwVOZhJQwsWPVNYzPtfJ0Qt4ptd2gKb79IDS
+\unrestrict fTc7T1qsekLwzcxQYCm4i3maUa6dez0FM3WO7sfj8u708KF5iRs3tBraIeLWpWF
 
