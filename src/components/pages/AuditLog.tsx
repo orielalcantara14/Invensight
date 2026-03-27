@@ -1,24 +1,55 @@
 import { Search, Download, FileText } from "lucide-react";
-import { useState } from "react";
-import type { AuditLogEntry } from "@/types";
+import { useState, useEffect } from "react";
+import type { AuditLogEntry } from "@/services/api";
+import { api } from "@/services/api";
+import { getSession } from "@/auth/session";
 
 export function AuditLog() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterAction, setFilterAction] = useState("All");
   const [filterEntity, setFilterEntity] = useState("All");
+  const session = getSession();
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      if (!session?.user_id) return;
+      try {
+        const logs = await api.getAuditLogs(session.user_id);
+        setAuditLogs(logs);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load audit logs");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, [session?.user_id]);
 
   const filteredLogs = auditLogs.filter((log) => {
     const matchesSearch =
       log.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.entityType.toLowerCase().includes(searchTerm.toLowerCase());
+      (log.details?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      log.entity_type.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesAction = filterAction === "All" || log.action === filterAction;
-    const matchesEntity = filterEntity === "All" || log.entityType === filterEntity;
+    const matchesEntity = filterEntity === "All" || log.entity_type === filterEntity;
     
     return matchesSearch && matchesAction && matchesEntity;
   });
+
+  const criticalActions = auditLogs.filter(log => 
+    ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE'].includes(log.action)
+  ).length;
+
+  const today = new Date().toISOString().split('T')[0];
+  const todaysActivities = auditLogs.filter(log => 
+    log.timestamp.startsWith(today)
+  ).length;
+
+  const uniqueUsers = new Set(auditLogs.map(log => log.user_id)).size;
 
   return (
     <div className="p-8">
@@ -32,19 +63,19 @@ export function AuditLog() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Total Activities</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : auditLogs.length}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Today's Activities</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : todaysActivities}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Active Users</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-sm text-gray-600 mb-1">Unique Users</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : uniqueUsers}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="text-sm text-gray-600 mb-1">Critical Actions</div>
-          <div className="text-2xl font-bold text-gray-900">N/A</div>
+          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : criticalActions}</div>
         </div>
       </div>
 
@@ -118,7 +149,13 @@ export function AuditLog() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLogs.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    Loading audit logs…
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -128,19 +165,19 @@ export function AuditLog() {
                 </tr>
               ) : (
                 filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
+                  <tr key={log.log_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.timestamp}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        log.action === 'CREATE' ? 'bg-green-100 text-green-800' :
-                        log.action === 'DELETE' ? 'bg-red-100 text-red-800' :
+                        log.action.includes('CREATE') ? 'bg-green-100 text-green-800' :
+                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') ? 'bg-red-100 text-red-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>{log.action}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entityType}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entityId}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{log.details}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entity_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entity_id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={log.details || ""}>{log.details}</td>
                   </tr>
                 ))
               )}

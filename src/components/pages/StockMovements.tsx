@@ -7,6 +7,8 @@ export function StockMovements() {
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const filteredMovements = movements.filter((movement) => {
     const matchesSearch =
@@ -15,7 +17,14 @@ export function StockMovements() {
     
     const matchesType = filterType === "All" || movement.type === filterType;
     
-    return matchesSearch && matchesType;
+    const movementDate = new Date(movement.date);
+    const fromDate = dateFrom ? new Date(dateFrom) : null;
+    const toDate = dateTo ? new Date(dateTo) : null;
+    
+    const matchesDateFrom = !fromDate || movementDate >= fromDate;
+    const matchesDateTo = !toDate || movementDate <= toDate;
+    
+    return matchesSearch && matchesType && matchesDateFrom && matchesDateTo;
   });
 
   return (
@@ -93,6 +102,23 @@ export function StockMovements() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">All Stock Movements</h2>
             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="From"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="To"
+                />
+              </div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}

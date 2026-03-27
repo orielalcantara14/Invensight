@@ -1,10 +1,110 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+import shutil
+import os
 from database import get_connection
-from models import CreatePosProductRequest, UpdatePosProductRequest
+from models import CreatePosProductRequest, UpdatePosProductRequest, CategoryResponse, CreateCategoryRequest, UpdateCategoryRequest
 import psycopg2.extras
 from datetime import date
 
+
 router = APIRouter()
+
+
+@router.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    UPLOAD_DIR = "uploads"
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+    
+    # Secure file name (you can use uuid or timestamp)
+    import time
+    file_extension = os.path.splitext(file.filename)[1]
+    filename = f"{int(time.time())}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    return {"url": f"/uploads/{filename}"}
+
+
+@router.get("/categories")
+def get_categories():
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM categories ORDER BY category_name")
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.post("/categories")
+def create_category(payload: CreateCategoryRequest):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT COALESCE(MAX(category_id), 0) + 1 AS next_id FROM categories")
+            category_id = cur.fetchone()["next_id"]
+            cur.execute(
+                "INSERT INTO categories (category_id, category_name, is_active) VALUES (%s, %s, %s) RETURNING *",
+                (category_id, payload.category_name, payload.is_active),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row)
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.put("/categories/{category_id}")
+def update_category(category_id: int, payload: UpdateCategoryRequest):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE categories SET category_name = %s, is_active = %s WHERE category_id = %s RETURNING *",
+                (payload.category_name, payload.is_active, category_id),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Category not found")
+            conn.commit()
+            return dict(row)
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.delete("/categories/{category_id}")
+def delete_category(category_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Check if category is used by products
+            cur.execute("SELECT COUNT(*) FROM products WHERE category_id = %s", (category_id,))
+            if cur.fetchone()[0] > 0:
+                raise HTTPException(status_code=400, detail="Category is in use by products")
+            
+            cur.execute("DELETE FROM categories WHERE category_id = %s", (category_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Category not found")
+            conn.commit()
+            return {"message": "Category deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 @router.get("/products")
@@ -16,14 +116,18 @@ def get_products():
                 SELECT
                     pm.product_id,
                     pm.product_name,
-                    pm.pos_price AS unit_price,
+                    p.unit_price,
+                    pm.pos_price,
                     pm.sku,
                     COALESCE(p.description, '') AS description,
                     COALESCE(p.image_url, '') AS image_url,
                     COALESCE(pm.category, 'Uncategorized') AS category_name,
-                    COALESCE(pm.category_id, 0) AS category_id
+                    COALESCE(pm.category_id, 0) AS category_id,
+                    COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
+                    COALESCE(p.unit_of_measurement, '') AS unit_of_measurement
                 FROM pos_management pm
                 LEFT JOIN products p ON pm.product_id = p.product_id
+                LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 WHERE pm.status = 'Active'
                 ORDER BY pm.product_name
             """)
@@ -50,9 +154,15 @@ def get_pos_products():
                     pm.category,
                     pm.stock,
                     pm.pos_price,
+                    p.unit_price,
                     pm.status,
                     COALESCE(p.description, '') AS description,
                     COALESCE(p.image_url, '') AS image_url,
+                    p.supplier_id,
+                    COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
+                    COALESCE(i.reorder_level, 0) AS reorder_level,
+                    COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
+                    p.date_added,
                     CASE
                         WHEN p.unit_price IS NULL THEN false
                         WHEN pm.pos_price <> p.unit_price THEN true
@@ -60,6 +170,8 @@ def get_pos_products():
                     END AS price_modified
                 FROM pos_management pm
                 LEFT JOIN products p ON pm.product_id = p.product_id
+                LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
+                LEFT JOIN inventory i ON pm.inventory_id = i.inventory_id
                 ORDER BY pm.product_name
                 """
             )
@@ -109,18 +221,24 @@ def create_pos_product(payload: CreatePosProductRequest):
                     UPDATE products
                     SET
                         category_id = %s,
+                        supplier_id = %s,
                         product_name = %s,
                         description = %s,
                         image_url = %s,
-                        sku = %s
+                        sku = %s,
+                        unit_price = %s,
+                        unit_of_measurement = %s
                     WHERE product_id = %s
                     """,
                     (
                         category_id,
+                        payload.supplier_id,
                         payload.product_name,
                         payload.description,
                         payload.image_url,
                         payload.sku,
+                        payload.unit_price,
+                        payload.unit_of_measurement,
                         product_id,
                     ),
                 )
@@ -130,19 +248,21 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO products (
-                        product_id, category_id, supplier_id, product_name, description, image_url, unit_price, sku, date_added
+                        product_id, category_id, supplier_id, product_name, description, image_url, unit_price, sku, date_added, unit_of_measurement
                     )
-                    VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         product_id,
                         category_id,
+                        payload.supplier_id,
                         payload.product_name,
                         payload.description,
                         payload.image_url,
-                        payload.pos_price,
+                        payload.unit_price,
                         payload.sku,
                         date.today(),
+                        payload.unit_of_measurement,
                     ),
                 )
 
@@ -159,6 +279,11 @@ def create_pos_product(payload: CreatePosProductRequest):
             inventory_row = cur.fetchone()
             if inventory_row:
                 inventory_id = inventory_row["inventory_id"]
+                # Update supplier_id and quantity_on_hand in existing inventory
+                cur.execute(
+                    "UPDATE inventory SET supplier_id = %s, quantity_on_hand = %s WHERE inventory_id = %s",
+                    (payload.supplier_id, payload.stock, inventory_id)
+                )
             else:
                 cur.execute(
                     "SELECT COALESCE(MAX(inventory_id), 0) + 1 AS next_id FROM inventory"
@@ -167,11 +292,11 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO inventory (
-                        inventory_id, product_id, location_shelf, reorder_level, last_updated
+                        inventory_id, product_id, quantity_on_hand, location_shelf, reorder_level, last_updated, supplier_id
                     )
-                    VALUES (%s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (inventory_id, product_id, "N/A", 5, date.today()),
+                    (inventory_id, product_id, payload.stock, "N/A", 5, date.today(), payload.supplier_id),
                 )
 
             cur.execute(
@@ -187,6 +312,8 @@ def create_pos_product(payload: CreatePosProductRequest):
 
             cur.execute("SELECT COALESCE(MAX(pos_id), 0) + 1 AS next_id FROM pos_management")
             pos_id = cur.fetchone()["next_id"]
+
+            pos_price = payload.pos_price if payload.pos_price is not None else payload.unit_price
             cur.execute(
                 """
                 INSERT INTO pos_management (
@@ -203,7 +330,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                     payload.product_name,
                     category_name,
                     payload.stock,
-                    payload.pos_price,
+                    pos_price,
                     payload.status,
                 ),
             )
@@ -253,21 +380,44 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 UPDATE products
                 SET
                     category_id = %s,
+                    supplier_id = %s,
                     product_name = %s,
                     description = %s,
                     image_url = %s,
-                    sku = %s
+                    sku = %s,
+                    unit_price = %s,
+                    unit_of_measurement = %s
                 WHERE product_id = %s
                 """,
                 (
                     category_id,
+                    payload.supplier_id,
                     payload.product_name,
                     payload.description,
                     payload.image_url,
                     payload.sku,
+                    payload.unit_price,
+                    payload.unit_of_measurement,
                     product_id,
                 ),
             )
+
+            # Update inventory as well
+            cur.execute(
+                """
+                UPDATE inventory
+                SET supplier_id = %s,
+                    quantity_on_hand = %s
+                WHERE product_id = %s
+                """,
+                (payload.supplier_id, payload.stock, product_id)
+            )
+
+            # Only update pos_price if it was provided in the payload
+            # In the frontend, the POS Management module will send pos_price
+            # while the Products module might only send unit_price.
+            # However, for simplicity, we can always update both if present.
+            p_price = payload.pos_price if payload.pos_price is not None else payload.unit_price
 
             cur.execute(
                 """
@@ -288,7 +438,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     payload.product_name,
                     category_name,
                     payload.stock,
-                    payload.pos_price,
+                    p_price,
                     payload.status,
                     pos_id,
                 ),

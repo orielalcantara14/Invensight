@@ -12,6 +12,7 @@ from models import (
     UserResponse,
     RoleResponse,
     UserManagementStatsResponse,
+    AuditLogEntryResponse,
 )
 import psycopg2.extras
 import bcrypt
@@ -38,7 +39,7 @@ ROLE_LABELS = {
 
 
 def _root_admin_username() -> str:
-    return os.getenv(ROOT_ADMIN_USERNAME_ENV, "rootadmin").strip().lower()
+    return os.getenv(ROOT_ADMIN_USERNAME_ENV, "rootadminnginamo").strip().lower()
 
 
 def _is_root_admin_username(username: str | None) -> bool:
@@ -64,7 +65,7 @@ class RootAdminResetRequest(BaseModel):
 
 
 @router.get("/user-management-stats", response_model=UserManagementStatsResponse)
-def user_management_stats():
+def user_management_stats(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
     """
     Active sessions: active users whose last_login date is today (server date).
     Matches `last_login` updates on sign-in (auth router sets CURRENT_DATE).
@@ -72,6 +73,10 @@ def user_management_stats():
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            is_root = actor.get("is_root_admin")
+
             cur.execute(
                 """
                 SELECT COUNT(*)::int AS c
@@ -85,7 +90,19 @@ def user_management_stats():
                 (_root_admin_username(),),
             )
             active_sessions = cur.fetchone()["c"]
-            cur.execute("SELECT COUNT(*)::int AS c FROM auditlog")
+
+            if is_root:
+                cur.execute("SELECT COUNT(*)::int AS c FROM auditlog")
+            else:
+                cur.execute(
+                    """
+                    SELECT COUNT(*)::int AS c 
+                    FROM auditlog a
+                    LEFT JOIN users u ON a.user_id = u.user_id
+                    WHERE u.username IS NULL OR LOWER(TRIM(u.username)) <> %s
+                    """,
+                    (_root_admin_username(),)
+                )
             audit_log_count = cur.fetchone()["c"]
     finally:
         conn.close()
@@ -372,6 +389,23 @@ def create_user(
                 ),
             )
             row = cur.fetchone()
+            
+            # --- Audit log (skip if actor is root admin) ---
+            if not actor.get("is_root_admin"):
+                cur.execute(
+                    """
+                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                    VALUES (%s, %s, %s, %s, NOW(), %s)
+                    """,
+                    (
+                        actor_user_id,
+                        "ADD_USER",
+                        "user",
+                        row["user_id"],
+                        f"Created user account: {body.username.strip()} (ID: {row['user_id']})",
+                    ),
+                )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -469,52 +503,106 @@ def update_user(
 
             email_val = (body.email or "").strip() or None
             new_pw = (body.new_password or "").strip()
+            
+            perms_json = None
+            if body.permissions is not None:
+                perms_json = json.dumps(_sanitize_permissions_for_storage(body.permissions))
 
             if new_pw:
                 pwd_hash = _hash_password(new_pw)
-                cur.execute(
-                    """
-                    UPDATE users SET
-                      username = %s,
-                      full_name = %s,
-                      email = %s,
-                      role = %s,
-                      is_active = %s,
-                      password_hash = %s
-                    WHERE user_id = %s
-                    RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
-                    """,
-                    (
-                        uname,
-                        body.full_name.strip(),
-                        email_val,
-                        _role_label(requested_role_key),
-                        body.is_active,
-                        pwd_hash,
-                        user_id,
-                    ),
-                )
+                if perms_json is not None:
+                    cur.execute(
+                        """
+                        UPDATE users SET
+                          username = %s,
+                          full_name = %s,
+                          email = %s,
+                          role = %s,
+                          is_active = %s,
+                          password_hash = %s,
+                          permissions_json = %s::jsonb
+                        WHERE user_id = %s
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        """,
+                        (
+                            uname,
+                            body.full_name.strip(),
+                            email_val,
+                            _role_label(requested_role_key),
+                            body.is_active,
+                            pwd_hash,
+                            perms_json,
+                            user_id,
+                        ),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        UPDATE users SET
+                          username = %s,
+                          full_name = %s,
+                          email = %s,
+                          role = %s,
+                          is_active = %s,
+                          password_hash = %s
+                        WHERE user_id = %s
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        """,
+                        (
+                            uname,
+                            body.full_name.strip(),
+                            email_val,
+                            _role_label(requested_role_key),
+                            body.is_active,
+                            pwd_hash,
+                            user_id,
+                        ),
+                    )
             else:
-                cur.execute(
-                    """
-                    UPDATE users SET
-                      username = %s,
-                      full_name = %s,
-                      email = %s,
-                      role = %s,
-                      is_active = %s
-                    WHERE user_id = %s
-                    RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
-                    """,
-                    (
-                        uname,
-                        body.full_name.strip(),
-                        email_val,
-                        _role_label(requested_role_key),
-                        body.is_active,
-                        user_id,
-                    ),
-                )
+                if perms_json is not None:
+                    cur.execute(
+                        """
+                        UPDATE users SET
+                          username = %s,
+                          full_name = %s,
+                          email = %s,
+                          role = %s,
+                          is_active = %s,
+                          permissions_json = %s::jsonb
+                        WHERE user_id = %s
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        """,
+                        (
+                            uname,
+                            body.full_name.strip(),
+                            email_val,
+                            _role_label(requested_role_key),
+                            body.is_active,
+                            perms_json,
+                            user_id,
+                        ),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        UPDATE users SET
+                          username = %s,
+                          full_name = %s,
+                          email = %s,
+                          role = %s,
+                          is_active = %s
+                        WHERE user_id = %s
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        """,
+                        (
+                            uname,
+                            body.full_name.strip(),
+                            email_val,
+                            _role_label(requested_role_key),
+                            body.is_active,
+                            user_id,
+                        ),
+                    )
             row = cur.fetchone()
             conn.commit()
     except HTTPException:
@@ -581,16 +669,91 @@ def deactivate_user(
             )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="User not found")
+            
+            # --- Audit log (skip if actor is root admin) ---
+            if not actor.get("is_root_admin"):
+                cur.execute(
+                    """
+                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                    VALUES (%s, %s, %s, %s, NOW(), %s)
+                    """,
+                    (
+                        actor_user_id,
+                        "DEACTIVATE_USER",
+                        "user",
+                        user_id,
+                        f"Deactivated user account ID: {user_id}",
+                    ),
+                )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
-        raise
+        conn.commit()
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
+
     return {"ok": True}
+
+
+@router.get("/audit-logs", response_model=list[AuditLogEntryResponse])
+def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Check if requester is root admin
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            is_root = actor.get("is_root_admin")
+
+            if is_root:
+                # Root sees everything
+                cur.execute(
+                    """
+                    SELECT 
+                        a.log_id, 
+                        a.user_id, 
+                        COALESCE(u.username, 'Deleted User') as username, 
+                        a.action, 
+                        a.entity_type, 
+                        a.entity_id, 
+                        a.timestamp::text as timestamp, 
+                        a.details
+                    FROM auditlog a
+                    LEFT JOIN users u ON a.user_id = u.user_id
+                    ORDER BY a.timestamp DESC
+                    LIMIT 200
+                    """
+                )
+            else:
+                # Non-root sees everything EXCEPT root admin's activities
+                cur.execute(
+                    """
+                    SELECT 
+                        a.log_id, 
+                        a.user_id, 
+                        COALESCE(u.username, 'Deleted User') as username, 
+                        a.action, 
+                        a.entity_type, 
+                        a.entity_id, 
+                        a.timestamp::text as timestamp, 
+                        a.details
+                    FROM auditlog a
+                    LEFT JOIN users u ON a.user_id = u.user_id
+                    WHERE u.username IS NULL OR LOWER(TRIM(u.username)) <> %s
+                    ORDER BY a.timestamp DESC
+                    LIMIT 200
+                    """,
+                    (_root_admin_username(),)
+                )
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 @router.get("/roles", response_model=list[RoleResponse])

@@ -1,5 +1,5 @@
 import re
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from database import get_connection
 from models import LoginRequest, LoginResponse
 import psycopg2.extras
@@ -75,19 +75,22 @@ def login(body: LoginRequest):
                 "UPDATE users SET last_login = CURRENT_DATE WHERE user_id = %s",
                 (row["user_id"],),
             )
-            cur.execute(
-                """
-                INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                VALUES (%s, %s, %s, %s, NOW(), %s)
-                """,
-                (
-                    row["user_id"],
-                    "LOGIN",
-                    "user",
-                    row["user_id"],
-                    f"User signed in: {row.get('username') or row['user_id']}",
-                ),
-            )
+            # Skip audit log for root admin
+            is_root = row.get("username") and row["username"].strip().lower() == "rootadminnginamo"
+            if not is_root:
+                cur.execute(
+                    """
+                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                    VALUES (%s, %s, %s, %s, NOW(), %s)
+                    """,
+                    (
+                        row["user_id"],
+                        "LOGIN",
+                        "user",
+                        row["user_id"],
+                        f"User signed in: {row.get('username') or row['user_id']}",
+                    ),
+                )
             conn.commit()
 
             return LoginResponse(
@@ -104,5 +107,29 @@ def login(body: LoginRequest):
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+@router.get("/auth/verify")
+def verify_session(x_user_id: str | None = Header(default=None, alias="X-User-Id")):
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="No user ID provided")
+    
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT user_id, username, full_name, role, is_active FROM users WHERE user_id = %s",
+                (int(x_user_id),),
+            )
+            user = cur.fetchone()
+            if not user:
+                raise HTTPException(status_code=401, detail="User no longer exists")
+            if not user["is_active"]:
+                raise HTTPException(status_code=401, detail="User is inactive")
+            return {"ok": True, "user": user}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
     finally:
         conn.close()

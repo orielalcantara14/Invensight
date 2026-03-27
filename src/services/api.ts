@@ -4,11 +4,14 @@ export interface Product {
   product_id: number;
   product_name: string;
   unit_price: number;
+  pos_price?: number;
   sku: string;
   description: string;
   image_url: string;
   category_name: string;
   category_id: number;
+  supplier_name?: string;
+  unit_of_measurement?: string;
 }
 
 export interface Category {
@@ -31,10 +34,16 @@ export interface PosProduct {
   image_url: string;
   price_modified: boolean;
   category_id: number | null;
+  supplier_id: number | null;
+  supplier_name?: string;
+  unit_of_measurement?: string;
   category: string;
   stock: number;
+  unit_price: number;
   pos_price: number;
   status: "Active" | "Archived";
+  reorder_level: number;
+  date_added: string | null;
 }
 
 export interface PosProductPayload {
@@ -43,7 +52,10 @@ export interface PosProductPayload {
   description: string;
   image_url: string | null;
   category_id: number | null;
-  pos_price: number;
+  supplier_id: number | null;
+  unit_price: number;
+  pos_price?: number;
+  unit_of_measurement?: string;
   stock: number;
   status: "Active" | "Archived";
 }
@@ -153,6 +165,7 @@ export interface ApiUser {
   is_active: boolean;
   last_login: string | null;
   email?: string | null;
+  permissions_json?: Record<string, string[]>;
 }
 
 export interface CreateUserPayload {
@@ -172,6 +185,7 @@ export interface UpdateUserPayload {
   role: string;
   is_active: boolean;
   new_password?: string;
+  permissions?: Record<string, string[]>;
 }
 
 export interface ApiRole {
@@ -194,6 +208,47 @@ export interface UpdateRolePayload {
 export interface LoginPayload {
   username: string;
   password: string;
+}
+
+export interface Supplier {
+  supplier_id: number;
+  supplier_name: string;
+  address: string | null;
+  email: string | null;
+  contact_number: string | null;
+  product_supplied: string | null;
+  total_orders: number;
+  status: string;
+}
+
+export interface SupplierPayload {
+  supplier_name: string;
+  address: string | null;
+  email: string | null;
+  contact_number: string | null;
+  product_supplied: string | null;
+  status: string;
+}
+
+export interface InventoryItem {
+  inventory_id: number;
+  product_id: number;
+  product_name: string;
+  sku: string;
+  category_name: string;
+  supplier_name: string | null;
+  quantity_on_hand: number;
+  reorder_level: number;
+  unit_price: number;
+  status: 'Normal' | 'Low' | 'Critical';
+  last_updated: string;
+}
+
+export interface InventoryPayload {
+  product_id: number;
+  quantity_on_hand: number;
+  reorder_level: number;
+  supplier_id: number | null;
 }
 
 /** Matches `LoginResponse` from the API (snake_case). */
@@ -237,9 +292,66 @@ export interface UserManagementStats {
   audit_log_count: number;
 }
 
+export interface AuditLogEntry {
+  log_id: number;
+  user_id: number;
+  username: string;
+  action: string;
+  entity_type: string;
+  entity_id: number;
+  timestamp: string;
+  details: string | null;
+}
+
+export interface TopProductItem {
+  name: string;
+  units_sold: number;
+  current_stock: number;
+  status: string;
+}
+
+export interface DashboardStats {
+  total_revenue: number;
+  total_sales: number;
+  inventory_items: number;
+  low_stock_items: number;
+  sales_trend: Array<{ month: string; actual_sales: number; forecast_sales: number }>;
+  sales_by_category: Array<{ category: string; value: number; percentage: number }>;
+  top_products: TopProductItem[];
+}
+
 export const api = {
+  getDashboardStats: () => request<DashboardStats>("/api/dashboard/stats"),
   getProducts: () => request<Product[]>("/api/products"),
   getCategories: () => request<Category[]>("/api/categories"),
+  createCategory: (payload: { category_name: string; is_active: boolean }) =>
+    request<Category>("/api/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCategory: (
+    categoryId: number,
+    payload: { category_name: string; is_active: boolean }
+  ) =>
+    request<Category>(`/api/categories/${categoryId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteCategory: (categoryId: number) =>
+    request<{ message: string }>(`/api/categories/${categoryId}`, {
+      method: "DELETE",
+    }),
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`${API_URL}/api/upload`, {
+      method: "POST",
+      body: formData,
+    }).then((res) => {
+      if (!res.ok) throw new Error("Upload failed");
+      return res.json() as Promise<{ url: string }>;
+    });
+  },
   getTerminals: () => request<Terminal[]>("/api/pos-terminals"),
   getPosProducts: () => request<PosProduct[]>("/api/pos-products"),
   createPosProduct: (payload: PosProductPayload) =>
@@ -270,8 +382,10 @@ export const api = {
     }),
 
   getUsers: () => request<ApiUser[]>("/api/users"),
-  getUserManagementStats: () =>
-    request<UserManagementStats>("/api/user-management-stats"),
+  getUserManagementStats: (actorUserId: number) =>
+    requestAsActor<UserManagementStats>(actorUserId, "/api/user-management-stats"),
+  getAuditLogs: (actorUserId: number) =>
+    requestAsActor<AuditLogEntry[]>(actorUserId, "/api/audit-logs"),
   createUser: (payload: CreateUserPayload, actorUserId: number) =>
     requestAsActor<ApiUser>(actorUserId, "/api/users", {
       method: "POST",
@@ -303,11 +417,46 @@ export const api = {
       method: "DELETE",
     }),
 
+  getSuppliers: () => request<Supplier[]>("/api/suppliers"),
+  createSupplier: (payload: SupplierPayload) =>
+    request<Supplier>("/api/suppliers", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateSupplier: (supplierId: number, payload: SupplierPayload) =>
+    request<Supplier>(`/api/suppliers/${supplierId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteSupplier: (supplierId: number) =>
+    request<{ message: string }>(`/api/suppliers/${supplierId}`, {
+      method: "DELETE",
+    }),
+
+  getInventory: () => request<InventoryItem[]>("/api/inventory/"),
+  addInventoryItem: (payload: InventoryPayload) =>
+    request<InventoryItem>("/api/inventory/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateInventoryItem: (inventoryId: number, payload: Partial<InventoryPayload>) =>
+    request<InventoryItem>(`/api/inventory/${inventoryId}/`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteInventoryItem: (inventoryId: number) =>
+    request<{ message: string }>(`/api/inventory/${inventoryId}/`, {
+      method: "DELETE",
+    }),
+
   login: (payload: LoginPayload) =>
     request<LoginResult>("/api/login", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  verifySession: (userId: number) =>
+    requestWithUser<{ ok: boolean; user: any }>(userId, "/api/auth/verify"),
 
   getProfile: (userId: number) =>
     requestWithUser<Profile>(userId, "/api/profile"),

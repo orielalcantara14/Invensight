@@ -8,6 +8,8 @@ export function Sales() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<SaleRecord | null>(null);
   const [filterType, setFilterType] = useState<"All" | "Service" | "Product Sale">("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const filteredRecords = salesRecords.filter((record) => {
     const matchesSearch = 
@@ -18,7 +20,14 @@ export function Sales() {
     
     const matchesType = filterType === "All" || record.type === filterType;
     
-    return matchesSearch && matchesType;
+    const recordDate = new Date(record.date);
+    const fromDate = dateFrom ? new Date(dateFrom) : null;
+    const toDate = dateTo ? new Date(dateTo) : null;
+    
+    const matchesDateFrom = !fromDate || recordDate >= fromDate;
+    const matchesDateTo = !toDate || recordDate <= toDate;
+    
+    return matchesSearch && matchesType && matchesDateFrom && matchesDateTo;
   });
 
   return (
@@ -33,7 +42,16 @@ export function Sales() {
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow border-gray-200 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Sales Performance</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Sales Performance</h2>
+          <select
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="annually">Annually</option>
+          </select>
+        </div>
         <div className="flex items-center justify-center h-[300px] text-gray-400">
           <div className="text-center">
             <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -48,6 +66,23 @@ export function Sales() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">All Sales Transactions</h2>
             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="From"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="To"
+                />
+              </div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as typeof filterType)}

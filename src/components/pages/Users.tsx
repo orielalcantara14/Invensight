@@ -20,6 +20,7 @@ function mapApiUser(u: ApiUser): User {
     role: u.role,
     status: u.is_active ? "Active" : "Inactive",
     lastLogin: u.last_login ? u.last_login.slice(0, 10) : "Never",
+    permissions: u.permissions_json,
   };
 }
 
@@ -66,7 +67,7 @@ export function Users() {
   const [savingPermissionsStep, setSavingPermissionsStep] = useState(false);
   const session = getSession();
   const currentRole = (session?.role ?? "").trim().toLowerCase();
-  const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadmin";
+  const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadminnginamo";
   const isAdministrator = currentRole === "administrator";
   const canManageAccounts = isRootAdmin || isAdministrator;
 

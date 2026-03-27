@@ -98,6 +98,26 @@ def create_sale(sale: CreateSaleRequest):
                     ),
                 )
 
+                # --- Update stock in inventory and pos_management ---
+                cur.execute(
+                    """
+                    UPDATE inventory
+                    SET quantity_on_hand = quantity_on_hand - %s,
+                        last_updated = %s
+                    WHERE product_id = %s
+                    """,
+                    (item.quantity, today, item.product_id)
+                )
+
+                cur.execute(
+                    """
+                    UPDATE pos_management
+                    SET stock = stock - %s
+                    WHERE product_id = %s
+                    """,
+                    (item.quantity, item.product_id)
+                )
+
             # --- Insert payment ---
             cur.execute(
                 """
@@ -107,21 +127,25 @@ def create_sale(sale: CreateSaleRequest):
                 (invoice_id, "Cash", sale.cash_received, now),
             )
 
-            # --- Audit log ---
-            cur.execute(
-                """
-                INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    sale.user_id,
-                    "CREATE_SALE",
-                    "sales",
-                    invoice_id,
-                    now,
-                    f"POS sale completed. Invoice: {invoice_number}. Total: ₱{total_amount:.2f}",
-                ),
-            )
+            # --- Audit log (skip if user is root admin) ---
+            cur.execute("SELECT username FROM users WHERE user_id = %s", (sale.user_id,))
+            user_row = cur.fetchone()
+            is_root = user_row and user_row["username"] and user_row["username"].strip().lower() == "rootadminnginamo"
+            if not is_root:
+                cur.execute(
+                    """
+                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        sale.user_id,
+                        "CREATE_SALE",
+                        "sales",
+                        invoice_id,
+                        now,
+                        f"POS sale completed. Invoice: {invoice_number}. Total: ₱{total_amount:.2f}",
+                    ),
+                )
 
             conn.commit()
 

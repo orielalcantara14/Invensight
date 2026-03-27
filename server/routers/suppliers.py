@@ -1,0 +1,110 @@
+from fastapi import APIRouter, HTTPException
+from database import get_connection
+from models import SupplierResponse, CreateSupplierRequest, UpdateSupplierRequest
+import psycopg2.extras
+
+router = APIRouter()
+
+@router.get("/")
+def get_suppliers():
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM supplier ORDER BY supplier_name")
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.post("/")
+def create_supplier(payload: CreateSupplierRequest):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Get next ID manually if not using serial
+            cur.execute("SELECT COALESCE(MAX(supplier_id), 0) + 1 AS next_id FROM supplier")
+            supplier_id = cur.fetchone()["next_id"]
+            
+            cur.execute(
+                """
+                INSERT INTO supplier (
+                    supplier_id, supplier_name, address, email, contact_number, product_supplied, total_orders, status
+                ) VALUES (%s, %s, %s, %s, %s, %s, 0, %s) RETURNING *
+                """,
+                (
+                    supplier_id,
+                    payload.supplier_name,
+                    payload.address,
+                    payload.email,
+                    payload.contact_number,
+                    payload.product_supplied,
+                    payload.status
+                ),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row)
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.put("/{supplier_id}")
+def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                UPDATE supplier SET 
+                    supplier_name = %s, 
+                    address = %s, 
+                    email = %s, 
+                    contact_number = %s, 
+                    product_supplied = %s,
+                    status = %s
+                WHERE supplier_id = %s RETURNING *
+                """,
+                (
+                    payload.supplier_name,
+                    payload.address,
+                    payload.email,
+                    payload.contact_number,
+                    payload.product_supplied,
+                    payload.status,
+                    supplier_id
+                ),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Supplier not found")
+            conn.commit()
+            return dict(row)
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.delete("/{supplier_id}")
+def delete_supplier(supplier_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Check if supplier is used in orders
+            cur.execute("SELECT COUNT(*) FROM order_list WHERE supplier_id = %s", (supplier_id,))
+            if cur.fetchone()[0] > 0:
+                raise HTTPException(status_code=400, detail="Supplier has orders and cannot be deleted")
+            
+            cur.execute("DELETE FROM supplier WHERE supplier_id = %s", (supplier_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Supplier not found")
+            conn.commit()
+            return {"message": "Supplier deleted"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

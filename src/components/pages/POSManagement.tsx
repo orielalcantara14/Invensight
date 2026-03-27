@@ -1,6 +1,5 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Download, Plus, Edit, Trash2, Archive, Monitor } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,36 +10,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Textarea } from "../ui/textarea";
-import { Button } from "../ui/button";
 import { toast } from "sonner";
-import { api, type Category, type PosProduct, type PosProductPayload } from "@/services/api";
-
-type FormState = {
-  sku: string;
-  product_name: string;
-  description: string;
-  image_url: string;
-  category_id: string;
-  pos_price: string;
-  stock: string;
-  status: "Active" | "Archived";
-};
-const MAX_DESCRIPTION_LENGTH = 500;
-
-const initialForm: FormState = {
-  sku: "",
-  product_name: "",
-  description: "",
-  image_url: "",
-  category_id: "",
-  pos_price: "",
-  stock: "",
-  status: "Active",
-};
+import { api, type Category, type PosProduct } from "@/services/api";
+import { AddProductModal } from "../modals/AddProductModal";
+import { EditProductModal } from "../modals/EditProductModal";
 
 export function POSManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,12 +23,10 @@ export function POSManagement() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [showFormModal, setShowFormModal] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<PosProduct | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<PosProduct | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<FormState>(initialForm);
 
   const fetchData = async () => {
     try {
@@ -92,94 +63,12 @@ export function POSManagement() {
   }, [products, searchTerm, filterStatus, filterCategory]);
 
   const openAddModal = () => {
-    setEditingProduct(null);
-    setForm({
-      ...initialForm,
-      category_id: categories.length ? String(categories[0].category_id) : "",
-    });
-    setShowFormModal(true);
+    setIsAddModalOpen(true);
   };
 
   const openEditModal = (product: PosProduct) => {
-    setEditingProduct(product);
-    setForm({
-      sku: product.sku,
-      product_name: product.product_name,
-      description: product.description ?? "",
-      image_url: product.image_url ?? "",
-      category_id: String(product.category_id),
-      pos_price: String(product.pos_price),
-      stock: String(product.stock),
-      status: product.status,
-    });
-    setShowFormModal(true);
-  };
-
-  const buildPayload = (): PosProductPayload => {
-    return {
-      sku: form.sku.trim(),
-      product_name: form.product_name.trim(),
-      description: form.description.trim(),
-      image_url: form.image_url.trim() || null,
-      category_id: form.category_id ? Number(form.category_id) : null,
-      pos_price: Number(form.pos_price),
-      stock: Number(form.stock),
-      status: form.status,
-    };
-  };
-
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, image_url: result }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const validateForm = () => {
-    if (!form.sku.trim() || !form.product_name.trim()) {
-      toast.error("SKU and product name are required.");
-      return false;
-    }
-    if (Number.isNaN(Number(form.pos_price)) || Number(form.pos_price) < 0) {
-      toast.error("POS price must be a valid non-negative number.");
-      return false;
-    }
-    if (!Number.isInteger(Number(form.stock)) || Number(form.stock) < 0) {
-      toast.error("Stock must be a valid non-negative integer.");
-      return false;
-    }
-    if (form.description.trim().length > MAX_DESCRIPTION_LENGTH) {
-      toast.error(`Description must not exceed ${MAX_DESCRIPTION_LENGTH} characters.`);
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    const payload = buildPayload();
-    try {
-      setSubmitting(true);
-      if (editingProduct) {
-        await api.updatePosProduct(editingProduct.pos_id, payload);
-        toast.success("POS product updated.");
-      } else {
-        await api.createPosProduct(payload);
-        toast.success("POS product created.");
-      }
-      setShowFormModal(false);
-      await fetchData();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSubmitting(false);
-    }
+    setSelectedProduct(product);
+    setIsEditModalOpen(true);
   };
 
   const handleToggleArchive = async (product: PosProduct) => {
@@ -285,28 +174,30 @@ export function POSManagement() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POS Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="w-[130px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">SKU</th>
+                <th className="min-w-[320px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                <th className="w-[170px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
+                <th className="min-w-[220px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Unit Price</th>
+                <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">POS Price</th>
+                <th className="w-[110px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Stock</th>
+                <th className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                     Loading POS products...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                     No POS products found.
                   </td>
                 </tr>
@@ -320,7 +211,13 @@ export function POSManagement() {
                         <div className="text-gray-500 text-xs">{product.description}</div>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {product.unit_of_measurement || "—"}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{product.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₱{Number(product.unit_price || 0).toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
                         <span>₱{Number(product.pos_price).toFixed(2)}</span>
@@ -345,12 +242,16 @@ export function POSManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openEditModal(product)} className="text-blue-600 hover:text-blue-800" title="Edit">
+                        <button
+                          onClick={() => openEditModal(product)}
+                          className="p-2 text-blue-600 bg-blue-50/50 hover:bg-blue-50 rounded-full transition-colors shadow-sm"
+                          title="Edit"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleToggleArchive(product)}
-                          className="text-orange-600 hover:text-orange-800"
+                          className="p-2 text-orange-600 bg-orange-50/50 hover:bg-orange-50 rounded-full transition-colors shadow-sm"
                           title={product.status === "Archived" ? "Unarchive" : "Archive"}
                         >
                           <Archive className="w-4 h-4" />
@@ -360,7 +261,7 @@ export function POSManagement() {
                             setSelectedProduct(product);
                             setShowDeleteDialog(true);
                           }}
-                          className="text-red-600 hover:text-red-800"
+                          className="p-2 text-red-500 bg-red-50/50 hover:bg-red-50 rounded-full transition-colors shadow-sm"
                           title="Remove"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -375,154 +276,27 @@ export function POSManagement() {
         </div>
       </div>
 
-      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {editingProduct ? <Edit className="w-5 h-5 text-blue-600" /> : <Plus className="w-5 h-5 text-blue-600" />}
-              {editingProduct ? "Edit POS Product" : "Add Product to POS"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                <Input
-                  id="sku"
-                  value={form.sku}
-                  onChange={(e) => setForm((prev) => ({ ...prev, sku: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="product-name">Product Name</Label>
-                <Input
-                  id="product-name"
-                  value={form.product_name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, product_name: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={form.description}
-                maxLength={MAX_DESCRIPTION_LENGTH}
-                className="break-all whitespace-pre-wrap"
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH),
-                  }))
-                }
-              />
-              <p className="text-xs text-gray-500 text-right">
-                {form.description.length}/{MAX_DESCRIPTION_LENGTH}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="product-image">Product Image</Label>
-              <Input
-                id="product-image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-              />
-              {form.image_url && (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={form.image_url}
-                    alt="Product preview"
-                    className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setForm((prev) => ({ ...prev, image_url: "" }))}
-                  >
-                    Remove image
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select
-                  value={form.category_id}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, category_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.category_id} value={String(cat.category_id)}>
-                        {cat.category_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pos-price">POS Price (₱)</Label>
-                <Input
-                  id="pos-price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.pos_price}
-                  onChange={(e) => setForm((prev) => ({ ...prev, pos_price: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="stock">Stock</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.stock}
-                  onChange={(e) => setForm((prev) => ({ ...prev, stock: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-
-            {editingProduct && (
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value: "Active" | "Archived") =>
-                    setForm((prev) => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button type="button" variant="outline" onClick={() => setShowFormModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : editingProduct ? "Update Product" : "Add to POS"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddProductModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={fetchData}
+          title="Add Product to POS"
+          submitLabel="Add to POS"
+          mode="pos"
+        />
+  
+        <EditProductModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          onSuccess={fetchData}
+          product={selectedProduct}
+          title="Edit POS Product"
+          submitLabel="Update Product"
+          mode="pos"
+        />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>

@@ -103,17 +103,17 @@ export function Layout() {
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
-        } bg-gray-900 text-white transition-all duration-300 flex flex-col`}
+        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div>
-                <h1 className="font-bold text-lg">Jonbrix</h1>
-                <p className="text-xs text-gray-400">Motorcycle Parts & Accessories</p>
+                <h1 className="font-bold text-lg text-gray-900">Jonbrix</h1>
+                <p className="text-xs text-gray-500">Motorcycle Parts & Accessories</p>
                 {session && (
-                  <p className="text-xs text-gray-500 mt-2 truncate" title={session.full_name}>
+                  <p className="text-xs text-gray-400 mt-2 truncate" title={session.full_name}>
                     {session.full_name}
                     {session.role ? ` · ${session.role}` : ""}
                   </p>
@@ -122,7 +122,7 @@ export function Layout() {
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-700 rounded"
+              className="p-2 hover:bg-gray-100 rounded text-gray-500"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -145,12 +145,12 @@ export function Layout() {
                     to={item.path}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
-                    {sidebarOpen && <span className="text-sm flex-1">{item.name}</span>}
+                    {sidebarOpen && <span className="text-sm font-medium flex-1">{item.name}</span>}
                     {sidebarOpen && hasSubmenu && (
                       <button
                         onClick={(e) => {
@@ -158,7 +158,7 @@ export function Layout() {
                           e.stopPropagation();
                           toggleMenu(item.name);
                         }}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        className="p-1 hover:bg-gray-200/50 rounded transition-colors"
                       >
                         <ChevronDown
                           className={`w-4 h-4 flex-shrink-0 transition-transform ${
@@ -182,12 +182,12 @@ export function Layout() {
                           to={subitem.path}
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ml-6 ${
                             isSubActive
-                              ? "bg-blue-600 text-white"
-                              : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                           }`}
                         >
                           <SubIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm">{subitem.name}</span>
+                          <span className="text-sm font-medium">{subitem.name}</span>
                         </Link>
                       );
                     })}
@@ -199,13 +199,13 @@ export function Layout() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-gray-100">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-gray-300 hover:bg-red-600 hover:text-white w-full"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-gray-600 hover:bg-red-50 hover:text-red-600 w-full"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span className="text-sm">Logout</span>}
+            {sidebarOpen && <span className="text-sm font-medium">Logout</span>}
           </button>
           {sidebarOpen && (
             <div className="text-xs text-gray-400 mt-4">
@@ -296,9 +296,9 @@ export function Layout() {
             </div>
 
             <Link
-              to="/user-management"
+              to="/settings"
               className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
-              title="Settings & user management"
+              title="Settings"
               aria-label="Settings"
             >
               <Settings className="h-5 w-5" strokeWidth={2} />

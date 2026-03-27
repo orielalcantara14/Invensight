@@ -23,7 +23,10 @@ class CreatePosProductRequest(BaseModel):
     description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     category_id: Optional[int] = None
-    pos_price: float
+    supplier_id: Optional[int] = None
+    unit_price: float
+    pos_price: Optional[float] = None
+    unit_of_measurement: Optional[str] = None
     stock: int
     status: str = "Active"
 
@@ -34,7 +37,10 @@ class UpdatePosProductRequest(BaseModel):
     description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     category_id: Optional[int] = None
-    pos_price: float
+    supplier_id: Optional[int] = None
+    unit_price: float
+    pos_price: Optional[float] = None
+    unit_of_measurement: Optional[str] = None
     stock: int
     status: str
 
@@ -57,6 +63,7 @@ class UpdateUserRequest(BaseModel):
     role: str
     is_active: bool
     new_password: Optional[str] = None
+    permissions: Optional[Dict[str, List[str]]] = None
 
 
 class CreateUserRequest(BaseModel):
@@ -138,3 +145,115 @@ class ActivityItem(BaseModel):
     action: str
     details: Optional[str] = None
     timestamp: str
+
+
+class CategoryResponse(BaseModel):
+    category_id: int
+    category_name: str
+    is_active: bool
+
+
+class CreateCategoryRequest(BaseModel):
+    category_name: str
+    is_active: bool = True
+
+
+class UpdateCategoryRequest(BaseModel):
+    category_name: str
+    is_active: bool
+
+
+class SupplierResponse(BaseModel):
+    supplier_id: int
+    supplier_name: str
+    address: Optional[str] = None
+    email: Optional[str] = None
+    contact_number: Optional[str] = None
+    product_supplied: Optional[str] = None
+    total_orders: int
+    status: str = "Active"
+
+
+class CreateSupplierRequest(BaseModel):
+    supplier_name: str
+    address: Optional[str] = None
+    email: Optional[str] = None
+    contact_number: Optional[str] = None
+    product_supplied: Optional[str] = None
+    status: str = "Active"
+
+
+class UpdateSupplierRequest(BaseModel):
+    supplier_name: str
+    address: Optional[str] = None
+    email: Optional[str] = None
+    contact_number: Optional[str] = None
+    product_supplied: Optional[str] = None
+    status: str
+
+
+class InventoryResponse(BaseModel):
+    inventory_id: int
+    product_id: int
+    product_name: str
+    sku: str
+    category_name: str
+    supplier_name: Optional[str] = None
+    quantity_on_hand: int
+    reorder_level: int
+    unit_price: float
+    status: str
+    last_updated: Optional[str] = None
+
+
+class CreateInventoryRequest(BaseModel):
+    product_id: int
+    quantity_on_hand: int
+    reorder_level: int
+    supplier_id: Optional[int] = None
+
+
+class UpdateInventoryRequest(BaseModel):
+    quantity_on_hand: int
+    reorder_level: int
+    supplier_id: Optional[int] = None
+
+
+class AuditLogEntryResponse(BaseModel):
+    log_id: int
+    user_id: int
+    username: str
+    action: str
+    entity_type: str
+    entity_id: int
+    timestamp: str
+    details: Optional[str] = None
+
+
+class SalesTrendItem(BaseModel):
+    month: str
+    actual_sales: float
+    forecast_sales: float
+
+
+class SalesByCategoryItem(BaseModel):
+    category: str
+    value: float
+    percentage: float
+
+
+class TopProductItem(BaseModel):
+    name: str
+    units_sold: int
+    current_stock: int
+    status: str
+
+
+class DashboardStatsResponse(BaseModel):
+    total_revenue: float
+    total_sales: int
+    inventory_items: int
+    low_stock_items: int
+    sales_trend: List[SalesTrendItem]
+    sales_by_category: List[SalesByCategoryItem]
+    top_products: List[TopProductItem]

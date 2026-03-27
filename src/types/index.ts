@@ -145,6 +145,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   lastLogin: string;
+  permissions?: Record<string, string[]>;
 }
 
 export interface Role {

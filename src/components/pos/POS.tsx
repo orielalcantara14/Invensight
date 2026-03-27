@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, RefreshCw, AlertCircle } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, RefreshCw, AlertCircle, ArrowLeft } from "lucide-react";
 import { api } from "@/services/api";
 import type { Product, Category, Terminal } from "@/services/api";
 
@@ -19,7 +19,7 @@ interface SaleResult {
   change: number;
 }
 
-const TAX_RATE = 0.12;
+const TAX_RATE = 0.06;
 const CATALOG_REFRESH_INTERVAL_MS = 15000;
 
 // TODO: replace with real auth context once login is wired up
@@ -27,6 +27,12 @@ const CURRENT_USER = { user_id: 1, full_name: "Admin" };
 
 function fmt(n: number) {
   return n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getPosPrice(product: Product): number {
+  const pos = typeof product.pos_price === "number" ? product.pos_price : NaN;
+  if (Number.isFinite(pos)) return pos;
+  return product.unit_price;
 }
 
 interface ReceiptProps {
@@ -92,12 +98,13 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
         <div className="font-bold mb-1">Product (ID) | Qty | Price | Total</div>
         {cartItems.map((item, idx) => {
           const lineNum = String(idx + 1).padStart(3, "0");
-          const total = item.product.unit_price * item.quantity;
+          const price = getPosPrice(item.product);
+          const total = price * item.quantity;
           return (
             <div key={item.product.product_id} className="mb-0.5">
               {idx + 1}.{" "}
-              {item.product.sku} ({lineNum}) | {item.quantity} |{" "}
-              {fmt(item.product.unit_price)} |{" "}
+              {item.product.product_name} ({item.product.sku}) | {item.quantity} |{" "}
+              {fmt(price)} |{" "}
               <span className="font-bold">{fmt(total)}</span>
             </div>
           );
@@ -108,7 +115,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
 
         {/* Totals */}
         <div>SUBTOTAL | {fmt(result.subtotal)}</div>
-        <div>VAT (12%) | {fmt(result.tax_amount)}</div>
+        <div>VAT (6%) | {fmt(result.tax_amount)}</div>
         <div className="font-bold">GRAND TOTAL | {fmt(result.total_amount)}</div>
 
         {/* Divider */}
@@ -175,7 +182,7 @@ function CheckoutModal({
             <span>₱{fmt(subtotal)}</span>
           </div>
           <div className="flex justify-between text-gray-600">
-            <span>VAT (12%)</span>
+            <span>VAT (6%)</span>
             <span>₱{fmt(taxAmount)}</span>
           </div>
           <div className="flex justify-between font-bold text-base border-t pt-2 mt-2">
@@ -358,7 +365,7 @@ export function POS() {
 
   // ---------- Totals ----------
   const subtotal = cartItems.reduce(
-    (sum, i) => sum + i.product.unit_price * i.quantity,
+    (sum, i) => sum + getPosPrice(i.product) * i.quantity,
     0
   );
   const taxAmount = subtotal * TAX_RATE;
@@ -386,7 +393,7 @@ export function POS() {
         items: cartItems.map((i) => ({
           product_id: i.product.product_id,
           quantity: i.quantity,
-          unit_price: i.product.unit_price,
+          unit_price: getPosPrice(i.product),
         })),
       });
       setSaleResult(result);
@@ -434,6 +441,14 @@ export function POS() {
         {/* Top bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.location.href = "/"}
+              className="flex items-center gap-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors"
+              title="Go back to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium hidden sm:inline">Back</span>
+            </button>
             <div>
               <span className="font-bold text-gray-900">
                 {terminal?.terminal_name ?? "POS Terminal"}
@@ -536,7 +551,7 @@ export function POS() {
                       {product.category_name}
                     </span>
                     <span className="text-sm font-bold text-blue-600">
-                      ₱{fmt(product.unit_price)}
+                      ₱{fmt(getPosPrice(product))}
                     </span>
                   </div>
                 </button>
@@ -631,7 +646,7 @@ export function POS() {
             <span>₱{fmt(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
-            <span>VAT (12%)</span>
+            <span>VAT (6%)</span>
             <span>₱{fmt(taxAmount)}</span>
           </div>
           <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-200 pt-2">

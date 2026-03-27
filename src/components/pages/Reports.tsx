@@ -5,7 +5,7 @@ import type { GeneratedReport } from "@/types";
 const reportTypes = [
   { id: 1, name: "Sales Report", type: "sales", description: "Comprehensive sales analysis and trends", icon: DollarSign },
   { id: 2, name: "Inventory Report", type: "inventory", description: "Current stock levels and movements", icon: Package },
-  { id: 3, name: "Forecast Report", type: "forecast", description: "Sales forecasting with Singular Spectrum Analysis", icon: TrendingUp },
+  { id: 3, name: "Financial Profitability Reports", type: "forecast", description: "Sales forecasting with Singular Spectrum Analysis", icon: TrendingUp },
   { id: 4, name: "Supplier Performance", type: "supplier", description: "Supplier delivery and quality metrics", icon: FileText },
 ];
 
