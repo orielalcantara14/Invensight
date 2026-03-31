@@ -34,6 +34,7 @@ export interface PosProduct {
   image_url: string;
   price_modified: boolean;
   category_id: number | null;
+  specific_category?: string;
   supplier_id: number | null;
   supplier_name?: string;
   unit_of_measurement?: string;
@@ -52,6 +53,7 @@ export interface PosProductPayload {
   description: string;
   image_url: string | null;
   category_id: number | null;
+  specific_category?: string;
   supplier_id: number | null;
   unit_price: number;
   pos_price?: number;
@@ -236,6 +238,9 @@ export interface InventoryItem {
   product_name: string;
   sku: string;
   category_name: string;
+  specific_category?: string | null;
+  unit_of_measurement?: string | null;
+  supplier_id?: number | null;
   supplier_name: string | null;
   quantity_on_hand: number;
   reorder_level: number;

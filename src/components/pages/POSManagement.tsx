@@ -174,14 +174,13 @@ export function POSManagement() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+          <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="w-[130px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">SKU</th>
                 <th className="min-w-[320px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-                <th className="w-[170px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
                 <th className="min-w-[220px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Unit Price</th>
+                <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Price</th>
                 <th className="w-[140px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">POS Price</th>
                 <th className="w-[110px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Stock</th>
                 <th className="w-[120px] px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
@@ -191,13 +190,13 @@ export function POSManagement() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     Loading POS products...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     No POS products found.
                   </td>
                 </tr>
@@ -207,14 +206,20 @@ export function POSManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{product.sku}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div>
-                        <div className="font-medium">{product.product_name}</div>
-                        <div className="text-gray-500 text-xs">{product.description}</div>
+                        <div className="max-w-[320px] truncate font-medium" title={product.product_name}>
+                          {product.product_name}
+                        </div>
+                        <div className="max-w-[320px] truncate text-gray-500 text-xs" title={product.description}>
+                          {product.description}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {product.unit_of_measurement || "—"}
+                    <td
+                      className="px-6 py-4 max-w-[220px] truncate whitespace-nowrap text-sm text-gray-700"
+                      title={product.category}
+                    >
+                      {product.category}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{product.category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       ₱{Number(product.unit_price || 0).toFixed(2)}
                     </td>

@@ -9,34 +9,74 @@ import logging
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
 
+def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
+    cur.execute(
+        """
+        SELECT
+            i.inventory_id,
+            p.product_id,
+            p.product_name,
+            p.sku,
+            COALESCE(c.category_name, 'Uncategorized') AS category_name,
+            p.specific_category,
+            p.unit_of_measurement,
+            i.supplier_id,
+            s.supplier_name,
+            COALESCE(i.quantity_on_hand, 0) AS quantity_on_hand,
+            COALESCE(i.reorder_level, 10) AS reorder_level,
+            COALESCE(p.unit_price, 0) AS unit_price,
+            CASE
+                WHEN COALESCE(i.quantity_on_hand, 0) <= 0 THEN 'Critical'
+                WHEN COALESCE(i.quantity_on_hand, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
+                ELSE 'Normal'
+            END AS status,
+            i.last_updated::text AS last_updated
+        FROM inventory i
+        JOIN products p ON i.product_id = p.product_id
+        LEFT JOIN categories c ON p.category_id = c.category_id
+        LEFT JOIN supplier s ON i.supplier_id = s.supplier_id
+        WHERE i.inventory_id = %s
+        """,
+        (inventory_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    return dict(row)
+
 @router.get("/")
 def get_inventory():
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
-                SELECT 
+            cur.execute(
+                """
+                SELECT
                     i.inventory_id,
                     p.product_id,
                     p.product_name,
                     p.sku,
-                    COALESCE(c.category_name, 'Uncategorized') as category_name,
-                    COALESCE(s.supplier_name, 'N/A') as supplier_name,
-                    COALESCE(i.quantity_on_hand, 0) as quantity_on_hand,
-                    COALESCE(i.reorder_level, 10) as reorder_level,
-                    COALESCE(p.unit_price, 0) as unit_price,
-                    CASE 
+                    COALESCE(c.category_name, 'Uncategorized') AS category_name,
+                    p.specific_category,
+                    p.unit_of_measurement,
+                    i.supplier_id,
+                    s.supplier_name,
+                    COALESCE(i.quantity_on_hand, 0) AS quantity_on_hand,
+                    COALESCE(i.reorder_level, 10) AS reorder_level,
+                    COALESCE(p.unit_price, 0) AS unit_price,
+                    CASE
                         WHEN COALESCE(i.quantity_on_hand, 0) <= 0 THEN 'Critical'
                         WHEN COALESCE(i.quantity_on_hand, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                         ELSE 'Normal'
-                    END as status,
-                    i.last_updated::text as last_updated
+                    END AS status,
+                    i.last_updated::text AS last_updated
                 FROM inventory i
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON i.supplier_id = s.supplier_id
                 ORDER BY p.product_name
-            """)
+                """
+            )
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error fetching inventory: {str(e)}", exc_info=True)
@@ -74,7 +114,7 @@ def add_inventory_item(payload: CreateInventoryRequest):
                     payload.supplier_id
                 ),
             )
-            row = cur.fetchone()
+            cur.fetchone()
             
             # Also update pos_management stock if it exists
             cur.execute(
@@ -83,7 +123,7 @@ def add_inventory_item(payload: CreateInventoryRequest):
             )
             
             conn.commit()
-            return dict(row)
+            return _get_inventory_item(cur, inventory_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -132,7 +172,7 @@ def update_inventory_item(inventory_id: int, payload: UpdateInventoryRequest):
             )
             
             conn.commit()
-            return dict(row)
+            return _get_inventory_item(cur, inventory_id)
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

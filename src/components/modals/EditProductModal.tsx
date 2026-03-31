@@ -47,6 +47,7 @@ export function EditProductModal({
     description: "",
     image_url: "",
     category_id: "",
+    specific_category: "",
     supplier_id: "",
     unit_price: "",
     pos_price: "",
@@ -63,6 +64,7 @@ export function EditProductModal({
         description: product.description || "",
         image_url: product.image_url || "",
         category_id: product.category_id?.toString() || "",
+        specific_category: product.specific_category || "",
         supplier_id: product.supplier_id?.toString() || "",
         unit_price: product.unit_price?.toString() || product.pos_price.toString(),
         pos_price: product.pos_price.toString(),
@@ -108,6 +110,11 @@ export function EditProductModal({
       return;
     }
 
+    if (mode === "pos" && !formData.pos_price) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       let finalImageUrl = formData.image_url;
@@ -123,6 +130,7 @@ export function EditProductModal({
         description: formData.description,
         image_url: finalImageUrl || null,
         category_id: formData.category_id ? parseInt(formData.category_id) : null,
+        specific_category: formData.specific_category || undefined,
         supplier_id: formData.supplier_id ? parseInt(formData.supplier_id) : null,
         unit_price: parseFloat(formData.unit_price),
         pos_price: formData.pos_price ? parseFloat(formData.pos_price) : undefined,
@@ -146,13 +154,14 @@ export function EditProductModal({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              SKU *
+              SKU Prefix *
             </label>
             <input
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. BRK"
               required
             />
           </div>
@@ -209,6 +218,20 @@ export function EditProductModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Specific Category
+            </label>
+            <input
+              type="text"
+              value={formData.specific_category}
+              onChange={(e) =>
+                setFormData({ ...formData, specific_category: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. Brake System"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Supplier
             </label>
             <select
@@ -225,7 +248,6 @@ export function EditProductModal({
               ))}
             </select>
           </div>
-          <div className="hidden md:block" />
         </div>
 
         <div>
@@ -240,10 +262,10 @@ export function EditProductModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit Price *
+              Unit Cost *
             </label>
             <input
               type="number"
@@ -256,22 +278,20 @@ export function EditProductModal({
               disabled={mode === "pos"}
             />
           </div>
-          {mode === "pos" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                POS Price (Required)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.pos_price}
-                onChange={(e) => setFormData({ ...formData, pos_price: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-                required
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              SRP {mode === "pos" ? "*" : ""}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.pos_price}
+              onChange={(e) => setFormData({ ...formData, pos_price: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0.00"
+              required={mode === "pos"}
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Stock
@@ -282,6 +302,25 @@ export function EditProductModal({
               onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Total Cost
+            </label>
+            <input
+              type="text"
+              value={(() => {
+                const unitCost = Number(formData.unit_price);
+                const stock = Number(formData.stock);
+                if (!Number.isFinite(unitCost) || !Number.isFinite(stock)) return "";
+                return (unitCost * stock).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+              })()}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+              disabled
             />
           </div>
         </div>

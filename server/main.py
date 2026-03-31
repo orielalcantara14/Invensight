@@ -121,6 +121,7 @@ def ensure_products_image_column():
         with conn.cursor() as cur:
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url text")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measurement VARCHAR(50)")
+            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS specific_category VARCHAR(150)")
             conn.commit()
     finally:
         conn.close()

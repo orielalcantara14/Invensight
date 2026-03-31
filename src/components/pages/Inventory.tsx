@@ -1,4 +1,4 @@
-import { Search, Download, Plus, AlertCircle, Package, Edit2, Trash2 } from "lucide-react";
+import { Search, Download, Plus, Package, Edit2, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api, type InventoryItem } from "@/services/api";
 import { AddInventoryModal } from "../modals/AddInventoryModal";
@@ -47,6 +47,8 @@ export function Inventory() {
       item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.category_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.specific_category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (item.unit_of_measurement?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (item.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesFilter = filterStatus === "All" || item.status === filterStatus;
@@ -140,19 +142,22 @@ export function Inventory() {
                   SKU
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Supplier
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Stock
+                  Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Specific Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Unit Measurement
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Quantity
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Reorder Level
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                 Unit Price
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
@@ -165,7 +170,7 @@ export function Inventory() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                     </div>
@@ -173,7 +178,7 @@ export function Inventory() {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 font-medium">No inventory items found</p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add items to start managing your inventory</p>
@@ -183,32 +188,51 @@ export function Inventory() {
                 filteredItems.map((item) => (
                   <tr key={item.inventory_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {item.product_name}
+                      <div className="max-w-[260px] truncate" title={item.product_name}>
+                        {item.product_name}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
                       {item.sku}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <div className="max-w-[220px] truncate" title={item.supplier_name ?? "N/A"}>
+                        {item.supplier_name || "N/A"}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                      <span
+                        className="inline-flex max-w-[160px] truncate px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full"
+                        title={item.category_name}
+                      >
                         {item.category_name}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {item.supplier_name || 'N/A'}
+                      <div className="max-w-[200px] truncate" title={item.specific_category ?? ""}>
+                        {item.specific_category || "-"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <div className="max-w-[140px] truncate" title={item.unit_of_measurement ?? ""}>
+                        {item.unit_of_measurement || "-"}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-semibold ${
-                        item.status === 'Critical' ? 'text-red-600' : 
-                        item.status === 'Low' ? 'text-orange-600' : 'text-gray-900 dark:text-white'
-                      }`}>
+                      <span
+                        className={`text-sm font-semibold ${
+                          item.status === "Critical"
+                            ? "text-red-600"
+                            : item.status === "Low"
+                              ? "text-orange-600"
+                              : "text-gray-900 dark:text-white"
+                        }`}
+                      >
                         {item.quantity_on_hand}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
                       {item.reorder_level}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      ₱{item.unit_price.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${

@@ -202,16 +202,17 @@ export function Products() {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1500px]">
             <thead>
               <tr className="bg-gray-50/50">
-                <th className="w-[130px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SKU</th>
                 <th className="min-w-[320px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
-                <th className="w-[170px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
+                <th className="w-[130px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SKU</th>
                 <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Category</th>
-                <th className="min-w-[200px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Supplier</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Price</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Reorder Level</th>
+                <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Specific Category</th>
+                <th className="w-[170px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Cost</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Total Cost</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SRP</th>
                 <th className="w-[160px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Date Added</th>
                 <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
@@ -219,11 +220,11 @@ export function Products() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">Loading products...</td>
+                  <td colSpan={10} className="px-6 py-12 text-center text-gray-400">Loading products...</td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center">
+                  <td colSpan={10} className="px-6 py-16 text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Package className="w-8 h-8 text-gray-200" />
                     </div>
@@ -234,25 +235,39 @@ export function Products() {
               ) : (
                 filteredProducts.map((product) => (
                   <tr key={product.pos_id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{product.sku}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td
+                      className="px-6 py-4 max-w-[320px] truncate text-sm font-bold text-gray-900"
+                      title={product.product_name}
+                    >
                       {product.product_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{product.sku}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                      <span
+                        className="inline-block max-w-[200px] truncate rounded-full bg-blue-50 px-3 py-1 align-middle text-xs font-bold text-blue-600"
+                        title={product.category}
+                      >
+                        {product.category}
+                      </span>
+                    </td>
+                    <td
+                      className="px-6 py-4 max-w-[220px] truncate text-sm text-gray-600 font-medium"
+                      title={product.specific_category || undefined}
+                    >
+                      {product.specific_category || "—"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
                       {product.unit_of_measurement || "—"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold">
-                        {product.category}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      ₱{product.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 font-medium">
-                        {product.supplier_name || "No Supplier"}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      ₱{(product.unit_price * product.stock).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">₱{product.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold">{product.reorder_level}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      ₱{product.pos_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
                       {product.date_added ? new Date(product.date_added).toLocaleDateString() : "N/A"}
                     </td>

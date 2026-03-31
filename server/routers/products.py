@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 import shutil
 import os
+import re
 from database import get_connection
 from models import CreatePosProductRequest, UpdatePosProductRequest, CategoryResponse, CreateCategoryRequest, UpdateCategoryRequest
 import psycopg2.extras
@@ -8,6 +9,56 @@ from datetime import date
 
 
 router = APIRouter()
+
+def _build_sku(cur, raw_sku: str) -> str:
+    sku = (raw_sku or "").strip().upper()
+    if not sku:
+        raise HTTPException(status_code=400, detail="SKU is required")
+
+    m = re.match(r"^([A-Z0-9]+)-(\d+)$", sku)
+    if m:
+        prefix = m.group(1)
+        n = int(m.group(2))
+        return f"{prefix}-{str(n).zfill(3)}"
+
+    if sku.endswith("-"):
+        prefix = sku[:-1]
+    elif "-" not in sku:
+        prefix = sku
+    else:
+        return sku
+
+    if not re.match(r"^[A-Z0-9]+$", prefix):
+        raise HTTPException(status_code=400, detail="Invalid SKU prefix")
+
+    cur.execute(
+        """
+        SELECT COALESCE(MAX(n), 0) AS max_n
+        FROM (
+            SELECT
+                CASE
+                    WHEN split_part(sku, '-', 2) ~ '^[0-9]+$'
+                    THEN split_part(sku, '-', 2)::int
+                    ELSE NULL
+                END AS n
+            FROM products
+            WHERE split_part(sku, '-', 1) = %s
+            UNION ALL
+            SELECT
+                CASE
+                    WHEN split_part(sku, '-', 2) ~ '^[0-9]+$'
+                    THEN split_part(sku, '-', 2)::int
+                    ELSE NULL
+                END AS n
+            FROM pos_management
+            WHERE split_part(sku, '-', 1) = %s
+        ) t
+        """,
+        (prefix, prefix),
+    )
+    max_n = cur.fetchone()["max_n"] or 0
+    next_n = int(max_n) + 1
+    return f"{prefix}-{str(next_n).zfill(3)}"
 
 
 @router.post("/upload")
@@ -162,6 +213,7 @@ def get_pos_products():
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
                     COALESCE(i.reorder_level, 0) AS reorder_level,
                     COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
+                    COALESCE(p.specific_category, '') AS specific_category,
                     p.date_added,
                     CASE
                         WHEN p.unit_price IS NULL THEN false
@@ -188,6 +240,7 @@ def create_pos_product(payload: CreatePosProductRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            sku = _build_sku(cur, payload.sku)
             category_name = "Uncategorized"
             category_id = payload.category_id
             if category_id is not None:
@@ -202,16 +255,16 @@ def create_pos_product(payload: CreatePosProductRequest):
                     category_id = None
             cur.execute(
                 "SELECT pos_id FROM pos_management WHERE sku = %s",
-                (payload.sku,),
+                (sku,),
             )
             if cur.fetchone():
                 raise HTTPException(
                     status_code=409,
-                    detail=f"SKU '{payload.sku}' is already listed in POS management.",
+                    detail=f"SKU '{sku}' is already listed in POS management.",
                 )
             cur.execute(
                 "SELECT product_id FROM products WHERE sku = %s",
-                (payload.sku,),
+                (sku,),
             )
             existing_product = cur.fetchone()
             if existing_product:
@@ -225,6 +278,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                         product_name = %s,
                         description = %s,
                         image_url = %s,
+                        specific_category = %s,
                         sku = %s,
                         unit_price = %s,
                         unit_of_measurement = %s
@@ -236,7 +290,8 @@ def create_pos_product(payload: CreatePosProductRequest):
                         payload.product_name,
                         payload.description,
                         payload.image_url,
-                        payload.sku,
+                        payload.specific_category,
+                        sku,
                         payload.unit_price,
                         payload.unit_of_measurement,
                         product_id,
@@ -248,9 +303,9 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO products (
-                        product_id, category_id, supplier_id, product_name, description, image_url, unit_price, sku, date_added, unit_of_measurement
+                        product_id, category_id, supplier_id, product_name, description, image_url, specific_category, unit_price, sku, date_added, unit_of_measurement
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         product_id,
@@ -259,8 +314,9 @@ def create_pos_product(payload: CreatePosProductRequest):
                         payload.product_name,
                         payload.description,
                         payload.image_url,
+                        payload.specific_category,
                         payload.unit_price,
-                        payload.sku,
+                        sku,
                         date.today(),
                         payload.unit_of_measurement,
                     ),
@@ -326,7 +382,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                     product_id,
                     inventory_id,
                     category_id,
-                    payload.sku,
+                    sku,
                     payload.product_name,
                     category_name,
                     payload.stock,
@@ -366,7 +422,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 category_name = category_row["category_name"]
 
             cur.execute(
-                "SELECT product_id FROM pos_management WHERE pos_id = %s",
+                "SELECT product_id, sku FROM pos_management WHERE pos_id = %s",
                 (pos_id,),
             )
             existing = cur.fetchone()
@@ -374,6 +430,23 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 raise HTTPException(status_code=404, detail="POS product not found")
 
             product_id = existing["product_id"]
+            current_sku = (existing.get("sku") or "").strip().upper()
+            sku = _build_sku(cur, payload.sku)
+
+            if sku != current_sku:
+                cur.execute(
+                    "SELECT 1 FROM pos_management WHERE sku = %s AND pos_id <> %s",
+                    (sku, pos_id),
+                )
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail=f"SKU '{sku}' is already listed in POS management.")
+
+                cur.execute(
+                    "SELECT 1 FROM products WHERE sku = %s AND product_id <> %s",
+                    (sku, product_id),
+                )
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail=f"SKU '{sku}' is already used by another product.")
 
             cur.execute(
                 """
@@ -384,6 +457,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     product_name = %s,
                     description = %s,
                     image_url = %s,
+                    specific_category = %s,
                     sku = %s,
                     unit_price = %s,
                     unit_of_measurement = %s
@@ -395,7 +469,8 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     payload.product_name,
                     payload.description,
                     payload.image_url,
-                    payload.sku,
+                    payload.specific_category,
+                    sku,
                     payload.unit_price,
                     payload.unit_of_measurement,
                     product_id,
@@ -434,7 +509,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 """,
                 (
                     category_id,
-                    payload.sku,
+                    sku,
                     payload.product_name,
                     category_name,
                     payload.stock,

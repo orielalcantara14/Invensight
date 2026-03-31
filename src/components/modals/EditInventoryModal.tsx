@@ -48,7 +48,7 @@ export function EditInventoryModal({
       setFormData({
         quantity_on_hand: String(item.quantity_on_hand),
         reorder_level: String(item.reorder_level),
-        supplier_id: item.supplier_name ? String(suppliers.find(s => s.supplier_name === item.supplier_name)?.supplier_id || "") : "",
+        supplier_id: item.supplier_id ? String(item.supplier_id) : "",
       });
     }
   }, [item, suppliers]);

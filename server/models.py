@@ -22,6 +22,7 @@ class CreatePosProductRequest(BaseModel):
     product_name: str
     description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
+    specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
     supplier_id: Optional[int] = None
     unit_price: float
@@ -36,6 +37,7 @@ class UpdatePosProductRequest(BaseModel):
     product_name: str
     description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
+    specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
     supplier_id: Optional[int] = None
     unit_price: float
@@ -198,6 +200,9 @@ class InventoryResponse(BaseModel):
     product_name: str
     sku: str
     category_name: str
+    specific_category: Optional[str] = None
+    unit_of_measurement: Optional[str] = None
+    supplier_id: Optional[int] = None
     supplier_name: Optional[str] = None
     quantity_on_hand: int
     reorder_level: int
