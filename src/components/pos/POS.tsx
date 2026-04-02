@@ -327,42 +327,6 @@ function CheckoutModal({
             </div>
           ) : (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount Received (₱)
-                </label>
-                <input
-                  ref={inputRef}
-                  type="number"
-                  min={grandTotal}
-                  max={500000}
-                  step="0.01"
-                  value={cashInput}
-                  onChange={(e) => setCashInput(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-2xl font-black text-gray-900 outline-none"
-                  placeholder="0.00"
-                />
-              </div>
-
-              {sufficient && cashFloat > 0 && change >= 0 && (
-                <div className="flex justify-between items-center bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-green-800">
-                  <span className="font-bold">CHANGE</span>
-                  <span className="text-xl font-black">₱{fmt(change)}</span>
-                </div>
-              )}
-              {!sufficient && cashFloat > 0 && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-red-700 text-sm font-medium">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>Need ₱{fmt(grandTotal - cashFloat)} more</span>
-                </div>
-              )}
-              {cashFloat > 500000 && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-red-700 text-sm font-medium">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>Maximum amount received is ₱500,000</span>
-                </div>
-              )}
-
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
                 <p className="text-blue-800 font-bold text-sm">PayMongo QR Payment</p>
                 <p className="text-blue-600 text-xs">Customer will scan a QR code to complete payment via {paymentMethod}</p>
@@ -380,7 +344,7 @@ function CheckoutModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!sufficient || processing}
+            disabled={paymentMethod === "Cash" ? (!sufficient || processing) : processing}
             className={`flex-1 py-3 rounded-xl font-black text-white transition-all shadow-lg ${
               paymentMethod === "Cash" 
                 ? "bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300" 

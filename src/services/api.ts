@@ -509,6 +509,22 @@ export const api = {
       method: "DELETE",
     }),
 
+  getPurchaseOrders: () => request<any[]>("/api/purchase-orders/"),
+  getPurchaseOrder: (orderId: string) => request<any>(`/api/purchase-orders/${orderId}`),
+  createPurchaseOrder: (payload: { supplier_id: number; expected_delivery: string; items: Array<{ product_id: number; quantity: number; unit_price?: number }>; notes?: string }) =>
+    request<{ ok: boolean; order_id: string }>("/api/purchase-orders/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  markOrderAsReceived: (orderId: string) =>
+    request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/receive`, {
+      method: "PUT",
+    }),
+  deletePurchaseOrder: (orderId: string) =>
+    request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, {
+      method: "DELETE",
+    }),
+
   login: (payload: LoginPayload) =>
     request<LoginResult>("/api/login", {
       method: "POST",

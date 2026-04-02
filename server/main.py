@@ -14,6 +14,7 @@ from routers.profile import router as profile_router
 from routers.suppliers import router as suppliers_router
 from routers.inventory import router as inventory_router
 from routers.dashboard import router as dashboard_router
+from routers.purchase_orders import router as purchase_orders_router
 from database import get_connection, verify_database_connection
 
 logging.basicConfig(
@@ -41,6 +42,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(suppliers_router, prefix="/api/suppliers", tags=["Suppliers"])
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(purchase_orders_router, prefix="/api/purchase-orders", tags=["Purchase Orders"])
 app.include_router(dashboard_router, prefix="/api")
 
 # Create uploads directory if it doesn't exist
@@ -293,6 +295,43 @@ def ensure_users_roles_schema():
             # Drop pos_management table as requested
             cur.execute("DROP TABLE IF EXISTS pos_management CASCADE")
             conn.commit()
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def ensure_purchase_orders_schema():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS purchase_orders (
+                    order_id VARCHAR(50) PRIMARY KEY,
+                    supplier_id INTEGER REFERENCES supplier(supplier_id),
+                    user_id INTEGER REFERENCES users(user_id),
+                    status VARCHAR(50) DEFAULT 'Pending',
+                    expected_delivery DATE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    received_at TIMESTAMP,
+                    total_items INTEGER DEFAULT 0,
+                    notes TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS purchase_order_items (
+                    item_id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(50) REFERENCES purchase_orders(order_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL,
+                    unit_price DECIMAL(10, 2)
+                )
+            """)
+            cur.execute("ALTER TABLE supplier ADD COLUMN IF NOT EXISTS total_orders INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE supplier ADD COLUMN IF NOT EXISTS completed_orders INTEGER DEFAULT 0")
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Purchase orders schema migration error: {e}")
     finally:
         conn.close()
 

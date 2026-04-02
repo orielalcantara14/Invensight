@@ -349,9 +349,9 @@ export function EditProductModal({
             <input
               type="number"
               value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
               placeholder="0"
+              disabled
             />
           </div>
           <div>

@@ -310,10 +310,12 @@ def create_sale(sale: CreateSaleRequest):
                     """
                     UPDATE inventory
                     SET quantity = quantity - %s,
+                        expected = GREATEST(expected - %s, actual - %s),
+                        actual = actual - %s,
                         last_updated = %s
                     WHERE product_id = %s
                     """,
-                    (item.quantity, today, item.product_id)
+                    (item.quantity, item.quantity, item.quantity, item.quantity, today, item.product_id)
                 )
 
             # --- Insert payment ---

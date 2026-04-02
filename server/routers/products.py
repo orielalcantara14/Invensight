@@ -458,19 +458,6 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 ),
             )
 
-            # Update inventory as well
-            cur.execute(
-                """
-                UPDATE inventory
-                SET quantity = %s,
-                    expected = %s,
-                    actual = %s,
-                    last_updated = %s
-                WHERE product_id = %s
-                """,
-                (payload.stock, payload.stock, payload.stock, date.today(), product_id)
-            )
-
             conn.commit()
             return {"ok": True}
     except HTTPException:

@@ -285,7 +285,7 @@ export function Records() {
               </table>
             </div>
             {totalPages > 1 && activeTab === "inspection" && (
-              <div className="px-6 py-4 border-t border-gray-200">
+              <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <p className="text-sm text-gray-700">

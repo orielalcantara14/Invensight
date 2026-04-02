@@ -261,6 +261,41 @@ class UpdateInventoryRequest(BaseModel):
     reason_adjustment: str
 
 
+class PurchaseOrderItemRequest(BaseModel):
+    product_id: int
+    quantity: int
+    unit_price: Optional[float] = None
+
+
+class CreatePurchaseOrderRequest(BaseModel):
+    supplier_id: int
+    expected_delivery: str
+    items: List[PurchaseOrderItemRequest]
+    notes: Optional[str] = None
+
+
+class PurchaseOrderItemResponse(BaseModel):
+    item_id: int
+    product_id: int
+    product_name: Optional[str] = None
+    quantity: int
+    unit_price: Optional[float] = None
+
+
+class PurchaseOrderResponse(BaseModel):
+    order_id: str
+    supplier_id: int
+    supplier_name: Optional[str] = None
+    user_id: Optional[int] = None
+    status: str
+    expected_delivery: Optional[str] = None
+    created_at: Optional[str] = None
+    received_at: Optional[str] = None
+    total_items: int
+    notes: Optional[str] = None
+    items: Optional[List[PurchaseOrderItemResponse]] = None
+
+
 class AuditLogEntryResponse(BaseModel):
     log_id: int
     user_id: int

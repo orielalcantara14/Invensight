@@ -335,29 +335,29 @@ export function Inventory() {
           </table>
         </div>
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
+                <p className="text-sm text-gray-700">
                   Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
                   <span className="font-medium">{Math.min(endIndex, filteredItems.length)}</span> of{" "}
                   <span className="font-medium">{filteredItems.length}</span> results
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+                  <span className="text-sm text-gray-600">Show:</span>
                   <select
                     value={itemsPerPage}
                     onChange={(e) => {
                       setItemsPerPage(Number(e.target.value));
                       setCurrentPage(1);
                     }}
-                    className="bg-gray-50 dark:bg-gray-800 px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:text-gray-300"
+                    className="bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                   >
                     <option value={3}>3</option>
                     <option value={5}>5</option>
                     <option value={10}>10</option>
                   </select>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+                  <span className="text-sm text-gray-600">per page</span>
                 </div>
               </div>
               <Pagination>

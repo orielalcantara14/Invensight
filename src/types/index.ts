@@ -157,3 +157,29 @@ export interface GeneratedReport {
   generatedDate: string;
   generatedBy: string;
 }
+
+// ── Purchase Orders ───────────────────────────────────────────────────────────
+
+export type POStatus = 'Pending' | 'Received' | 'Cancelled';
+
+export interface PurchaseOrderItem {
+  item_id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  unit_price: number | null;
+}
+
+export interface PurchaseOrder {
+  order_id: string;
+  supplier_id: number;
+  supplier_name: string;
+  user_id: number | null;
+  status: POStatus;
+  expected_delivery: string | null;
+  created_at: string | null;
+  received_at: string | null;
+  total_items: number;
+  notes: string | null;
+  items?: PurchaseOrderItem[];
+}
