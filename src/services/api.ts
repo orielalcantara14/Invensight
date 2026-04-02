@@ -6,12 +6,12 @@ export interface Product {
   unit_price: number;
   pos_price?: number;
   sku: string;
-  description: string;
   image_url: string;
   category_name: string;
   category_id: number;
   supplier_name?: string;
   unit_of_measurement?: string;
+  quantity?: number;
 }
 
 export interface Category {
@@ -30,7 +30,6 @@ export interface PosProduct {
   product_id: number;
   sku: string;
   product_name: string;
-  description: string;
   image_url: string;
   price_modified: boolean;
   category_id: number | null;
@@ -50,7 +49,6 @@ export interface PosProduct {
 export interface PosProductPayload {
   sku: string;
   product_name: string;
-  description: string;
   image_url: string | null;
   category_id: number | null;
   specific_category?: string;
@@ -72,9 +70,32 @@ export interface CreateSalePayload {
   pos_terminal_id: number;
   user_id: number;
   customer_info: string;
+  customer_name?: string;
+  contact_number?: string;
+  address?: string;
+  payment_method: string;
   cash_received: number;
   items: CartItemPayload[];
   service_charge: number;
+  paymongo_source_id?: string;
+}
+
+export interface PayMongoSourcePayload {
+  amount: number; // in centavos
+  type: "gcash";
+  currency: "PHP";
+  description: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+}
+
+export interface PayMongoPaymentIntentPayload {
+  amount: number; // in centavos
+  currency: "PHP";
+  payment_method_allowed: string;
+  customer_name?: string;
+  customer_phone?: string;
 }
 
 export interface SaleResult {
@@ -237,23 +258,45 @@ export interface InventoryItem {
   product_id: number;
   product_name: string;
   sku: string;
+  category_id?: number | null;
   category_name: string;
   specific_category?: string | null;
   unit_of_measurement?: string | null;
-  supplier_id?: number | null;
-  supplier_name: string | null;
-  quantity_on_hand: number;
+  supplier_name?: string | null;
+  quantity: number;
+  expected: number;
+  actual: number;
   reorder_level: number;
   unit_price: number;
   status: 'Normal' | 'Low' | 'Critical';
   last_updated: string;
+  reason_adjustment: string;
 }
 
 export interface InventoryPayload {
-  product_id: number;
-  quantity_on_hand: number;
+  product_name: string;
+  sku: string;
+  supplier_name?: string | null;
+  category_id?: number | null;
+  specific_category?: string | null;
+  unit_of_measurement?: string | null;
+  quantity: number;
+  expected: number;
   reorder_level: number;
-  supplier_id: number | null;
+}
+
+export interface UpdateInventoryPayload {
+  product_name: string;
+  sku: string;
+  supplier_name?: string | null;
+  category_id?: number | null;
+  specific_category?: string | null;
+  unit_of_measurement?: string | null;
+  quantity: number;
+  expected: number;
+  reorder_level: number;
+  actual: number;
+  reason_adjustment: string;
 }
 
 /** Matches `LoginResponse` from the API (snake_case). */
@@ -317,16 +360,17 @@ export interface TopProductItem {
 
 export interface DashboardStats {
   total_revenue: number;
-  total_sales: number;
-  inventory_items: number;
-  low_stock_items: number;
+  total_transactions: number;
+  completed_sales: number;
+  failed_payments: number;
+  sales_performance: Array<{ label: string; revenue: number; transactions: number }>;
   sales_trend: Array<{ month: string; actual_sales: number; forecast_sales: number }>;
   sales_by_category: Array<{ category: string; value: number; percentage: number }>;
   top_products: TopProductItem[];
 }
 
 export const api = {
-  getDashboardStats: () => request<DashboardStats>("/api/dashboard/stats"),
+  getDashboardStats: (view?: string) => request<DashboardStats>(`/api/dashboard/stats${view ? `?view=${view}` : ""}`),
   getProducts: () => request<Product[]>("/api/products"),
   getCategories: () => request<Category[]>("/api/categories"),
   createCategory: (payload: { category_name: string; is_active: boolean }) =>
@@ -369,13 +413,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
-  updatePosProductStatus: (posId: number, status: "Active" | "Archived") =>
-    request<{ ok: boolean }>(
-      `/api/pos-products/${posId}/status?status=${encodeURIComponent(status)}`,
-      {
-        method: "PATCH",
-      }
-    ),
   deletePosProduct: (posId: number) =>
     request<{ ok: boolean }>(`/api/pos-products/${posId}`, {
       method: "DELETE",
@@ -385,6 +422,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  getSales: () => request<{ sales: import("@/types").SaleRecord[] }>("/api/sales"),
+  getSale: (invoiceId: number) => request<import("@/types").SaleDetail>(`/api/sales/${invoiceId}`),
+
+  createPayMongoSource: (payload: PayMongoSourcePayload) =>
+    request<{ data: any }>("/api/paymongo/create-source", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getPayMongoSource: (sourceId: string) =>
+    request<{ data: any }>(`/api/paymongo/source/${sourceId}`),
+
+  createPayMongoPaymentIntent: (payload: PayMongoPaymentIntentPayload) =>
+    request<{ data: any }>("/api/paymongo/create-payment-intent", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getPayMongoPaymentIntent: (paymentIntentId: string) =>
+    request<{ data: any }>(`/api/paymongo/payment-intent/${paymentIntentId}`),
 
   getUsers: () => request<ApiUser[]>("/api/users"),
   getUserManagementStats: (actorUserId: number) =>
@@ -438,13 +493,13 @@ export const api = {
       method: "DELETE",
     }),
 
-  getInventory: () => request<InventoryItem[]>("/api/inventory/"),
+  getInventoryItems: () => request<InventoryItem[]>("/api/inventory/"),
   addInventoryItem: (payload: InventoryPayload) =>
     request<InventoryItem>("/api/inventory/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateInventoryItem: (inventoryId: number, payload: Partial<InventoryPayload>) =>
+  updateInventoryItem: (inventoryId: number, payload: UpdateInventoryPayload) =>
     request<InventoryItem>(`/api/inventory/${inventoryId}/`, {
       method: "PUT",
       body: JSON.stringify(payload),

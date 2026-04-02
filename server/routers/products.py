@@ -10,55 +10,87 @@ from datetime import date
 
 router = APIRouter()
 
-def _build_sku(cur, raw_sku: str) -> str:
-    sku = (raw_sku or "").strip().upper()
-    if not sku:
-        raise HTTPException(status_code=400, detail="SKU is required")
+def _build_sku(cur, raw_sku: str, product_name: str = "", category_name: str = "") -> str:
+    # 1. Start with Category Code (e.g., Engine Oil -> EO)
+    cat_code = ""
+    if category_name and category_name != "Uncategorized":
+        # Use first letters of each word in category_name
+        cat_code = "".join([word[0].upper() for word in category_name.split() if word])
+    
+    # If no category code but raw_sku (prefix) exists, use that instead
+    prefix_base = cat_code if cat_code else (raw_sku or "").strip().upper()
+    if not prefix_base:
+        prefix_base = "PRD"
+        
+    # 2. Brand Code (e.g., HONDA -> HO)
+    brand_code = ""
+    if product_name:
+        parts = product_name.split()
+        if parts:
+            brand_code = parts[0][:2].upper()
+            
+    # 3. Details Code (e.g., BLUE 1L -> BL1L)
+    details_code = ""
+    if product_name:
+        parts = product_name.split()
+        if len(parts) > 1:
+            # Last part is likely the unit (e.g., 1L, 800ML)
+            unit_part = parts[-1]
+            digit = "".join(filter(str.isdigit, unit_part))
+            unit_letter = "".join(filter(str.isalpha, unit_part))
+            unit_code = ""
+            if digit: unit_code += digit[0]
+            if unit_letter: unit_code += unit_letter[0].upper()
+            
+            # Parts between brand and unit
+            middle_parts = parts[1:-1]
+            middle_code = ""
+            if len(middle_parts) == 1:
+                word = middle_parts[0].upper()
+                if word == "GOLD":
+                    middle_code = "GL"
+                elif len(word) >= 2:
+                    middle_code = word[:2]
+                else:
+                    middle_code = word
+            elif len(middle_parts) >= 2:
+                middle_code = "".join([p[0].upper() for p in middle_parts[:2]])
+            elif not middle_parts and not unit_code:
+                if not unit_code and len(unit_part) >= 2:
+                    unit_code = unit_part[:2].upper()
+            
+            details_code = f"{middle_code}{unit_code}"
 
-    m = re.match(r"^([A-Z0-9]+)-(\d+)$", sku)
-    if m:
-        prefix = m.group(1)
-        n = int(m.group(2))
-        return f"{prefix}-{str(n).zfill(3)}"
-
-    if sku.endswith("-"):
-        prefix = sku[:-1]
-    elif "-" not in sku:
-        prefix = sku
+    # Assemble the base SKU
+    if brand_code and details_code:
+        prefix = f"{prefix_base}-{brand_code}-{details_code}"
+    elif brand_code:
+        prefix = f"{prefix_base}-{brand_code}"
     else:
-        return sku
+        prefix = prefix_base
 
-    if not re.match(r"^[A-Z0-9]+$", prefix):
-        raise HTTPException(status_code=400, detail="Invalid SKU prefix")
+    # Check for collisions
+    cur.execute("SELECT 1 FROM products WHERE sku = %s", (prefix,))
+    if not cur.fetchone():
+        return prefix
 
+    # If it exists, add sequence
     cur.execute(
         """
-        SELECT COALESCE(MAX(n), 0) AS max_n
-        FROM (
-            SELECT
-                CASE
-                    WHEN split_part(sku, '-', 2) ~ '^[0-9]+$'
-                    THEN split_part(sku, '-', 2)::int
-                    ELSE NULL
-                END AS n
-            FROM products
-            WHERE split_part(sku, '-', 1) = %s
-            UNION ALL
-            SELECT
-                CASE
-                    WHEN split_part(sku, '-', 2) ~ '^[0-9]+$'
-                    THEN split_part(sku, '-', 2)::int
-                    ELSE NULL
-                END AS n
-            FROM pos_management
-            WHERE split_part(sku, '-', 1) = %s
-        ) t
+        SELECT sku FROM products WHERE sku LIKE %s || '%%'
         """,
-        (prefix, prefix),
+        (prefix,),
     )
-    max_n = cur.fetchone()["max_n"] or 0
-    next_n = int(max_n) + 1
-    return f"{prefix}-{str(next_n).zfill(3)}"
+    existing_skus = [row["sku"] for row in cur.fetchall()]
+    
+    max_n = 0
+    pattern = re.compile(re.escape(prefix) + r"-(\d+)$")
+    for s in existing_skus:
+        m = pattern.match(s)
+        if m:
+            max_n = max(max_n, int(m.group(1)))
+            
+    return f"{prefix}-{str(max_n + 1).zfill(3)}"
 
 
 @router.post("/upload")
@@ -165,22 +197,22 @@ def get_products():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT
-                    pm.product_id,
-                    pm.product_name,
-                    p.unit_price,
-                    pm.pos_price,
-                    pm.sku,
-                    COALESCE(p.description, '') AS description,
+                    p.product_id,
+                    p.product_name,
+                    CAST(p.unit_price AS FLOAT) as unit_price,
+                    CAST(COALESCE(p.pos_price, p.unit_price, 0.0) AS FLOAT) as pos_price,
+                    p.sku,
                     COALESCE(p.image_url, '') AS image_url,
-                    COALESCE(pm.category, 'Uncategorized') AS category_name,
-                    COALESCE(pm.category_id, 0) AS category_id,
+                    COALESCE(c.category_name, 'Uncategorized') AS category_name,
+                    COALESCE(p.category_id, 0) AS category_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
-                    COALESCE(p.unit_of_measurement, '') AS unit_of_measurement
-                FROM pos_management pm
-                LEFT JOIN products p ON pm.product_id = p.product_id
+                    COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
+                    COALESCE(i.quantity, 0) AS quantity
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
-                WHERE pm.status = 'Active'
-                ORDER BY pm.product_name
+                LEFT JOIN inventory i ON p.product_id = i.product_id
+                ORDER BY p.product_name
             """)
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
@@ -197,17 +229,16 @@ def get_pos_products():
             cur.execute(
                 """
                 SELECT
-                    pm.pos_id,
-                    pm.product_id,
-                    pm.sku,
-                    pm.product_name,
-                    pm.category_id,
-                    pm.category,
-                    pm.stock,
-                    pm.pos_price,
-                    p.unit_price,
-                    pm.status,
-                    COALESCE(p.description, '') AS description,
+                    p.product_id as pos_id,
+                    p.product_id,
+                    p.sku,
+                    p.product_name,
+                    p.category_id,
+                    COALESCE(c.category_name, 'Uncategorized') as category,
+                    COALESCE(i.quantity, 0) AS stock,
+                    CAST(COALESCE(p.pos_price, p.unit_price, 0.0) AS FLOAT) as pos_price,
+                    CAST(COALESCE(p.unit_price, 0.0) AS FLOAT) as unit_price,
+                    'Active' as status,
                     COALESCE(p.image_url, '') AS image_url,
                     p.supplier_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
@@ -215,16 +246,12 @@ def get_pos_products():
                     COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
                     COALESCE(p.specific_category, '') AS specific_category,
                     p.date_added,
-                    CASE
-                        WHEN p.unit_price IS NULL THEN false
-                        WHEN pm.pos_price <> p.unit_price THEN true
-                        ELSE false
-                    END AS price_modified
-                FROM pos_management pm
-                LEFT JOIN products p ON pm.product_id = p.product_id
+                    false AS price_modified
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
-                LEFT JOIN inventory i ON pm.inventory_id = i.inventory_id
-                ORDER BY pm.product_name
+                LEFT JOIN inventory i ON p.product_id = i.product_id
+                ORDER BY p.product_name
                 """
             )
             return [dict(row) for row in cur.fetchall()]
@@ -240,7 +267,6 @@ def create_pos_product(payload: CreatePosProductRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            sku = _build_sku(cur, payload.sku)
             category_name = "Uncategorized"
             category_id = payload.category_id
             if category_id is not None:
@@ -253,15 +279,9 @@ def create_pos_product(payload: CreatePosProductRequest):
                     category_name = category_row["category_name"]
                 else:
                     category_id = None
-            cur.execute(
-                "SELECT pos_id FROM pos_management WHERE sku = %s",
-                (sku,),
-            )
-            if cur.fetchone():
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"SKU '{sku}' is already listed in POS management.",
-                )
+            
+            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
+            
             cur.execute(
                 "SELECT product_id FROM products WHERE sku = %s",
                 (sku,),
@@ -276,11 +296,11 @@ def create_pos_product(payload: CreatePosProductRequest):
                         category_id = %s,
                         supplier_id = %s,
                         product_name = %s,
-                        description = %s,
                         image_url = %s,
                         specific_category = %s,
                         sku = %s,
                         unit_price = %s,
+                        pos_price = %s,
                         unit_of_measurement = %s
                     WHERE product_id = %s
                     """,
@@ -288,11 +308,11 @@ def create_pos_product(payload: CreatePosProductRequest):
                         category_id,
                         payload.supplier_id,
                         payload.product_name,
-                        payload.description,
                         payload.image_url,
                         payload.specific_category,
                         sku,
                         payload.unit_price,
+                        payload.pos_price,
                         payload.unit_of_measurement,
                         product_id,
                     ),
@@ -303,7 +323,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO products (
-                        product_id, category_id, supplier_id, product_name, description, image_url, specific_category, unit_price, sku, date_added, unit_of_measurement
+                        product_id, category_id, supplier_id, product_name, image_url, specific_category, unit_price, pos_price, sku, date_added, unit_of_measurement
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
@@ -312,10 +332,10 @@ def create_pos_product(payload: CreatePosProductRequest):
                         category_id,
                         payload.supplier_id,
                         payload.product_name,
-                        payload.description,
                         payload.image_url,
                         payload.specific_category,
                         payload.unit_price,
+                        payload.pos_price,
                         sku,
                         date.today(),
                         payload.unit_of_measurement,
@@ -335,10 +355,14 @@ def create_pos_product(payload: CreatePosProductRequest):
             inventory_row = cur.fetchone()
             if inventory_row:
                 inventory_id = inventory_row["inventory_id"]
-                # Update supplier_id and quantity_on_hand in existing inventory
+                # Update quantity, expected, and actual in existing inventory
                 cur.execute(
-                    "UPDATE inventory SET supplier_id = %s, quantity_on_hand = %s WHERE inventory_id = %s",
-                    (payload.supplier_id, payload.stock, inventory_id)
+                    """
+                    UPDATE inventory 
+                    SET quantity = %s, expected = %s, actual = %s, last_updated = %s 
+                    WHERE inventory_id = %s
+                    """,
+                    (payload.stock, payload.stock, payload.stock, date.today(), inventory_id)
                 )
             else:
                 cur.execute(
@@ -348,51 +372,15 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO inventory (
-                        inventory_id, product_id, quantity_on_hand, location_shelf, reorder_level, last_updated, supplier_id
+                        inventory_id, product_id, quantity, expected, actual, reorder_level, last_updated, reason_adjustment
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (inventory_id, product_id, payload.stock, "N/A", 5, date.today(), payload.supplier_id),
+                    (inventory_id, product_id, payload.stock, payload.stock, payload.stock, 5, date.today(), "Initial stock"),
                 )
-
-            cur.execute(
-                "SELECT pos_id FROM pos_management WHERE product_id = %s",
-                (product_id,),
-            )
-            existing_pos_for_product = cur.fetchone()
-            if existing_pos_for_product:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Product '{payload.product_name}' is already listed in POS management.",
-                )
-
-            cur.execute("SELECT COALESCE(MAX(pos_id), 0) + 1 AS next_id FROM pos_management")
-            pos_id = cur.fetchone()["next_id"]
-
-            pos_price = payload.pos_price if payload.pos_price is not None else payload.unit_price
-            cur.execute(
-                """
-                INSERT INTO pos_management (
-                    pos_id, product_id, inventory_id, category_id, sku, product_name, category, stock, pos_price, status
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    pos_id,
-                    product_id,
-                    inventory_id,
-                    category_id,
-                    sku,
-                    payload.product_name,
-                    category_name,
-                    payload.stock,
-                    pos_price,
-                    payload.status,
-                ),
-            )
 
             conn.commit()
-            return {"pos_id": pos_id}
+            return {"pos_id": product_id}
     except HTTPException:
         conn.rollback()
         raise
@@ -422,25 +410,18 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 category_name = category_row["category_name"]
 
             cur.execute(
-                "SELECT product_id, sku FROM pos_management WHERE pos_id = %s",
+                "SELECT product_id, sku FROM products WHERE product_id = %s",
                 (pos_id,),
             )
             existing = cur.fetchone()
             if not existing:
-                raise HTTPException(status_code=404, detail="POS product not found")
+                raise HTTPException(status_code=404, detail="Product not found")
 
             product_id = existing["product_id"]
             current_sku = (existing.get("sku") or "").strip().upper()
-            sku = _build_sku(cur, payload.sku)
+            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
 
             if sku != current_sku:
-                cur.execute(
-                    "SELECT 1 FROM pos_management WHERE sku = %s AND pos_id <> %s",
-                    (sku, pos_id),
-                )
-                if cur.fetchone():
-                    raise HTTPException(status_code=409, detail=f"SKU '{sku}' is already listed in POS management.")
-
                 cur.execute(
                     "SELECT 1 FROM products WHERE sku = %s AND product_id <> %s",
                     (sku, product_id),
@@ -455,11 +436,11 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     category_id = %s,
                     supplier_id = %s,
                     product_name = %s,
-                    description = %s,
                     image_url = %s,
                     specific_category = %s,
                     sku = %s,
                     unit_price = %s,
+                    pos_price = %s,
                     unit_of_measurement = %s
                 WHERE product_id = %s
                 """,
@@ -467,11 +448,11 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     category_id,
                     payload.supplier_id,
                     payload.product_name,
-                    payload.description,
                     payload.image_url,
                     payload.specific_category,
                     sku,
                     payload.unit_price,
+                    payload.pos_price,
                     payload.unit_of_measurement,
                     product_id,
                 ),
@@ -481,43 +462,15 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
             cur.execute(
                 """
                 UPDATE inventory
-                SET supplier_id = %s,
-                    quantity_on_hand = %s
+                SET quantity = %s,
+                    expected = %s,
+                    actual = %s,
+                    last_updated = %s
                 WHERE product_id = %s
                 """,
-                (payload.supplier_id, payload.stock, product_id)
+                (payload.stock, payload.stock, payload.stock, date.today(), product_id)
             )
 
-            # Only update pos_price if it was provided in the payload
-            # In the frontend, the POS Management module will send pos_price
-            # while the Products module might only send unit_price.
-            # However, for simplicity, we can always update both if present.
-            p_price = payload.pos_price if payload.pos_price is not None else payload.unit_price
-
-            cur.execute(
-                """
-                UPDATE pos_management
-                SET
-                    category_id = %s,
-                    sku = %s,
-                    product_name = %s,
-                    category = %s,
-                    stock = %s,
-                    pos_price = %s,
-                    status = %s
-                WHERE pos_id = %s
-                """,
-                (
-                    category_id,
-                    sku,
-                    payload.product_name,
-                    category_name,
-                    payload.stock,
-                    p_price,
-                    payload.status,
-                    pos_id,
-                ),
-            )
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -532,28 +485,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
 
 @router.patch("/pos-products/{pos_id}/status")
 def update_pos_product_status(pos_id: int, status: str):
-    conn = get_connection()
-    try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            if status not in ["Active", "Archived"]:
-                raise HTTPException(status_code=400, detail="Invalid status")
-            cur.execute(
-                "UPDATE pos_management SET status = %s WHERE pos_id = %s RETURNING pos_id",
-                (status, pos_id),
-            )
-            updated = cur.fetchone()
-            if not updated:
-                raise HTTPException(status_code=404, detail="POS product not found")
-            conn.commit()
-            return {"ok": True}
-    except HTTPException:
-        conn.rollback()
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
+    return {"ok": True}
 
 
 @router.delete("/pos-products/{pos_id}")
@@ -564,36 +496,28 @@ def delete_pos_product(pos_id: int):
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT pos_id, product_id, inventory_id
-                FROM pos_management
-                WHERE pos_id = %s
+                SELECT product_id
+                FROM products
+                WHERE product_id = %s
                 """,
                 (pos_id,),
             )
             target = cur.fetchone()
             if not target:
-                raise HTTPException(status_code=404, detail="POS product not found")
-            cur.execute(
-                "DELETE FROM pos_management WHERE pos_id = %s RETURNING pos_id",
-                (pos_id,),
-            )
+                raise HTTPException(status_code=404, detail="Product not found")
 
             cur.execute(
                 """
                 DELETE FROM inventory
-                WHERE inventory_id = %s
-                  AND product_id = %s
+                WHERE product_id = %s
                 """,
-                (target["inventory_id"], target["product_id"]),
+                (target["product_id"],),
             )
 
             cur.execute(
                 """
                 DELETE FROM products p
                 WHERE p.product_id = %s
-                  AND NOT EXISTS (
-                    SELECT 1 FROM pos_management pm WHERE pm.product_id = p.product_id
-                  )
                   AND NOT EXISTS (
                     SELECT 1 FROM sold_items si WHERE si.product_id = p.product_id
                   )
@@ -607,22 +531,6 @@ def delete_pos_product(pos_id: int):
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
-
-
-@router.get("/categories")
-def get_categories():
-    conn = get_connection()
-    try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                "SELECT category_id, category_name FROM categories "
-                "WHERE is_active = true OR is_active IS NULL ORDER BY category_name"
-            )
-            return [dict(row) for row in cur.fetchall()]
-    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

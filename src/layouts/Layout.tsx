@@ -50,13 +50,11 @@ export function Layout() {
 
   const navigation = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { name: "POS Management", path: "/pos-management", icon: Monitor },
     { name: "Sales", path: "/sales", icon: ShoppingCart },
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: PackageSearch },
     { name: "Suppliers", path: "/suppliers", icon: Truck },
     { name: "Orders", path: "/orders", icon: FileText },
-    { name: "Stock Movements", path: "/stock-movements", icon: History },
     { 
       name: "Analytics", 
       path: "/analytics",

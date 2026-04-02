@@ -1,26 +1,50 @@
-import { Search, Download, Plus, Package, Edit2, Trash2 } from "lucide-react";
+import { Search, Download, Package, Edit2, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { api, type InventoryItem } from "@/services/api";
-import { AddInventoryModal } from "../modals/AddInventoryModal";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
 import { toast } from "sonner";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [categories, setCategories] = useState<any[]>([]);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const [searchParams] = useSearchParams();
 
   const fetchInventory = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getInventory();
-      setItems(data);
+      const [invItems, cats] = await Promise.all([
+        api.getInventoryItems(),
+        api.getCategories()
+      ]);
+      setItems(invItems);
+      setCategories(cats);
+      
+      // Handle initial search from URL
+      const initialSearch = searchParams.get("search");
+      if (initialSearch) {
+        setSearchTerm(initialSearch);
+      }
     } catch (error) {
       console.error("Inventory fetch error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to fetch inventory");
+      toast.error("Failed to load inventory data");
     } finally {
       setIsLoading(false);
     }
@@ -49,12 +73,62 @@ export function Inventory() {
       item.category_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.specific_category?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       (item.unit_of_measurement?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (item.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      (item.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (item.reason_adjustment?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
-    const matchesFilter = filterStatus === "All" || item.status === filterStatus;
+    const matchesStatus = filterStatus === "All" || item.status === filterStatus;
+    const matchesCategory = filterCategory === "All" || item.category_name === filterCategory;
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesStatus && matchesCategory;
   });
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterCategory]);
 
   const criticalCount = items.filter(item => item.status === "Critical").length;
   const lowCount = items.filter(item => item.status === "Low").length;
@@ -68,13 +142,6 @@ export function Inventory() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage stock levels</p>
           </div>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Item
-          </button>
         </div>
       </div>
 
@@ -104,6 +171,16 @@ export function Inventory() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Inventory Items</h2>
             <div className="flex items-center gap-3">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
+              >
+                <option value="All">Category</option>
+                {categories.map((c) => (
+                  <option key={c.category_id} value={c.category_name}>{c.category_name}</option>
+                ))}
+              </select>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -135,34 +212,37 @@ export function Inventory() {
           <table className="w-full">
             <thead className="bg-[#F8F9FA] dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Product Name
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   SKU
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Supplier
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Specific Category
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-center">
                   Unit Measurement
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Expected
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Actual
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Reorder Level
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -185,7 +265,7 @@ export function Inventory() {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
+                paginatedItems.map((item) => (
                   <tr key={item.inventory_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       <div className="max-w-[260px] truncate" title={item.product_name}>
@@ -196,52 +276,41 @@ export function Inventory() {
                       {item.sku}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <div className="max-w-[220px] truncate" title={item.supplier_name ?? "N/A"}>
-                        {item.supplier_name || "N/A"}
+                      <div className="max-w-[140px] truncate" title={item.supplier_name || ""}>
+                        {item.supplier_name || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className="inline-flex max-w-[160px] truncate px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full"
+                        className="inline-flex max-w-[160px] truncate px-2 py-1 text-[10px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded uppercase"
                         title={item.category_name}
                       >
                         {item.category_name}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <div className="max-w-[200px] truncate" title={item.specific_category ?? ""}>
+                      <div className="max-w-[140px] truncate" title={item.specific_category || ""}>
                         {item.specific_category || "-"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <div className="max-w-[140px] truncate" title={item.unit_of_measurement ?? ""}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                      <div className="max-w-[100px] truncate" title={item.unit_of_measurement || ""}>
                         {item.unit_of_measurement || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`text-sm font-semibold ${
-                          item.status === "Critical"
-                            ? "text-red-600"
-                            : item.status === "Low"
-                              ? "text-orange-600"
-                              : "text-gray-900 dark:text-white"
-                        }`}
-                      >
-                        {item.quantity_on_hand}
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {item.quantity}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {item.expected}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {item.actual}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {item.reorder_level}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${
-                        item.status === 'Normal' ? 'bg-green-100 text-green-700' :
-                        item.status === 'Low' ? 'bg-orange-100 text-orange-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {item.status}
-                      </span>
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
@@ -265,13 +334,80 @@ export function Inventory() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
+                  <span className="font-medium">{Math.min(endIndex, filteredItems.length)}</span> of{" "}
+                  <span className="font-medium">{filteredItems.length}</span> results
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="bg-gray-50 dark:bg-gray-800 px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:text-gray-300"
+                  >
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                  </select>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+                </div>
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) handlePageChange(currentPage - 1);
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                  {getPageNumbers().map((page, index) =>
+                    page === "ellipsis" ? (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                      }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </div>
+        )}
       </div>
-
-      <AddInventoryModal 
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={fetchInventory}
-      />
 
       <EditInventoryModal
         isOpen={!!editingItem}

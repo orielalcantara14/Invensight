@@ -19,7 +19,6 @@ export interface ProductRecord {
   id: string;
   name: string;
   sku: string;
-  description: string;
   category: string;
   unitPrice: number;
   reorderLevel: number;
@@ -36,17 +35,32 @@ export interface ProductCategory {
 export type SaleType = 'Service' | 'Product Sale';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Refunded';
 
+export interface SaleItem {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
 export interface SaleRecord {
-  id: string;
-  date: string;
-  type: SaleType;
-  customer: string;
-  description: string;
-  items: number;
-  total: number;
-  payment: string;
-  status: PaymentStatus;
-  mechanicAssigned?: string;
+  invoice_id: number;
+  invoice_date: string;
+  total_amount: number;
+  customer_info: string;
+  contact_number?: string;
+  payment_method: string;
+  payment_status: string;
+  cash_received: number;
+  change_amount: number;
+  transaction_timestamp: string;
+  items: SaleItem[];
+}
+
+export interface SaleDetail extends SaleRecord {
+  tax_amount: number;
+  service_charge: number;
+  cash_given: number;
 }
 
 export interface MonthlySales {
@@ -92,27 +106,6 @@ export interface ProductReturn {
   quantity: number;
   reason: string;
   status: ReturnStatus;
-}
-
-// ── Stock Movements ───────────────────────────────────────────────────────────
-
-export type MovementType = 'In' | 'Out' | 'Adjustment' | 'Return';
-
-export interface StockMovement {
-  id: string;
-  date: string;
-  productName: string;
-  type: MovementType;
-  quantity: number;
-  reference: string;
-  notes: string;
-}
-
-export interface LowStockAlert {
-  productId: string;
-  productName: string;
-  currentStock: number;
-  reorderLevel: number;
 }
 
 // ── Audit Log ─────────────────────────────────────────────────────────────────

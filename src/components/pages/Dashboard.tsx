@@ -1,5 +1,4 @@
-
-import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTriangle, CheckCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
 import { api, type DashboardStats } from "@/services/api";
@@ -65,9 +64,9 @@ export function Dashboard() {
 
   const kpis = [
     { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: DollarSign, color: "text-green-600" },
-    { label: "Total Sales", value: stats ? stats.total_sales.toLocaleString() : "N/A", icon: ShoppingCart, color: "text-blue-600" },
-    { label: "Inventory Items", value: stats ? stats.inventory_items.toLocaleString() : "N/A", icon: Package, color: "text-purple-600" },
-    { label: "Low Stock Items", value: stats ? stats.low_stock_items.toLocaleString() : "N/A", icon: AlertTriangle, color: "text-orange-600" },
+    { label: "Total Transactions", value: stats ? stats.total_transactions.toLocaleString() : "N/A", icon: ShoppingCart, color: "text-blue-600" },
+    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-green-600" },
+    { label: "Failed Payments", value: stats ? stats.failed_payments.toLocaleString() : "N/A", icon: AlertTriangle, color: "text-red-600" },
   ];
 
   return (

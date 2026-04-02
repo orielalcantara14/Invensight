@@ -22,7 +22,6 @@ const defaultModules: Permission[] = [
   { module: 'Products', actions: ['View', 'Add Product', 'Edit', 'Delete'] },
   { module: 'Suppliers', actions: ['View', 'Add Supplier', 'Edit', 'Delete'] },
   { module: 'Reports', actions: ['View', 'Generate Report'] },
-  { module: 'Stock Movements', actions: ['View', 'Add Movement', 'Edit'] },
   { module: 'User Management', actions: ['View', 'Add User', 'Edit User', 'Delete User'] },
   { module: 'Role Permissions', actions: ['View', 'Create', 'Edit', 'Delete'] },
   { module: 'Forecasting', actions: ['View', 'Generate Forecast'] },

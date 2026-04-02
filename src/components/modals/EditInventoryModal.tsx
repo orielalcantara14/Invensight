@@ -1,7 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BaseModal } from "./BaseModal";
 import { api, type Supplier, type InventoryItem } from "@/services/api";
 import { toast } from "sonner";
+import { Search, ChevronDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const SPECIFIC_CATEGORIES = [
+  "Engine Oil", "Gear Oil", "Fork Oil", "Penetrant", "Grease", "Gasket Maker",
+  "Cleaner", "Brake Fluid", "Coolant", "Additive", "Bearing", "Fuel Filter",
+  "Oil Filter", "Light Bulb", "Switch", "Relay", "Fuse", "Consumables",
+  "Horn", "Socket", "Regulator", "CDI", "LED Bulb", "Battery", "Ignition",
+  "Spark Plug", "Tire Sealant", "Tire", "Valve Stem", "Tire Care", "Tire (Used)",
+  "Inner Tube", "Drive Belt", "Flyball", "Oil Seal", "Gasket", "Slider Piece",
+  "Clutch Shoe", "Air Filter", "Carburetor", "Fuel Pump", "Gear Box",
+  "Clutch Lining", "Clutch Spring", "Pulley Set", "Sprockets", "Chain",
+  "Brake Pad", "Cable", "Repair Kit", "Mirror Acc.", "Brake Shoe", "Ballrace",
+  "Hose", "Hardware", "Accessory", "O-Ring", "Chemicals"
+].sort();
 
 interface EditInventoryModalProps {
   isOpen: boolean;
@@ -16,42 +31,64 @@ export function EditInventoryModal({
   onSuccess,
   item,
 }: EditInventoryModalProps) {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
-    quantity_on_hand: "0",
+    product_name: "",
+    sku: "",
+    supplier_name: "",
+    unit_of_measurement: "",
+    specific_category: "",
+    category_id: "",
+    quantity: "0",
+    expected: "0",
     reorder_level: "0",
-    supplier_id: "",
+    actual: "0",
+    reason_adjustment: "",
   });
 
   useEffect(() => {
-    if (isOpen) {
-      const fetchSuppliers = async () => {
-        setIsLoadingSuppliers(true);
-        try {
-          const supps = await api.getSuppliers();
-          setSuppliers(supps);
-        } catch (error) {
-          toast.error("Failed to load suppliers");
-        } finally {
-          setIsLoadingSuppliers(false);
-        }
-      };
-      fetchSuppliers();
-    }
-  }, [isOpen]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const cats = await api.getCategories();
+        setCategories(cats);
+      } catch (error) {
+        toast.error("Failed to load categories");
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (item) {
       setFormData({
-        quantity_on_hand: String(item.quantity_on_hand),
+        product_name: item.product_name,
+        sku: item.sku,
+        supplier_name: item.supplier_name || "",
+        unit_of_measurement: item.unit_of_measurement || "",
+        specific_category: item.specific_category || "",
+        category_id: item.category_id ? String(item.category_id) : "",
+        quantity: String(item.quantity),
+        expected: String(item.expected),
         reorder_level: String(item.reorder_level),
-        supplier_id: item.supplier_id ? String(item.supplier_id) : "",
+        actual: String(item.actual),
+        reason_adjustment: item.reason_adjustment || "",
       });
     }
-  }, [item, suppliers]);
+  }, [item]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +97,17 @@ export function EditInventoryModal({
     setIsSubmitting(true);
     try {
       await api.updateInventoryItem(item.inventory_id, {
-        quantity_on_hand: parseInt(formData.quantity_on_hand),
+        product_name: formData.product_name,
+        sku: formData.sku,
+        supplier_name: formData.supplier_name || undefined,
+        unit_of_measurement: formData.unit_of_measurement || undefined,
+        specific_category: formData.specific_category || undefined,
+        category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+        quantity: parseInt(formData.quantity),
+        expected: parseInt(formData.expected),
         reorder_level: parseInt(formData.reorder_level),
-        supplier_id: formData.supplier_id ? parseInt(formData.supplier_id) : null,
+        actual: parseInt(formData.actual),
+        reason_adjustment: formData.reason_adjustment,
       });
       toast.success("Inventory updated successfully");
       onSuccess();
@@ -74,32 +119,177 @@ export function EditInventoryModal({
     }
   };
 
+  const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
+    cat.toLowerCase().includes(formData.specific_category.toLowerCase())
+  );
+
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title={`Edit Inventory - ${item?.product_name}`}>
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Edit Item">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Stock Level *
+              Product Name
             </label>
             <input
-              type="number"
-              required
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              value={formData.quantity_on_hand}
-              onChange={(e) => setFormData({ ...formData, quantity_on_hand: e.target.value })}
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.product_name}
+              onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reorder Level *
+              SKU
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Supplier Name
+          </label>
+          <input
+            type="text"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            value={formData.supplier_name}
+            onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Unit Measurement
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.unit_of_measurement}
+              onChange={(e) => setFormData({ ...formData, unit_of_measurement: e.target.value })}
+            >
+              <option value="">Select Unit</option>
+              <option value="Liter">Liter</option>
+              <option value="Milliliter">Milliliter</option>
+              <option value="Piece">Piece</option>
+              <option value="Set">Set</option>
+            </select>
+          </div>
+          <div className="relative" ref={dropdownRef}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Specific Category
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Search category..."
+                value={formData.specific_category}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setFormData({ ...formData, specific_category: e.target.value });
+                  setIsDropdownOpen(true);
+                }}
+              />
+              <div 
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isDropdownOpen && "rotate-180")} />
+              </div>
+            </div>
+            
+            {isDropdownOpen && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                {filteredSpecificCategories.length > 0 ? (
+                  filteredSpecificCategories.map((cat) => (
+                    <div
+                      key={cat}
+                      className={cn(
+                        "px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 flex items-center justify-between",
+                        formData.specific_category === cat && "bg-blue-50 text-blue-600 font-medium"
+                      )}
+                      onClick={() => {
+                        setFormData({ ...formData, specific_category: cat });
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      {cat}
+                      {formData.specific_category === cat && <Check className="w-4 h-4" />}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-sm text-gray-500">No categories found</div>
+                )}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.category_id}
+              onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            >
+              <option value="">Select Category</option>
+              {categories.map((c) => (
+                <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expected
             </label>
             <input
               type="number"
-              required
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.expected}
+              onChange={(e) => setFormData({ ...formData, expected: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Physical Count (Actual)
+            </label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.actual}
+              onChange={(e) => setFormData({ ...formData, actual: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Quantity
+            </label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Reorder Level
+            </label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               value={formData.reorder_level}
               onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
             />
@@ -108,19 +298,18 @@ export function EditInventoryModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Supplier
+            Reason For Adjustment
           </label>
           <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            value={formData.supplier_id}
-            onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            value={formData.reason_adjustment}
+            onChange={(e) => setFormData({ ...formData, reason_adjustment: e.target.value })}
           >
-            <option value="">Select a supplier</option>
-            {suppliers.map((s) => (
-              <option key={s.supplier_id} value={s.supplier_id}>
-                {s.supplier_name}
-              </option>
-            ))}
+            <option value="">Select Reason</option>
+            <option value="Lost">Lost</option>
+            <option value="Damaged">Damaged</option>
+            <option value="Restock">Restock</option>
+            <option value="Correction">Correction</option>
           </select>
         </div>
 
@@ -128,23 +317,16 @@ export function EditInventoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || isLoadingSuppliers}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            disabled={isSubmitting}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Updating...
-              </>
-            ) : (
-              "Update Inventory"
-            )}
+            {isSubmitting ? "Updating..." : "Edit Item"}
           </button>
         </div>
       </form>

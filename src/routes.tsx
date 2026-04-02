@@ -11,15 +11,14 @@ import { Orders } from "./components/pages/Orders";
 import { Analytics } from "./components/pages/Analytics";
 import { Forecasting } from "./components/pages/Forecasting";
 import { StockPrediction } from "./components/pages/StockPrediction";
-import { StockMovements } from "./components/pages/StockMovements";
 import { Reports } from "./components/pages/Reports";
 import { UserManagement } from "./components/pages/UserManagement";
 import { Users } from "./components/pages/Users";
 import { AuditLog } from "./components/pages/AuditLog";
-import { POSManagement } from "./components/pages/POSManagement";
 import { Profile } from "./components/pages/Profile";
 import { Settings } from "./components/pages/Settings";
 import { NotFound } from "./components/pages/NotFound";
+import { POS } from "./components/pos/POS";
 
 function RootLayout() {
   return (
@@ -35,6 +34,14 @@ export const router = createBrowserRouter([
     Component: Login,
   },
   {
+    path: "/pos",
+    element: (
+      <RequireAuth>
+        <POS />
+      </RequireAuth>
+    ),
+  },
+  {
     path: "/",
     Component: RootLayout,
     children: [
@@ -48,12 +55,10 @@ export const router = createBrowserRouter([
       { path: "analytics", Component: Analytics },
       { path: "forecasting", Component: Forecasting },
       { path: "stock-prediction", Component: StockPrediction },
-      { path: "stock-movements", Component: StockMovements },
       { path: "reports", Component: Reports },
       { path: "user-management", Component: UserManagement },
       { path: "users", Component: Users },
       { path: "audit-log", Component: AuditLog },
-      { path: "pos-management", Component: POSManagement },
       { path: "profile", Component: Profile },
       { path: "settings", Component: Settings },
       { path: "*", Component: NotFound },

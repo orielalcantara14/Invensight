@@ -1,11 +1,9 @@
 # AGENTS.md
 
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
+This file provides guidance to WARP (warp.dev) and other AI coding assistants when working with code in this repository.
 
-## Existing guidance files
-- `AGENTS.md` exists and should be kept as the canonical agent guide.
-- No `WARP.md`, `CLAUDE.md`, `.cursorrules`, `.cursor/rules/*`, or `.github/copilot-instructions.md` were found.
-- `README.md` currently only contains the project title (`# InvenSight`), so operational details must be inferred from source/config files.
+## Project Overview
+InvenSight is a Sales and Inventory Management System with a React frontend and a FastAPI backend, using PostgreSQL for data persistence.
 
 ## Common development commands
 ### Frontend (run from repo root)
@@ -19,59 +17,39 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 - Install dependencies: `pip install -r requirements.txt`
 - Run API locally: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
 
-### Linting and tests (current state)
-- No lint script is defined in root `package.json`.
-- No frontend/backend test config or test files were found in project source directories.
-- Running all tests: not available yet.
-- Running a single test: not available yet.
-
 ## Architecture overview
 ### Big picture
-- The repo is a split frontend/backend app with a PostgreSQL database:
-  - Frontend: Vite + React (`src/`)
-  - Backend: FastAPI + psycopg2 (`server/`)
-  - Database artifact: `database/invensight.dump`
-- Vite is configured as a multi-entry app (`vite.config.ts`):
-  - `index.html` → admin application (`src/main.tsx`)
-  - `pos.html` → POS terminal runtime (`src/pos-main.tsx`)
+- **Frontend**: Vite + React (`src/`)
+- **Backend**: FastAPI + psycopg2 (`server/`)
+- **Database**: PostgreSQL. Schema management is handled via startup events in `server/main.py`.
 
-### Frontend composition
-- `src/App.tsx` mounts the router and global toast layer (`sonner`).
-- `src/routes.tsx` centralizes route registration; authenticated routes are wrapped by `RequireAuth`.
-- `src/components/RequireAuth.tsx` gates navigation based on local session presence.
-- `src/auth/session.ts` stores session state in `localStorage` (`invensight_session`).
-- `src/layouts/Layout.tsx` is the main admin shell (sidebar/topbar + `<Outlet />`).
+### Key Module Changes (April 2026)
+- **POS Management Removal**: The dedicated POS Management module has been removed. POS functionality is now consolidated.
+- **Unified Product Source**: Both the POS Terminal and the Product Module now pull data from the same `products` and `inventory` tables.
+- **Sales Module Integration**: The POS Terminal is now launched from a button within the Sales Management module.
+- **Inventory & Product Sync**: Changes in the Product Module (like price/SRP updates) are automatically synchronized with the Inventory and POS systems.
 
-### API integration pattern
-- `src/services/api.ts` is the typed API boundary used across frontend pages/components.
-- API base URL is `import.meta.env.VITE_API_URL ?? "http://localhost:8000"`.
-- Profile endpoints send `X-User-Id` via `requestWithUser`; other endpoints use plain JSON requests.
+### Frontend Composition
+- `src/App.tsx`: Router and global providers.
+- `src/routes.tsx`: Centralized route registration.
+- `src/layouts/Layout.tsx`: Main admin shell with sidebar navigation.
+- `src/services/api.ts`: Typed API client. Note: `react-router-dom` is explicitly required for compatibility.
 
-### Backend composition
-- `server/main.py` creates the FastAPI app, configures CORS, includes routers under `/api`, verifies DB connectivity at startup, and applies schema/seed startup routines.
-- Router responsibilities:
-  - `server/routers/products.py`: catalog reads, categories/terminals, POS product CRUD
-  - `server/routers/sales.py`: checkout transaction write path (sales, sold_items, stockmovements, payments, auditlog)
-  - `server/routers/auth.py`: login by username or employee-id format, password verification, last_login + audit logging
-  - `server/routers/users.py`: users/roles CRUD, dashboard stats, root-admin reset flow
-  - `server/routers/profile.py`: profile read/update, password change, per-user activity stream
-- `server/database.py` owns env loading and connection creation (`DATABASE_URL` or DB_* fallbacks).
-- `server/models.py` defines Pydantic request/response contracts expected by routers.
+### Backend Composition
+- `server/main.py`: Entry point. Contains `ensure_*` startup functions for database schema hardening and migrations.
+- `server/routers/`:
+  - `products.py`: Unified product catalog, categories, and POS product endpoints.
+  - `inventory.py`: Stock management, SKU generation, and inventory auditing.
+  - `sales.py`: Transaction processing (sales, payments, stock movements).
+- `server/models.py`: Pydantic models for request/response validation. All numeric price/stock fields should be handled as `FLOAT` or `DECIMAL`.
 
-## Cross-file contracts that are easy to break
-- Sale request/response contract must stay aligned across:
-  - `src/components/pos/POS.tsx` checkout payload assembly
-  - `src/services/api.ts` (`CreateSalePayload`, `SaleResult`)
-  - `server/models.py` (`CreateSaleRequest`)
-  - `server/routers/sales.py` totals and transaction inserts
-- POS product shape must stay aligned across:
-  - `src/components/pages/POSManagement.tsx` form + table behavior
-  - `src/services/api.ts` (`PosProduct`, `PosProductPayload`)
-  - `server/models.py` (`CreatePosProductRequest`, `UpdatePosProductRequest`)
-  - `server/routers/products.py` SQL for create/update/read
-- Session/auth assumptions are split across:
-  - `src/auth/session.ts` (client-side persistence)
-  - `src/components/RequireAuth.tsx` (route gating)
-  - `server/routers/auth.py` (credential validation + login side effects)
-  - `server/routers/profile.py` (header-based user identity via `X-User-Id`)
+## Important Implementation Details
+- **SKU Generation**: Handled in `server/routers/inventory.py` and `products.py` using a category-based prefixing system.
+- **Specific Categories**: A standardized list of 50+ automotive/hardware categories is used across Inventory and Product modules, implemented with searchable dropdowns.
+- **Database Types**: Numeric fields (Quantity, Expected, Actual, Price) must be strictly typed as `INTEGER` or `DECIMAL/FLOAT` to prevent Pydantic validation errors.
+- **Vite Cache**: If `npm run dev` fails with `ENOENT` on dependencies, clearing `node_modules/.vite` is the standard fix.
 
+## Cross-file contracts
+- **Product Shape**: Must stay aligned between `server/models.py`, `src/services/api.ts`, and the UI components in `src/components/modals/` (Add/Edit Product/Inventory).
+- **Price Formatting**: Frontend components must use nullish coalescing (e.g., `value ?? 0`) before calling `toLocaleString()` to prevent crashes on null database values.
+- **Inventory Audit**: Updating `actual` count in the Inventory module with a `reason_adjustment` will automatically synchronize the live `quantity`.

@@ -113,7 +113,7 @@ export function BaseModal({
       >
         <div
           className={`bg-white rounded-xl shadow-2xl border border-gray-200/80 flex flex-col min-h-0 ${
-            isFullSize ? 'max-h-full overflow-hidden' : 'overflow-hidden'
+            isFullSize ? 'max-h-full' : ''
           }`}
         >
           {/* Header */}

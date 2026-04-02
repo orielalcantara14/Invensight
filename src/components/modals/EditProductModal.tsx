@@ -1,7 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BaseModal } from "./BaseModal";
 import { api, type Category, type PosProduct, type Supplier } from "@/services/api";
 import { toast } from "sonner";
+import { ChevronDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const SPECIFIC_CATEGORIES = [
+  "Engine Oil", "Gear Oil", "Fork Oil", "Penetrant", "Grease", "Gasket Maker",
+  "Cleaner", "Brake Fluid", "Coolant", "Additive", "Bearing", "Fuel Filter",
+  "Oil Filter", "Light Bulb", "Switch", "Relay", "Fuse", "Consumables",
+  "Horn", "Socket", "Regulator", "CDI", "LED Bulb", "Battery", "Ignition",
+  "Spark Plug", "Tire Sealant", "Tire", "Valve Stem", "Tire Care", "Tire (Used)",
+  "Inner Tube", "Drive Belt", "Flyball", "Oil Seal", "Gasket", "Slider Piece",
+  "Clutch Shoe", "Air Filter", "Carburetor", "Fuel Pump", "Gear Box",
+  "Clutch Lining", "Clutch Spring", "Pulley Set", "Sprockets", "Chain",
+  "Brake Pad", "Cable", "Repair Kit", "Mirror Acc.", "Brake Shoe", "Ballrace",
+  "Hose", "Hardware", "Accessory", "O-Ring", "Chemicals"
+].sort();
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -39,12 +54,13 @@ export function EditProductModal({
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     sku: "",
     product_name: "",
     unit_of_measurement: "",
-    description: "",
     image_url: "",
     category_id: "",
     specific_category: "",
@@ -56,12 +72,21 @@ export function EditProductModal({
   });
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     if (isOpen && product) {
       setFormData({
         sku: product.sku,
         product_name: product.product_name,
         unit_of_measurement: product.unit_of_measurement || "",
-        description: product.description || "",
         image_url: product.image_url || "",
         category_id: product.category_id?.toString() || "",
         specific_category: product.specific_category || "",
@@ -105,7 +130,7 @@ export function EditProductModal({
     e.preventDefault();
     if (!product) return;
 
-    if (!formData.sku || !formData.product_name || !formData.unit_price) {
+    if (!formData.product_name || !formData.unit_price) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -127,7 +152,6 @@ export function EditProductModal({
         sku: formData.sku,
         product_name: formData.product_name,
         unit_of_measurement: formData.unit_of_measurement || undefined,
-        description: formData.description,
         image_url: finalImageUrl || null,
         category_id: formData.category_id ? parseInt(formData.category_id) : null,
         specific_category: formData.specific_category || undefined,
@@ -148,21 +172,24 @@ export function EditProductModal({
     }
   };
 
+  const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
+    cat.toLowerCase().includes(formData.specific_category.toLowerCase())
+  );
+
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title={title} maxWidth="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              SKU Prefix *
+              SKU (Auto-generated)
             </label>
             <input
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. BRK"
-              required
+              placeholder="Leave blank to auto-generate"
             />
           </div>
           <div>
@@ -216,19 +243,54 @@ export function EditProductModal({
               ))}
             </select>
           </div>
-          <div>
+          <div className="relative" ref={dropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Specific Category
             </label>
-            <input
-              type="text"
-              value={formData.specific_category}
-              onChange={(e) =>
-                setFormData({ ...formData, specific_category: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. Brake System"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Search category..."
+                value={formData.specific_category}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setFormData({ ...formData, specific_category: e.target.value });
+                  setIsDropdownOpen(true);
+                }}
+              />
+              <div 
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isDropdownOpen && "rotate-180")} />
+              </div>
+            </div>
+            
+            {isDropdownOpen && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                {filteredSpecificCategories.length > 0 ? (
+                  filteredSpecificCategories.map((cat) => (
+                    <div
+                      key={cat}
+                      className={cn(
+                        "px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 flex items-center justify-between",
+                        formData.specific_category === cat && "bg-blue-50 text-blue-600 font-medium"
+                      )}
+                      onClick={() => {
+                        setFormData({ ...formData, specific_category: cat });
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      {cat}
+                      {formData.specific_category === cat && <Check className="w-4 h-4" />}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-sm text-gray-500">No categories found</div>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -248,18 +310,6 @@ export function EditProductModal({
               ))}
             </select>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">

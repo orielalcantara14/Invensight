@@ -1,10 +1,20 @@
-import { Search, Download, Plus, Package, Trash2, Edit2, LayoutGrid } from "lucide-react";
+import { Search, Download, Plus, Package, Trash2, Edit2, LayoutGrid, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router";
 import { api, type Product, type Category, type PosProduct } from "@/services/api";
 import { toast } from "sonner";
 import { AddCategoryModal } from "../modals/AddCategoryModal";
 import { AddProductModal } from "../modals/AddProductModal";
 import { EditProductModal } from "../modals/EditProductModal";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export function Products() {
   const [products, setProducts] = useState<PosProduct[]>([]);
@@ -14,6 +24,8 @@ export function Products() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -70,8 +82,7 @@ export function Products() {
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
     
@@ -84,6 +95,54 @@ export function Products() {
     
     return matchesSearch && matchesCategory && matchesDateFrom && matchesDateTo;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, dateFrom, dateTo]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -193,7 +252,7 @@ export function Products() {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by product name, SKU, or description..."
+              placeholder="Search by product name or SKU..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
@@ -233,7 +292,7 @@ export function Products() {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => (
+                paginatedProducts.map((product) => (
                   <tr key={product.pos_id} className="hover:bg-gray-50/50 transition-colors group">
                     <td
                       className="px-6 py-4 max-w-[320px] truncate text-sm font-bold text-gray-900"
@@ -260,19 +319,26 @@ export function Products() {
                       {product.unit_of_measurement || "—"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      ₱{product.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₱{(product.unit_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      ₱{(product.unit_price * product.stock).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₱{((product.unit_price ?? 0) * (product.stock ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      ₱{product.pos_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₱{(product.pos_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
                       {product.date_added ? new Date(product.date_added).toLocaleDateString() : "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
+                        <Link
+                          to={`/inventory?search=${product.sku}`}
+                          className="p-2 text-green-600 bg-green-50/50 hover:bg-green-50 rounded-full transition-colors shadow-sm"
+                          title="View in Inventory"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </Link>
                         <button 
                           className="p-2 text-blue-600 bg-blue-50/50 hover:bg-blue-50 rounded-full transition-colors shadow-sm" 
                           title="Edit"
@@ -295,6 +361,80 @@ export function Products() {
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
+                  <span className="font-medium">{Math.min(endIndex, filteredProducts.length)}</span> of{" "}
+                  <span className="font-medium">{filteredProducts.length}</span> results
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                  >
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                  </select>
+                  <span className="text-sm text-gray-600">per page</span>
+                </div>
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) handlePageChange(currentPage - 1);
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                  {getPageNumbers().map((page, index) =>
+                    page === "ellipsis" ? (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                      }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </div>
+        )}
       </div>
 
       <AddCategoryModal 

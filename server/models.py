@@ -12,15 +12,37 @@ class CreateSaleRequest(BaseModel):
     pos_terminal_id: int
     user_id: int
     customer_info: str = "Walk-in Customer"
+    customer_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    address: Optional[str] = None
+    payment_method: str = "Cash"
     cash_received: float
     items: List[CartItem]
     service_charge: float = 0.0
+    paymongo_source_id: Optional[str] = None
+
+
+class PayMongoSourceRequest(BaseModel):
+    amount: int  # in centavos
+    type: str = "gcash"
+    currency: str = "PHP"
+    description: str
+    customer_name: str
+    customer_phone: str
+    customer_email: Optional[str] = None
+
+
+class PayMongoPaymentIntentRequest(BaseModel):
+    amount: int  # in centavos
+    currency: str = "PHP"
+    payment_method_allowed: str = "paymaya"
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
 
 
 class CreatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
@@ -35,7 +57,6 @@ class CreatePosProductRequest(BaseModel):
 class UpdatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    description: str = Field(default="", max_length=500)
     image_url: Optional[str] = None
     specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
@@ -199,29 +220,45 @@ class InventoryResponse(BaseModel):
     product_id: int
     product_name: str
     sku: str
+    category_id: Optional[int] = None
     category_name: str
     specific_category: Optional[str] = None
     unit_of_measurement: Optional[str] = None
-    supplier_id: Optional[int] = None
     supplier_name: Optional[str] = None
-    quantity_on_hand: int
+    quantity: int
+    expected: int
+    actual: int
     reorder_level: int
     unit_price: float
     status: str
-    last_updated: Optional[str] = None
+    last_updated: str
+    reason_adjustment: str
 
 
 class CreateInventoryRequest(BaseModel):
-    product_id: int
-    quantity_on_hand: int
+    product_name: str
+    sku: str
+    supplier_name: Optional[str] = None
+    category_id: Optional[int] = None
+    specific_category: Optional[str] = None
+    unit_of_measurement: Optional[str] = None
+    quantity: int
+    expected: int
     reorder_level: int
-    supplier_id: Optional[int] = None
 
 
 class UpdateInventoryRequest(BaseModel):
-    quantity_on_hand: int
+    product_name: str
+    sku: str
+    supplier_name: Optional[str] = None
+    category_id: Optional[int] = None
+    specific_category: Optional[str] = None
+    unit_of_measurement: Optional[str] = None
+    quantity: int
+    expected: int
     reorder_level: int
-    supplier_id: Optional[int] = None
+    actual: int
+    reason_adjustment: str
 
 
 class AuditLogEntryResponse(BaseModel):
@@ -241,6 +278,12 @@ class SalesTrendItem(BaseModel):
     forecast_sales: float
 
 
+class SalesPerformancePoint(BaseModel):
+    label: str
+    revenue: float
+    transactions: int
+
+
 class SalesByCategoryItem(BaseModel):
     category: str
     value: float
@@ -256,9 +299,10 @@ class TopProductItem(BaseModel):
 
 class DashboardStatsResponse(BaseModel):
     total_revenue: float
-    total_sales: int
-    inventory_items: int
-    low_stock_items: int
+    total_transactions: int
+    completed_sales: int
+    failed_payments: int
+    sales_performance: List[SalesPerformancePoint]
     sales_trend: List[SalesTrendItem]
     sales_by_category: List[SalesByCategoryItem]
     top_products: List[TopProductItem]
