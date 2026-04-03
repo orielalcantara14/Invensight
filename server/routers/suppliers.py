@@ -5,6 +5,21 @@ import psycopg2.extras
 
 router = APIRouter()
 
+def _normalize_ph_mobile(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return None
+    if len(digits) == 11 and digits.startswith("09"):
+        return digits
+    if len(digits) == 12 and digits.startswith("639"):
+        return "0" + digits[2:]
+    raise HTTPException(
+        status_code=400,
+        detail="Contact number must be a valid Philippine mobile number.",
+    )
+
 @router.get("/")
 def get_suppliers():
     conn = get_connection()
@@ -21,6 +36,7 @@ def get_suppliers():
 def create_supplier(payload: CreateSupplierRequest):
     conn = get_connection()
     try:
+        normalized_contact = _normalize_ph_mobile(payload.contact_number)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # Get next ID manually if not using serial
             cur.execute("SELECT COALESCE(MAX(supplier_id), 0) + 1 AS next_id FROM supplier")
@@ -37,7 +53,7 @@ def create_supplier(payload: CreateSupplierRequest):
                     payload.supplier_name,
                     payload.address,
                     payload.email,
-                    payload.contact_number,
+                    normalized_contact,
                     payload.product_supplied,
                     payload.status
                 ),
@@ -55,6 +71,7 @@ def create_supplier(payload: CreateSupplierRequest):
 def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
     conn = get_connection()
     try:
+        normalized_contact = _normalize_ph_mobile(payload.contact_number)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
@@ -71,7 +88,7 @@ def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
                     payload.supplier_name,
                     payload.address,
                     payload.email,
-                    payload.contact_number,
+                    normalized_contact,
                     payload.product_supplied,
                     payload.status,
                     supplier_id
@@ -94,7 +111,7 @@ def delete_supplier(supplier_id: int):
     try:
         with conn.cursor() as cur:
             # Check if supplier is used in orders
-            cur.execute("SELECT COUNT(*) FROM order_list WHERE supplier_id = %s", (supplier_id,))
+            cur.execute("SELECT COUNT(*) FROM purchase_orders WHERE supplier_id = %s", (supplier_id,))
             if cur.fetchone()[0] > 0:
                 raise HTTPException(status_code=400, detail="Supplier has orders and cannot be deleted")
             

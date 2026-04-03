@@ -1,6 +1,7 @@
-import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/services/api";
+import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { toast } from "sonner";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/types";
 import { ProductReturns } from "./ProductReturns";
@@ -15,6 +16,7 @@ interface OrderItemInput {
 interface SupplierOption {
   supplier_id: number;
   supplier_name: string;
+  status?: string;
 }
 
 interface ProductOption {
@@ -72,7 +74,6 @@ export function Orders() {
       order.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -136,6 +137,11 @@ export function Orders() {
     }
     if (newOrder.items.length === 0) {
       toast.error("Please add at least one product");
+      return;
+    }
+    const selectedSupplier = suppliers.find((s) => s.supplier_id === newOrder.supplier_id);
+    if (selectedSupplier && (selectedSupplier.status || "").toLowerCase() !== "active") {
+      toast.error("This supplier is currently inactive.");
       return;
     }
     for (const item of newOrder.items) {
@@ -400,55 +406,13 @@ export function Orders() {
         </div>
 
         {filteredOrders.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Show</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={3}>3</option>
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-              </select>
-              <span className="text-sm text-gray-600 dark:text-gray-400">entries</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="p-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1 rounded border text-sm ${
-                      page === currentPage
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="p-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <OrdersStyleTablePagination
+            itemCount={filteredOrders.length}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         )}
       </div>
       )}
@@ -480,7 +444,9 @@ export function Orders() {
                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={0}>Select Supplier</option>
-                    {suppliers.map((s) => (
+                    {suppliers
+                      .filter((s) => (s.status || "").toLowerCase() === "active")
+                      .map((s) => (
                       <option key={s.supplier_id} value={s.supplier_id}>
                         {s.supplier_name}
                       </option>

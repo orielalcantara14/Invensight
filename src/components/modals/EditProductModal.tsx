@@ -139,6 +139,22 @@ export function EditProductModal({
       toast.error("Please fill in all required fields");
       return;
     }
+    const unitCost = parseFloat(formData.unit_price);
+    const srp = formData.pos_price ? parseFloat(formData.pos_price) : undefined;
+    const stock = parseInt(formData.stock);
+
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      toast.error("Unit cost cannot be negative");
+      return;
+    }
+    if (srp !== undefined && (!Number.isFinite(srp) || srp < 0)) {
+      toast.error("SRP cannot be negative");
+      return;
+    }
+    if (!Number.isFinite(stock) || stock < 0) {
+      toast.error("Stock cannot be negative");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -156,9 +172,9 @@ export function EditProductModal({
         category_id: formData.category_id ? parseInt(formData.category_id) : null,
         specific_category: formData.specific_category || undefined,
         supplier_id: formData.supplier_id ? parseInt(formData.supplier_id) : null,
-        unit_price: parseFloat(formData.unit_price),
-        pos_price: formData.pos_price ? parseFloat(formData.pos_price) : undefined,
-        stock: parseInt(formData.stock),
+        unit_price: unitCost,
+        pos_price: srp,
+        stock,
         status: formData.status,
       });
       toast.success("Product updated successfully");
@@ -320,6 +336,7 @@ export function EditProductModal({
             <input
               type="number"
               step="0.01"
+              min="0"
               value={formData.unit_price}
               onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
               className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${mode === "pos" ? "bg-gray-50 cursor-not-allowed" : ""}`}
@@ -335,6 +352,7 @@ export function EditProductModal({
             <input
               type="number"
               step="0.01"
+              min="0"
               value={formData.pos_price}
               onChange={(e) => setFormData({ ...formData, pos_price: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

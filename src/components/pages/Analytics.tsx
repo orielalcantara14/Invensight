@@ -1,73 +1,117 @@
-import { TrendingUp, AlertTriangle, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, AlertTriangle, BarChart3, ArrowUpRight, Loader2 } from "lucide-react";
 import { Link } from "react-router";
 import { useState, useEffect } from "react";
+import { api, type AnalyticsOverview } from "@/services/api";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+function formatShortDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
 
 export function Analytics() {
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [criticalStockCount, setCriticalStockCount] = useState(0);
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchLowStockData = async () => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await fetch(`${API_URL}/inventory/low-stock-count/`);
-        if (response.ok) {
-          const data = await response.json();
-          setLowStockCount(data.low_count);
-          setCriticalStockCount(data.critical_count);
-        }
-      } catch (error) {
-        console.error("Failed to fetch low stock data:", error);
+        const data = await api.getAnalyticsOverview();
+        if (!cancelled) setOverview(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Request failed");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    fetchLowStockData();
   }, []);
+
+  const acc =
+    overview?.forecast_accuracy != null ? `${overview.forecast_accuracy.toFixed(0)}%` : loading ? "…" : "—";
+  const lowTotal =
+    overview != null ? overview.low_stock_count + overview.critical_stock_count : null;
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Analytics Overview</h1>
-        <p className="text-gray-600 mt-1">Comprehensive analytics and predictive insights for inventory management</p>
+        <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
+        <p className="text-gray-600 mt-1">
+          Sales and stock projections from your inventory and recent demand
+        </p>
       </div>
 
-      {/* Quick Stats */}
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Forecast Accuracy</span>
+            <span className="text-gray-600">Forecast accuracy</span>
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">N/A</div>
-          <div className="text-sm text-gray-500 mt-1">No data available</div>
+          <div className="text-3xl font-bold text-gray-900">{acc}</div>
+          <div className="text-sm text-gray-500 mt-1">
+            {overview?.forecast_accuracy != null
+              ? "Compared to days with recorded sales"
+              : "Add sales history to populate this metric"}
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Low Stock Alerts</span>
+            <span className="text-gray-600">Low stock alerts</span>
             <AlertTriangle className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{lowStockCount + criticalStockCount}</div>
+          <div className="text-3xl font-bold text-gray-900">
+            {loading ? "…" : lowTotal != null ? lowTotal : "—"}
+          </div>
           <div className="text-sm text-gray-500 mt-1">
-            {criticalStockCount > 0 ? `${criticalStockCount} critical, ${lowStockCount} low` : "Items below threshold"}
+            {overview && overview.critical_stock_count > 0
+              ? `${overview.critical_stock_count} critical, ${overview.low_stock_count} low`
+              : "At or below reorder level"}
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Prediction Models</span>
+            <span className="text-gray-600">Forecast tools</span>
             <BarChart3 className="w-5 h-5 text-green-600" />
           </div>
           <div className="text-3xl font-bold text-gray-900">2</div>
-          <div className="text-sm text-gray-500 mt-1">Active models</div>
+          <div className="text-sm text-gray-500 mt-1">Sales outlook and stock planning</div>
         </div>
       </div>
 
-      {/* Analytics Modules */}
+      <p className="text-sm text-gray-500 mb-6">
+        {overview?.served_from_cache && overview.cache_generated_at
+          ? `Cache snapshot: ${formatShortDate(overview.cache_generated_at)}`
+          : overview?.cache_generated_at
+            ? `Last updated: ${formatShortDate(overview.cache_generated_at)}`
+            : "Scheduled refresh updates projections and accuracy."}
+      </p>
+
+      {loading && (
+        <div className="flex items-center gap-2 text-gray-500 mb-6">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading overview…</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Forecasting Module */}
         <Link to="/forecasting" className="block group">
           <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-blue-500 transition-all hover:shadow-lg">
             <div className="flex items-start justify-between mb-4">
@@ -77,28 +121,22 @@ export function Analytics() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    Sales Forecasting (SSA)
+                    Sales forecast
                   </h3>
-                  <p className="text-sm text-gray-500">Singular Spectrum Analysis</p>
+                  <p className="text-sm text-gray-500">Revenue trend and ranges</p>
                 </div>
               </div>
               <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
             </div>
             <p className="text-gray-600 mb-4">
-              Advanced time series analysis using Singular Spectrum Analysis to predict future sales trends and demand patterns.
+              Daily revenue projection with confidence bands and trend detail when data allows.
             </p>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-gray-600">Active</span>
-              </div>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-600">Last updated: N/A</span>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span>{formatShortDate(overview?.cache_generated_at)}</span>
             </div>
           </div>
         </Link>
 
-        {/* Stock Prediction Module */}
         <Link to="/stock-prediction" className="block group">
           <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-orange-500 transition-all hover:shadow-lg">
             <div className="flex items-start justify-between mb-4">
@@ -108,27 +146,22 @@ export function Analytics() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
-                    Stock Prediction
+                    Stock prediction
                   </h3>
-                  <p className="text-sm text-gray-500">Inventory Level Forecasting</p>
+                  <p className="text-sm text-gray-500">30-day velocity · horizon table</p>
                 </div>
               </div>
               <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
             </div>
             <p className="text-gray-600 mb-4">
-              Predictive analytics for optimal stock levels, identifying potential stockouts and overstock situations before they occur.
+              Demand from recent sales, projected cover and recommended orders by SKU.
             </p>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-gray-600">Active</span>
-              </div>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-600">Last updated: N/A</span>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span>{formatShortDate(overview?.cache_generated_at)}</span>
             </div>
           </div>
         </Link>
       </div>
-          </div>
+    </div>
   );
 }

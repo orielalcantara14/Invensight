@@ -1,6 +1,7 @@
 import { Search, Plus, Users, Edit2, Trash2, Mail, Phone, MapPin, Package, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api, type Supplier } from "@/services/api";
+import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { AddSupplierModal } from "@/components/modals/AddSupplierModal";
 import { EditSupplierModal } from "@/components/modals/EditSupplierModal";
 import { toast } from "sonner";
@@ -11,6 +12,8 @@ export function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   const fetchSuppliers = async () => {
     setIsLoading(true);
@@ -46,9 +49,25 @@ export function Suppliers() {
     (supplier.contact_number?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSuppliers = filteredSuppliers.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
+
   const stats = {
     total: suppliers.length,
-    active: suppliers.length, // All are considered active for now
+    active: suppliers.filter((s) => (s.status || "").toLowerCase() === "active").length,
     totalProducts: suppliers.reduce((acc, s) => acc + (s.product_supplied ? s.product_supplied.split(',').length : 0), 0),
     totalOrders: suppliers.reduce((acc, s) => acc + (s.total_orders || 0), 0),
   };
@@ -178,7 +197,7 @@ export function Suppliers() {
                   </td>
                 </tr>
               ) : (
-                filteredSuppliers.map((supplier) => (
+                paginatedSuppliers.map((supplier) => (
                   <tr key={supplier.supplier_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -249,6 +268,15 @@ export function Suppliers() {
             </tbody>
           </table>
         </div>
+        {!isLoading && (
+          <OrdersStyleTablePagination
+            itemCount={filteredSuppliers.length}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
       </div>
 
       <AddSupplierModal

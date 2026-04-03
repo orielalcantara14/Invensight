@@ -116,6 +116,22 @@ export function AddProductModal({
       toast.error("Please fill in all required fields");
       return;
     }
+    const unitCost = parseFloat(formData.unit_price);
+    const srp = formData.pos_price ? parseFloat(formData.pos_price) : undefined;
+    const stock = parseInt(formData.stock);
+
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      toast.error("Unit cost cannot be negative");
+      return;
+    }
+    if (srp !== undefined && (!Number.isFinite(srp) || srp < 0)) {
+      toast.error("SRP cannot be negative");
+      return;
+    }
+    if (!Number.isFinite(stock) || stock < 0) {
+      toast.error("Stock cannot be negative");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -124,9 +140,6 @@ export function AddProductModal({
         const uploadResult = await api.uploadImage(selectedFile);
         finalImageUrl = uploadResult.url;
       }
-
-      const unitCost = parseFloat(formData.unit_price);
-      const srp = formData.pos_price ? parseFloat(formData.pos_price) : undefined;
       const posPrice = mode === "pos" ? (srp ?? unitCost) : srp;
 
       await api.createPosProduct({
@@ -139,7 +152,7 @@ export function AddProductModal({
         supplier_id: formData.supplier_id ? parseInt(formData.supplier_id) : null,
         unit_price: unitCost,
         pos_price: posPrice,
-        stock: parseInt(formData.stock),
+        stock,
         status: formData.status,
       });
       toast.success("Product added successfully");
@@ -313,6 +326,7 @@ export function AddProductModal({
             <input
               type="number"
               step="0.01"
+              min="0"
               value={formData.unit_price}
               onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -327,6 +341,7 @@ export function AddProductModal({
             <input
               type="number"
               step="0.01"
+              min="0"
               value={formData.pos_price}
               onChange={(e) => setFormData({ ...formData, pos_price: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -340,6 +355,7 @@ export function AddProductModal({
             </label>
             <input
               type="number"
+              min="0"
               value={formData.stock}
               onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

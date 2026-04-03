@@ -22,6 +22,21 @@ def get_auth_header():
     encoded_auth = base64.b64encode(auth_str.encode()).decode()
     return f"Basic {encoded_auth}"
 
+def _normalize_ph_mobile(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return None
+    if len(digits) == 11 and digits.startswith("09"):
+        return digits
+    if len(digits) == 12 and digits.startswith("639"):
+        return "0" + digits[2:]
+    raise HTTPException(
+        status_code=400,
+        detail="Contact number must be a valid Philippine mobile number.",
+    )
+
 def verify_paymongo_source(source_id: str) -> dict:
     """Verify PayMongo source payment status."""
     url = f"https://api.paymongo.com/v1/sources/{source_id}"
@@ -206,6 +221,7 @@ def create_sale(sale: CreateSaleRequest):
 
     conn = get_connection()
     try:
+        normalized_contact = _normalize_ph_mobile(sale.contact_number)
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # --- Calculate totals ---
@@ -267,7 +283,7 @@ def create_sale(sale: CreateSaleRequest):
                     cash_received,
                     change_amount,
                     cash_received,
-                    sale.contact_number,
+                    normalized_contact,
                 ),
             )
             invoice_id = cur.fetchone()["invoice_id"]

@@ -10,6 +10,31 @@ from datetime import date
 
 router = APIRouter()
 
+def _validate_non_negative_product_values(unit_price, pos_price, stock):
+    if unit_price is None or unit_price < 0:
+        raise HTTPException(status_code=400, detail="Unit cost cannot be negative.")
+    if pos_price is not None and pos_price < 0:
+        raise HTTPException(status_code=400, detail="SRP cannot be negative.")
+    if stock is None or stock < 0:
+        raise HTTPException(status_code=400, detail="Stock cannot be negative.")
+
+def _record_price_history(cur, product_id: int, old_price, new_price):
+    """
+    Persist product unit price changes for audit/analysis.
+    Stores initial price as old_price = NULL.
+    """
+    old_val = float(old_price) if old_price is not None else None
+    new_val = float(new_price) if new_price is not None else None
+    if old_val == new_val:
+        return
+    cur.execute(
+        """
+        INSERT INTO product_price_history (product_id, old_price, new_price)
+        VALUES (%s, %s, %s)
+        """,
+        (product_id, old_val, new_val),
+    )
+
 def _build_sku(cur, raw_sku: str, product_name: str = "", category_name: str = "") -> str:
     # 1. Start with Category Code (e.g., Engine Oil -> EO)
     cat_code = ""
@@ -267,6 +292,7 @@ def create_pos_product(payload: CreatePosProductRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _validate_non_negative_product_values(payload.unit_price, payload.pos_price, payload.stock)
             category_name = "Uncategorized"
             category_id = payload.category_id
             if category_id is not None:
@@ -289,6 +315,12 @@ def create_pos_product(payload: CreatePosProductRequest):
             existing_product = cur.fetchone()
             if existing_product:
                 product_id = existing_product["product_id"]
+                cur.execute(
+                    "SELECT unit_price FROM products WHERE product_id = %s",
+                    (product_id,),
+                )
+                before_price_row = cur.fetchone()
+                before_price = before_price_row["unit_price"] if before_price_row else None
                 cur.execute(
                     """
                     UPDATE products
@@ -317,6 +349,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                         product_id,
                     ),
                 )
+                _record_price_history(cur, product_id, before_price, payload.unit_price)
             else:
                 cur.execute("SELECT COALESCE(MAX(product_id), 0) + 1 AS next_id FROM products")
                 product_id = cur.fetchone()["next_id"]
@@ -341,6 +374,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                         payload.unit_of_measurement,
                     ),
                 )
+                _record_price_history(cur, product_id, None, payload.unit_price)
 
             cur.execute(
                 """
@@ -397,6 +431,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _validate_non_negative_product_values(payload.unit_price, payload.pos_price, payload.stock)
             category_name = "Uncategorized"
             category_id = payload.category_id
             if category_id is not None:
@@ -410,7 +445,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 category_name = category_row["category_name"]
 
             cur.execute(
-                "SELECT product_id, sku FROM products WHERE product_id = %s",
+                "SELECT product_id, sku, unit_price FROM products WHERE product_id = %s",
                 (pos_id,),
             )
             existing = cur.fetchone()
@@ -419,6 +454,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
 
             product_id = existing["product_id"]
             current_sku = (existing.get("sku") or "").strip().upper()
+            old_unit_price = existing.get("unit_price")
             sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
 
             if sku != current_sku:
@@ -457,6 +493,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     product_id,
                 ),
             )
+            _record_price_history(cur, product_id, old_unit_price, payload.unit_price)
 
             conn.commit()
             return {"ok": True}

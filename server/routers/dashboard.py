@@ -3,10 +3,222 @@ from fastapi import APIRouter, HTTPException, Query
 from database import get_connection
 from models import DashboardStatsResponse, SalesTrendItem, SalesByCategoryItem, TopProductItem, SalesPerformancePoint
 import psycopg2.extras
-from datetime import datetime, date
-import random
 
 router = APIRouter()
+
+
+def _sales_performance_all_empty(points: list[SalesPerformancePoint]) -> bool:
+    return not points or all(p.revenue == 0.0 and p.transactions == 0 for p in points)
+
+
+def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoint]:
+    """
+    Full buckets for the chart (zeros where there were no sales) so bars/lines are not stretched
+    across two lone points.
+    """
+    if view == "daily":
+        # Month-to-date: first day of current month (e.g. 1 Apr 2026) through today, one point per day
+        cur.execute(
+            """
+            WITH days AS (
+                SELECT generate_series(
+                    date_trunc('month', CURRENT_DATE)::date,
+                    CURRENT_DATE::date,
+                    INTERVAL '1 day'
+                )::date AS d
+            ),
+            agg AS (
+                SELECT invoice_date::date AS d,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue,
+                       COUNT(*)::int AS cnt
+                FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date
+                  AND invoice_date::date <= CURRENT_DATE
+                GROUP BY 1
+            )
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue,
+                   COALESCE(agg.cnt, 0)::int AS transactions
+            FROM days
+            LEFT JOIN agg ON agg.d = days.d
+            ORDER BY days.d
+            """
+        )
+    elif view == "annual":
+        cur.execute(
+            """
+            WITH years AS (
+                SELECT generate_series(
+                    (EXTRACT(YEAR FROM CURRENT_DATE)::int - 5),
+                    EXTRACT(YEAR FROM CURRENT_DATE)::int,
+                    1
+                ) AS y
+            ),
+            agg AS (
+                SELECT EXTRACT(YEAR FROM invoice_date)::int AS y,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue,
+                       COUNT(*)::int AS cnt
+                FROM sales
+                GROUP BY 1
+            )
+            SELECT years.y::text AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue,
+                   COALESCE(agg.cnt, 0)::int AS transactions
+            FROM years
+            LEFT JOIN agg ON agg.y = years.y
+            ORDER BY years.y
+            """
+        )
+    else:
+        cur.execute(
+            """
+            WITH months AS (
+                SELECT generate_series(
+                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
+                    date_trunc('month', CURRENT_DATE)::date,
+                    INTERVAL '1 month'
+                )::date AS m
+            ),
+            agg AS (
+                SELECT date_trunc('month', invoice_date)::date AS m,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue,
+                       COUNT(*)::int AS cnt
+                FROM sales
+                GROUP BY 1
+            )
+            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue,
+                   COALESCE(agg.cnt, 0)::int AS transactions
+            FROM months
+            LEFT JOIN agg ON agg.m = months.m
+            ORDER BY months.m
+            """
+        )
+
+    out: list[SalesPerformancePoint] = []
+    for row in cur.fetchall():
+        out.append(
+            SalesPerformancePoint(
+                label=str(row["label"]).strip(),
+                revenue=float(row["revenue"] or 0),
+                transactions=int(row["transactions"] or 0),
+            )
+        )
+    if _sales_performance_all_empty(out):
+        return []
+    return out
+
+
+def _prior_window_forecast(actuals: list[float], window: int) -> list[float]:
+    """Simple benchmark line: each point = mean of up to `window` prior actuals (same month uses last known trend)."""
+    out: list[float] = []
+    for i in range(len(actuals)):
+        if i == 0:
+            out.append(actuals[0])
+            continue
+        start = max(0, i - window)
+        prior = actuals[start:i]
+        out.append(sum(prior) / len(prior) if prior else actuals[i])
+    return out
+
+
+def _build_sales_trend_from_rows(labels: list[str], actuals: list[float], window: int) -> list[SalesTrendItem]:
+    if not actuals or all(a == 0 for a in actuals):
+        return []
+    forecasts = _prior_window_forecast(actuals, window)
+    return [
+        SalesTrendItem(month=labels[i], actual_sales=actuals[i], forecast_sales=forecasts[i])
+        for i in range(len(labels))
+    ]
+
+
+def _fetch_sales_trend_series(cur, view: str) -> list[SalesTrendItem]:
+    if view == "daily":
+        cur.execute(
+            """
+            WITH days AS (
+                SELECT generate_series(
+                    date_trunc('month', CURRENT_DATE)::date,
+                    CURRENT_DATE::date,
+                    INTERVAL '1 day'
+                )::date AS d
+            ),
+            agg AS (
+                SELECT invoice_date::date AS d,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue
+                FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date
+                  AND invoice_date::date <= CURRENT_DATE
+                GROUP BY 1
+            )
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue
+            FROM days
+            LEFT JOIN agg ON agg.d = days.d
+            ORDER BY days.d
+            """
+        )
+        rows = cur.fetchall()
+        labels = [str(r["label"]).strip() for r in rows]
+        actuals = [float(r["revenue"]) for r in rows]
+        return _build_sales_trend_from_rows(labels, actuals, window=7)
+
+    if view == "annual":
+        cur.execute(
+            """
+            WITH years AS (
+                SELECT generate_series(
+                    (EXTRACT(YEAR FROM CURRENT_DATE)::int - 5),
+                    EXTRACT(YEAR FROM CURRENT_DATE)::int,
+                    1
+                ) AS y
+            ),
+            agg AS (
+                SELECT EXTRACT(YEAR FROM invoice_date)::int AS y,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue
+                FROM sales
+                GROUP BY 1
+            )
+            SELECT years.y::text AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue
+            FROM years
+            LEFT JOIN agg ON agg.y = years.y
+            ORDER BY years.y
+            """
+        )
+        rows = cur.fetchall()
+        labels = [str(r["label"]).strip() for r in rows]
+        actuals = [float(r["revenue"]) for r in rows]
+        return _build_sales_trend_from_rows(labels, actuals, window=2)
+
+    # monthly (default): last 6 calendar months including current
+    cur.execute(
+        """
+        WITH months AS (
+            SELECT generate_series(
+                date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months',
+                date_trunc('month', CURRENT_DATE)::date,
+                INTERVAL '1 month'
+            )::date AS m
+        ),
+        agg AS (
+            SELECT date_trunc('month', invoice_date)::date AS m,
+                   COALESCE(SUM(total_amount), 0)::float AS revenue
+            FROM sales
+            GROUP BY 1
+        )
+        SELECT TO_CHAR(months.m, 'Mon') AS label,
+               COALESCE(agg.revenue, 0)::float AS revenue
+        FROM months
+        LEFT JOIN agg ON agg.m = months.m
+        ORDER BY months.m
+        """
+    )
+    rows = cur.fetchall()
+    labels = [str(r["label"]).strip() for r in rows]
+    actuals = [float(r["revenue"]) for r in rows]
+    return _build_sales_trend_from_rows(labels, actuals, window=3)
+
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(view: str = Query(default="monthly")):
@@ -24,55 +236,9 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
             cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Failed'")
             failed_payments = cur.fetchone()['count']
 
-            if view == "daily":
-                cur.execute("""
-                    SELECT TO_CHAR(invoice_date, 'Mon DD') as label,
-                           SUM(total_amount) as revenue,
-                           COUNT(*) as transactions
-                    FROM sales
-                    WHERE invoice_date >= CURRENT_DATE - INTERVAL '30 days'
-                    GROUP BY invoice_date
-                    ORDER BY invoice_date
-                """)
-            elif view == "annual":
-                cur.execute("""
-                    SELECT TO_CHAR(invoice_date, 'YYYY') as label,
-                           SUM(total_amount) as revenue,
-                           COUNT(*) as transactions
-                    FROM sales
-                    GROUP BY TO_CHAR(invoice_date, 'YYYY')
-                    ORDER BY label
-                """)
-            else:
-                cur.execute("""
-                    SELECT TO_CHAR(invoice_date, 'Mon YYYY') as label,
-                           SUM(total_amount) as revenue,
-                           COUNT(*) as transactions
-                    FROM sales
-                    GROUP BY TO_CHAR(invoice_date, 'Mon YYYY'), DATE_TRUNC('month', invoice_date)
-                    ORDER BY DATE_TRUNC('month', invoice_date)
-                """)
+            sales_performance = _fetch_sales_performance_series(cur, view)
 
-            sales_performance = []
-            for row in cur.fetchall():
-                sales_performance.append(SalesPerformancePoint(
-                    label=row['label'],
-                    revenue=float(row['revenue'] or 0),
-                    transactions=int(row['transactions'] or 0)
-                ))
-
-            months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
-            sales_trend = []
-            base_values = [42000, 52000, 48000, 62000, 55000, 68000]
-            forecast_offsets = [-2000, -3000, -1000, -4000, 1000, -2000]
-            for i, month in enumerate(months):
-                actual = base_values[i]
-                forecast = actual + forecast_offsets[i]
-                sales_trend.append(SalesTrendItem(
-                    month=month,
-                    actual_sales=float(actual),
-                    forecast_sales=float(forecast)
-                ))
+            sales_trend = _fetch_sales_trend_series(cur, view)
 
             cur.execute("""
                 SELECT c.category_name, SUM(si.total_amount) as value

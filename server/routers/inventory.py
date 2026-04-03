@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from database import get_connection
-from models import InventoryResponse, CreateInventoryRequest, UpdateInventoryRequest
+from models import InventoryResponse, CreateInventoryRequest, UpdateInventoryRequest, InventoryDiscrepancyRequest
 import psycopg2.extras
 from datetime import date
 import logging
@@ -460,6 +460,125 @@ def get_inventory_trace(inventory_id: int):
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error fetching inventory trace: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.post("/{inventory_id}/discrepancy/")
+def add_inventory_discrepancy(inventory_id: int, payload: InventoryDiscrepancyRequest):
+    """
+    Manual discrepancy entry from inventory trace modal.
+    Applies quantity_change to both quantity and actual, logs an audit event.
+    """
+    conn = get_connection()
+    try:
+        if not payload.reason or not payload.reason.strip():
+            raise HTTPException(status_code=400, detail="Reason is required.")
+        if payload.quantity_change == 0:
+            raise HTTPException(status_code=400, detail="Quantity change cannot be zero.")
+
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    inventory_id,
+                    product_id,
+                    quantity,
+                    expected,
+                    actual
+                FROM inventory
+                WHERE inventory_id = %s
+                FOR UPDATE
+                """,
+                (inventory_id,),
+            )
+            inv = cur.fetchone()
+            if not inv:
+                raise HTTPException(status_code=404, detail="Inventory item not found")
+
+            qty_delta = payload.quantity_change
+            quantity_before = inv["quantity"]
+            expected_before = inv["expected"]
+            actual_before = inv["actual"]
+
+            quantity_after = quantity_before + qty_delta
+            expected_after = expected_before
+            actual_after = actual_before + qty_delta
+
+            if quantity_after < 0 or actual_after < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Discrepancy cannot reduce stock below zero.",
+                )
+
+            difference_before = (2 * actual_before) - quantity_before - expected_before
+            difference_after = (2 * actual_after) - quantity_after - expected_after
+
+            cur.execute(
+                """
+                UPDATE inventory
+                SET quantity = %s,
+                    actual = %s,
+                    last_updated = %s,
+                    reason_adjustment = %s
+                WHERE inventory_id = %s
+                """,
+                (quantity_after, actual_after, date.today(), payload.reason.strip(), inventory_id),
+            )
+
+            cur.execute(
+                """
+                INSERT INTO inventory_stock_events (
+                    inventory_id,
+                    product_id,
+                    event_type,
+                    quantity_before,
+                    quantity_after,
+                    expected_before,
+                    expected_after,
+                    actual_before,
+                    actual_after,
+                    quantity_delta,
+                    expected_delta,
+                    actual_delta,
+                    difference_before,
+                    difference_after,
+                    reference_type,
+                    reference_id,
+                    reason
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    inv["inventory_id"],
+                    inv["product_id"],
+                    "MANUAL_DISCREPANCY",
+                    quantity_before,
+                    quantity_after,
+                    expected_before,
+                    expected_after,
+                    actual_before,
+                    actual_after,
+                    quantity_after - quantity_before,
+                    expected_after - expected_before,
+                    actual_after - actual_before,
+                    int(difference_before),
+                    int(difference_after),
+                    "inventory",
+                    str(inventory_id),
+                    payload.reason.strip(),
+                ),
+            )
+
+            conn.commit()
+            return {"ok": True}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

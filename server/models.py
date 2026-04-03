@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 
 
 class CartItem(BaseModel):
@@ -262,6 +262,11 @@ class UpdateInventoryRequest(BaseModel):
     reason_adjustment: str
 
 
+class InventoryDiscrepancyRequest(BaseModel):
+    quantity_change: int
+    reason: str
+
+
 class PurchaseOrderItemRequest(BaseModel):
     product_id: int
     quantity: int
@@ -373,3 +378,114 @@ class DashboardStatsResponse(BaseModel):
     sales_trend: List[SalesTrendItem]
     sales_by_category: List[SalesByCategoryItem]
     top_products: List[TopProductItem]
+
+
+class AnalyticsModelStatus(BaseModel):
+    model_key: str
+    status: str
+    engine: str
+    message: str
+    last_trained_at: Optional[str] = None
+    next_scheduled_run: Optional[str] = None
+    training_duration_ms: Optional[int] = None
+
+
+class AnalyticsOverviewResponse(BaseModel):
+    forecast_accuracy: Optional[float] = None
+    low_stock_alerts: int
+    critical_stock_count: int
+    low_stock_count: int
+    prediction_models: int
+    last_updated: Optional[str] = None
+    model_status: Optional[AnalyticsModelStatus] = None
+    served_from_cache: bool = False
+    sales_forecast_engine: Optional[str] = None
+    stock_forecast_engine: Optional[str] = None
+    cache_generated_at: Optional[str] = None
+
+
+class ForecastSeriesPoint(BaseModel):
+    date: str
+    actual_sales: float
+    forecast_sales: float
+    lower_bound: float
+    upper_bound: float
+    trend_component: Optional[float] = None
+    weekly_component: Optional[float] = None
+
+
+class ProductForecastItem(BaseModel):
+    product_id: int
+    product_name: str
+    current_stock: int
+    predicted_demand_30d: float
+    reorder_by: Optional[str] = None
+    confidence: float
+    days_to_stockout: Optional[float] = None
+    reorder_level: int
+
+
+class SalesForecastResponse(BaseModel):
+    next_period_forecast: Optional[float] = None
+    forecast_accuracy: Optional[float] = None
+    trend_direction: str
+    series: List[ForecastSeriesPoint]
+    product_forecasts: List[ProductForecastItem]
+    model_status: Optional[AnalyticsModelStatus] = None
+    served_from_cache: bool = False
+    forecast_engine: str = "rolling_mean"
+    cache_generated_at: Optional[str] = None
+
+
+class StockRiskStats(BaseModel):
+    high_risk: int
+    medium_risk: int
+    low_risk: int
+    avg_days_to_stockout: Optional[float] = None
+
+
+class StockRiskAnalysisPoint(BaseModel):
+    product_name: str
+    days_to_stockout: Optional[float] = None
+    predicted_demand_30d: float
+    current_stock: int
+    confidence: float
+
+
+class StockHorizonPrediction(BaseModel):
+    product_id: int
+    product_name: str
+    current_stock: int
+    stock_30d: float
+    stock_60d: float
+    stock_90d: float
+    recommended_order: int
+    urgency: Literal["High", "Medium", "Low"]
+
+
+class CriticalStockItem(BaseModel):
+    product_name: str
+    days_to_stockout: Optional[float] = None
+    recommended_order: int
+
+
+class StockPredictionResponse(BaseModel):
+    risk_stats: StockRiskStats
+    risk_analysis: List[StockRiskAnalysisPoint]
+    horizon_predictions: List[StockHorizonPrediction]
+    critical_items: List[CriticalStockItem]
+    model_status: Optional[AnalyticsModelStatus] = None
+    served_from_cache: bool = False
+    forecast_engine: str = "rolling_average"
+    cache_generated_at: Optional[str] = None
+
+
+class AnalyticsModelStatusGroupResponse(BaseModel):
+    overview: AnalyticsModelStatus
+    forecast_30d: AnalyticsModelStatus
+    stock_prediction: AnalyticsModelStatus
+
+
+class AnalyticsRetrainResponse(BaseModel):
+    ok: bool
+    message: str

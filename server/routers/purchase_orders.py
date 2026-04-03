@@ -114,10 +114,15 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT supplier_id, supplier_name FROM supplier WHERE supplier_id = %s", (payload.supplier_id,))
+            cur.execute(
+                "SELECT supplier_id, supplier_name, status FROM supplier WHERE supplier_id = %s",
+                (payload.supplier_id,),
+            )
             supplier_row = cur.fetchone()
             if not supplier_row:
                 raise HTTPException(status_code=404, detail="Supplier not found")
+            if (supplier_row.get("status") or "").strip().lower() == "inactive":
+                raise HTTPException(status_code=400, detail="This supplier is currently inactive.")
 
             for item in payload.items:
                 cur.execute("SELECT product_id, product_name FROM products WHERE product_id = %s", (item.product_id,))

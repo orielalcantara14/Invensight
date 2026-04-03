@@ -1,20 +1,11 @@
 import { Search, Download, ShoppingBag, Eye, Monitor, DollarSign, CheckCircle, XCircle, ShoppingCart } from "lucide-react";
+import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
 import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
-
 type ViewMode = "daily" | "monthly" | "annual";
 
 export function Sales() {
@@ -35,7 +26,7 @@ export function Sales() {
   const [view, setView] = useState<ViewMode>("monthly");
   const [chartLoading, setChartLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -139,7 +130,6 @@ export function Sales() {
     return matchesSearch && matchesDateFrom && matchesDateTo;
   });
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
@@ -148,39 +138,9 @@ export function Sales() {
     setCurrentPage(page);
   };
 
-  const getPageNumbers = () => {
-    const pages: (number | "ellipsis")[] = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) {
-          pages.push(i);
-        }
-        pages.push("ellipsis");
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push("ellipsis");
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        pages.push(1);
-        pages.push("ellipsis");
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-          pages.push(i);
-        }
-        pages.push("ellipsis");
-        pages.push(totalPages);
-      }
-    }
-
-    return pages;
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
   };
 
   return (
@@ -262,14 +222,35 @@ export function Sales() {
           ) : salesStats && salesStats.sales_performance.length > 0 ? (
             view === "daily" ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={salesStats.sales_performance}>
+                <LineChart data={salesStats.sales_performance} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
+                  <XAxis
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 10 }}
+                    dy={8}
+                    minTickGap={28}
+                  />
                   <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => `₱${value.toLocaleString()}`} />
-                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={10} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    dx={10}
+                    allowDecimals={false}
+                    domain={[0, "auto"]}
+                    tickFormatter={(v) => String(Math.round(Number(v)))}
+                  />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number, name: string) => name === "Revenue" ? [formatPeso(value), name] : [value.toLocaleString(), name]}
+                    formatter={(value: number, name: string) =>
+                      name === "Revenue"
+                        ? [formatPeso(value), name]
+                        : [String(Math.round(Number(value))), name]
+                    }
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
                   <Line
@@ -296,14 +277,28 @@ export function Sales() {
               </ResponsiveContainer>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesStats.sales_performance}>
+                <BarChart data={salesStats.sales_performance} barCategoryGap="24%" barGap={4} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} dy={10} interval={0} angle={view === "monthly" ? -28 : 0} textAnchor={view === "monthly" ? "end" : "middle"} height={view === "monthly" ? 56 : 32} />
                   <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => `₱${value.toLocaleString()}`} />
-                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={10} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    dx={10}
+                    allowDecimals={false}
+                    domain={[0, "auto"]}
+                    tickFormatter={(v) => String(Math.round(Number(v)))}
+                  />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number, name: string) => name === "Revenue" ? [formatPeso(value), name] : [value.toLocaleString(), name]}
+                    formatter={(value: number, name: string) =>
+                      name === "Revenue"
+                        ? [formatPeso(value), name]
+                        : [String(Math.round(Number(value))), name]
+                    }
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
                   <Bar
@@ -312,6 +307,7 @@ export function Sales() {
                     name="Revenue"
                     fill="#3b82f6"
                     radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
                   />
                   <Bar
                     yAxisId="right"
@@ -319,6 +315,7 @@ export function Sales() {
                     name="Transactions"
                     fill="#10b981"
                     radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -461,78 +458,14 @@ export function Sales() {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
-                  <span className="font-medium">{Math.min(endIndex, filteredRecords.length)}</span> of{" "}
-                  <span className="font-medium">{filteredRecords.length}</span> results
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show:</span>
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
-                  >
-                    <option value={3}>3</option>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                  </select>
-                  <span className="text-sm text-gray-600">per page</span>
-                </div>
-              </div>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (currentPage > 1) handlePageChange(currentPage - 1);
-                      }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                  {getPageNumbers().map((page, index) =>
-                    page === "ellipsis" ? (
-                      <PaginationItem key={`ellipsis-${index}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    ) : (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={page === currentPage}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handlePageChange(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )
-                  )}
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (currentPage < totalPages) handlePageChange(currentPage + 1);
-                      }}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          </div>
+        {!loading && (
+          <OrdersStyleTablePagination
+            itemCount={filteredRecords.length}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         )}
       </div>
 

@@ -246,18 +246,7 @@ export function EditInventoryModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Expected
-            </label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              value={formData.expected}
-              onChange={(e) => setFormData({ ...formData, expected: e.target.value })}
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Physical Count (Actual)

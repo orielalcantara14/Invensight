@@ -122,7 +122,7 @@ export function Dashboard() {
                   <Line 
                     type="monotone" 
                     dataKey="forecast_sales" 
-                    name="SSA Forecast" 
+                    name="Forecast" 
                     stroke="#10b981" 
                     strokeWidth={2} 
                     strokeDasharray="5 5"

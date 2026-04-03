@@ -39,6 +39,15 @@ function getPosPrice(product: Product): number {
   return product.unit_price;
 }
 
+function normalizePhilippineMobile(raw: string): string | null {
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  if (!cleaned) return null;
+  const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+  if (/^09\d{9}$/.test(digits)) return digits;
+  if (/^639\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+  return null;
+}
+
 interface ReceiptProps {
   result: SaleResult;
   cartItems: CartItem[];
@@ -179,11 +188,17 @@ function CheckoutModal({
   const canGenerateQR = paymentMethod === "Cash" || (cashFloat >= grandTotal && withinLimit);
 
   const handleConfirm = () => {
+    const trimmedContact = contactNumber.trim();
+    const normalizedContact = trimmedContact ? normalizePhilippineMobile(trimmedContact) : null;
+    if (trimmedContact && !normalizedContact) {
+      toast.error("Please enter a valid Philippine mobile number");
+      return;
+    }
     if (sufficient && !processing) {
       onConfirm({
         cashReceived: cashFloat,
         customerName,
-        contactNumber,
+        contactNumber: normalizedContact || "",
         address,
         paymentMethod
       });
@@ -245,7 +260,13 @@ function CheckoutModal({
                 <input
                   type="text"
                   value={contactNumber}
-                  onChange={(e) => setContactNumber(e.target.value)}
+                  onChange={(e) => {
+                    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 12);
+                    setContactNumber(digitsOnly);
+                  }}
+                  inputMode="numeric"
+                  maxLength={12}
+                  placeholder="09XXXXXXXXX or 639XXXXXXXXX"
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"/>
               </div>
             </div>

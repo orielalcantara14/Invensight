@@ -320,6 +320,11 @@ export interface UpdateInventoryPayload {
   reason_adjustment: string;
 }
 
+export interface InventoryDiscrepancyPayload {
+  quantity_change: number;
+  reason: string;
+}
+
 // ── Product Returns ─────────────────────────────────────────────────────────
 
 export interface ProductReturnItem {
@@ -418,8 +423,128 @@ export interface DashboardStats {
   top_products: TopProductItem[];
 }
 
+export interface AnalyticsOverview {
+  forecast_accuracy: number | null;
+  low_stock_alerts: number;
+  critical_stock_count: number;
+  low_stock_count: number;
+  prediction_models: number;
+  last_updated: string | null;
+  model_status?: AnalyticsModelStatus;
+  served_from_cache?: boolean;
+  sales_forecast_engine?: string | null;
+  stock_forecast_engine?: string | null;
+  cache_generated_at?: string | null;
+}
+
+export interface AnalyticsModelStatus {
+  model_key: string;
+  status: string;
+  engine: string;
+  message: string;
+  last_trained_at: string | null;
+  next_scheduled_run: string | null;
+  training_duration_ms: number | null;
+}
+
+export interface ForecastSeriesPoint {
+  date: string;
+  actual_sales: number;
+  forecast_sales: number;
+  lower_bound: number;
+  upper_bound: number;
+  trend_component?: number | null;
+  weekly_component?: number | null;
+}
+
+export interface ProductForecastItem {
+  product_id: number;
+  product_name: string;
+  current_stock: number;
+  predicted_demand_30d: number;
+  reorder_by: string | null;
+  confidence: number;
+  days_to_stockout: number | null;
+  reorder_level: number;
+}
+
+export interface SalesForecastResponse {
+  next_period_forecast: number | null;
+  forecast_accuracy: number | null;
+  trend_direction: string;
+  series: ForecastSeriesPoint[];
+  product_forecasts: ProductForecastItem[];
+  model_status?: AnalyticsModelStatus;
+  served_from_cache?: boolean;
+  forecast_engine?: string;
+  cache_generated_at?: string | null;
+}
+
+export interface StockRiskStats {
+  high_risk: number;
+  medium_risk: number;
+  low_risk: number;
+  avg_days_to_stockout: number | null;
+}
+
+export interface StockRiskAnalysisPoint {
+  product_name: string;
+  days_to_stockout: number | null;
+  predicted_demand_30d: number;
+  current_stock: number;
+  confidence: number;
+}
+
+export interface StockHorizonPrediction {
+  product_id: number;
+  product_name: string;
+  current_stock: number;
+  stock_30d: number;
+  stock_60d: number;
+  stock_90d: number;
+  recommended_order: number;
+  urgency: "High" | "Medium" | "Low";
+}
+
+export interface CriticalStockItem {
+  product_name: string;
+  days_to_stockout: number | null;
+  recommended_order: number;
+}
+
+export interface StockPredictionResponse {
+  risk_stats: StockRiskStats;
+  risk_analysis: StockRiskAnalysisPoint[];
+  horizon_predictions: StockHorizonPrediction[];
+  critical_items: CriticalStockItem[];
+  model_status?: AnalyticsModelStatus;
+  served_from_cache?: boolean;
+  forecast_engine?: string;
+  cache_generated_at?: string | null;
+}
+
+export interface AnalyticsModelStatusGroup {
+  overview: AnalyticsModelStatus;
+  forecast_30d: AnalyticsModelStatus;
+  stock_prediction: AnalyticsModelStatus;
+}
+
 export const api = {
   getDashboardStats: (view?: string) => request<DashboardStats>(`/api/dashboard/stats${view ? `?view=${view}` : ""}`),
+  getAnalyticsOverview: () => request<AnalyticsOverview>("/api/analytics/overview"),
+  getSalesForecast: (days = 90, options?: { useCache?: boolean }) =>
+    request<SalesForecastResponse>(
+      `/api/analytics/forecast?days=${encodeURIComponent(String(days))}&use_cache=${options?.useCache !== false ? "true" : "false"}`
+    ),
+  getStockPrediction: (options?: { useCache?: boolean }) =>
+    request<StockPredictionResponse>(
+      `/api/analytics/stock-prediction?use_cache=${options?.useCache !== false ? "true" : "false"}`
+    ),
+  getAnalyticsModelStatus: () => request<AnalyticsModelStatusGroup>("/api/analytics/model-status"),
+  retrainAnalyticsModels: () =>
+    request<{ ok: boolean; message: string }>("/api/analytics/retrain", {
+      method: "POST",
+    }),
   getProducts: () => request<Product[]>("/api/products"),
   getCategories: () => request<Category[]>("/api/categories"),
   createCategory: (payload: { category_name: string; is_active: boolean }) =>
@@ -552,6 +677,11 @@ export const api = {
   updateInventoryItem: (inventoryId: number, payload: UpdateInventoryPayload) =>
     request<InventoryItem>(`/api/inventory/${inventoryId}/`, {
       method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  addInventoryDiscrepancy: (inventoryId: number, payload: InventoryDiscrepancyPayload) =>
+    request<{ ok: boolean }>(`/api/inventory/${inventoryId}/discrepancy/`, {
+      method: "POST",
       body: JSON.stringify(payload),
     }),
   deleteInventoryItem: (inventoryId: number) =>

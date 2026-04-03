@@ -14,6 +14,7 @@ from routers.profile import router as profile_router
 from routers.suppliers import router as suppliers_router
 from routers.inventory import router as inventory_router
 from routers.dashboard import router as dashboard_router
+from routers.analytics import router as analytics_router
 from routers.purchase_orders import router as purchase_orders_router
 from routers.product_returns import router as product_returns_router
 from database import get_connection, verify_database_connection
@@ -25,6 +26,18 @@ logging.basicConfig(
 log = logging.getLogger("invensight.main")
 
 app = FastAPI(title="InvenSight API", version="1.0.0")
+
+
+@app.on_event("startup")
+async def widen_anyio_thread_limit():
+    """Heavy sync routes (Prophet/STAN, bcrypt) run in AnyIO's thread pool; raise cap to avoid starving login."""
+    try:
+        import anyio.to_thread
+
+        limiter = anyio.to_thread.current_default_thread_limiter()
+        limiter.total_tokens = max(int(limiter.total_tokens), 128)
+    except Exception as e:
+        log.warning("Could not widen thread limiter: %s", e)
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +59,7 @@ app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"]
 app.include_router(purchase_orders_router, prefix="/api/purchase-orders", tags=["Purchase Orders"])
 app.include_router(product_returns_router, prefix="/api/product-returns", tags=["Product Returns"])
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api/analytics")
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = "uploads"
@@ -421,6 +435,81 @@ def ensure_inventory_stock_events_schema():
         print(f"Inventory stock events schema migration error: {e}")
     finally:
         conn.close()
+
+
+@app.on_event("startup")
+def ensure_product_price_history_schema():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_price_history (
+                    history_id SERIAL PRIMARY KEY,
+                    product_id INTEGER REFERENCES products(product_id),
+                    old_price DECIMAL(10, 2),
+                    new_price DECIMAL(10, 2),
+                    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    changed_by INTEGER
+                )
+            """)
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Product price history schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def ensure_analytics_cache_schema():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS analytics_model_cache (
+                    model_key VARCHAR(100) PRIMARY KEY,
+                    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    status VARCHAR(30) NOT NULL DEFAULT 'not_trained',
+                    message TEXT NOT NULL DEFAULT '',
+                    last_trained_at TIMESTAMP,
+                    last_requested_at TIMESTAMP,
+                    training_duration_ms INTEGER,
+                    next_scheduled_run TIMESTAMP
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS analytics_model_runs (
+                    run_id SERIAL PRIMARY KEY,
+                    model_key VARCHAR(100) NOT NULL,
+                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    status VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    message TEXT NOT NULL DEFAULT '',
+                    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    finished_at TIMESTAMP,
+                    duration_ms INTEGER
+                )
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_analytics_model_runs_key_time ON analytics_model_runs(model_key, started_at DESC)"
+            )
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Analytics schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def start_analytics_scheduler():
+    from analytics_cache_jobs import start_scheduler
+
+    start_scheduler()
 
 
 @app.on_event("startup")

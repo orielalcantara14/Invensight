@@ -16,6 +16,14 @@ export function EditSupplierModal({
   onSuccess,
   supplier,
 }: EditSupplierModalProps) {
+  const normalizePhilippineMobile = (raw: string): string | null => {
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) return null;
+    if (/^09\d{9}$/.test(digits)) return digits;
+    if (/^639\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+    return null;
+  };
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     supplier_name: "",
@@ -45,6 +53,13 @@ export function EditSupplierModal({
       toast.error("Supplier name is required");
       return;
     }
+    const normalizedContact = formData.contact_number
+      ? normalizePhilippineMobile(formData.contact_number)
+      : null;
+    if (formData.contact_number && !normalizedContact) {
+      toast.error("Contact number must be a valid Philippine mobile number");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -52,7 +67,7 @@ export function EditSupplierModal({
         supplier_name: formData.supplier_name,
         address: formData.address || null,
         email: formData.email || null,
-        contact_number: formData.contact_number || null,
+        contact_number: normalizedContact,
         product_supplied: formData.product_supplied || null,
         status: formData.status,
       });
@@ -116,9 +131,13 @@ export function EditSupplierModal({
             <input
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="+1 234 567 890"
+              placeholder="09XXXXXXXXX or 639XXXXXXXXX"
               value={formData.contact_number}
-              onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, contact_number: e.target.value.replace(/\D/g, "").slice(0, 12) })
+              }
+              inputMode="numeric"
+              maxLength={12}
             />
           </div>
         </div>

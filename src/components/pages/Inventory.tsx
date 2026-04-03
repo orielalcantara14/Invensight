@@ -5,15 +5,7 @@ import { api, type InventoryItem } from "@/services/api";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
 import { InventoryTraceModal } from "../modals/InventoryTraceModal";
 import { toast } from "sonner";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 
 export function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -25,7 +17,7 @@ export function Inventory() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [traceItem, setTraceItem] = useState<InventoryItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   
   const [searchParams] = useSearchParams();
 
@@ -84,7 +76,6 @@ export function Inventory() {
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = filteredItems.slice(startIndex, endIndex);
@@ -93,39 +84,9 @@ export function Inventory() {
     setCurrentPage(page);
   };
 
-  const getPageNumbers = () => {
-    const pages: (number | "ellipsis")[] = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) {
-          pages.push(i);
-        }
-        pages.push("ellipsis");
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push("ellipsis");
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        pages.push(1);
-        pages.push("ellipsis");
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-          pages.push(i);
-        }
-        pages.push("ellipsis");
-        pages.push(totalPages);
-      }
-    }
-
-    return pages;
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
   };
 
   useEffect(() => {
@@ -353,78 +314,14 @@ export function Inventory() {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
-                  <span className="font-medium">{Math.min(endIndex, filteredItems.length)}</span> of{" "}
-                  <span className="font-medium">{filteredItems.length}</span> results
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show:</span>
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
-                  >
-                    <option value={3}>3</option>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                  </select>
-                  <span className="text-sm text-gray-600">per page</span>
-                </div>
-              </div>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (currentPage > 1) handlePageChange(currentPage - 1);
-                      }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                  {getPageNumbers().map((page, index) =>
-                    page === "ellipsis" ? (
-                      <PaginationItem key={`ellipsis-${index}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    ) : (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={page === currentPage}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handlePageChange(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )
-                  )}
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (currentPage < totalPages) handlePageChange(currentPage + 1);
-                      }}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          </div>
+        {!isLoading && (
+          <OrdersStyleTablePagination
+            itemCount={filteredItems.length}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         )}
       </div>
 
@@ -441,6 +338,7 @@ export function Inventory() {
         item={traceItem}
         inventoryId={traceItem?.inventory_id ?? null}
         title="Inventory Discrepancy Details"
+        onSuccess={fetchInventory}
       />
     </div>
   );
