@@ -15,6 +15,7 @@ from routers.suppliers import router as suppliers_router
 from routers.inventory import router as inventory_router
 from routers.dashboard import router as dashboard_router
 from routers.purchase_orders import router as purchase_orders_router
+from routers.product_returns import router as product_returns_router
 from database import get_connection, verify_database_connection
 
 logging.basicConfig(
@@ -43,6 +44,7 @@ app.include_router(profile_router, prefix="/api")
 app.include_router(suppliers_router, prefix="/api/suppliers", tags=["Suppliers"])
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(purchase_orders_router, prefix="/api/purchase-orders", tags=["Purchase Orders"])
+app.include_router(product_returns_router, prefix="/api/product-returns", tags=["Product Returns"])
 app.include_router(dashboard_router, prefix="/api")
 
 # Create uploads directory if it doesn't exist
@@ -332,6 +334,91 @@ def ensure_purchase_orders_schema():
     except Exception as e:
         conn.rollback()
         print(f"Purchase orders schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def ensure_product_returns_schema():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_returns (
+                    return_id SERIAL PRIMARY KEY,
+                    supplier_id INTEGER REFERENCES supplier(supplier_id),
+                    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                    reason TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    approved_at TIMESTAMP,
+                    rejected_at TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_return_items (
+                    item_id SERIAL PRIMARY KEY,
+                    return_id INTEGER REFERENCES product_returns(return_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL
+                )
+            """)
+
+            # Ensure newer columns exist on older databases
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES supplier(supplier_id)")
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'Pending'")
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT ''")
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP")
+            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP")
+
+            # Clean up legacy columns from older schema where product_returns stored a single product/quantity
+            cur.execute("ALTER TABLE product_returns DROP COLUMN IF EXISTS quantity")
+            cur.execute("ALTER TABLE product_returns DROP COLUMN IF EXISTS product_id")
+
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Product returns schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def ensure_inventory_stock_events_schema():
+    """
+    Traceability ledger for inventory mutations (PO pending/received, returns, manual adjustments).
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS inventory_stock_events (
+                    event_id SERIAL PRIMARY KEY,
+                    inventory_id INTEGER REFERENCES inventory(inventory_id),
+                    product_id INTEGER REFERENCES products(product_id),
+                    event_type VARCHAR(50) NOT NULL,
+                    quantity_before INTEGER NOT NULL,
+                    quantity_after INTEGER NOT NULL,
+                    expected_before INTEGER NOT NULL,
+                    expected_after INTEGER NOT NULL,
+                    actual_before INTEGER NOT NULL,
+                    actual_after INTEGER NOT NULL,
+                    quantity_delta INTEGER NOT NULL,
+                    expected_delta INTEGER NOT NULL,
+                    actual_delta INTEGER NOT NULL,
+                    difference_before INTEGER NOT NULL,
+                    difference_after INTEGER NOT NULL,
+                    reference_type VARCHAR(50) NOT NULL DEFAULT '',
+                    reference_id VARCHAR(50) NOT NULL DEFAULT '',
+                    reason TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Inventory stock events schema migration error: {e}")
     finally:
         conn.close()
 

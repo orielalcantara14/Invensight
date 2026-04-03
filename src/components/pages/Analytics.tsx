@@ -1,7 +1,30 @@
 import { TrendingUp, AlertTriangle, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export function Analytics() {
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [criticalStockCount, setCriticalStockCount] = useState(0);
+
+  useEffect(() => {
+    const fetchLowStockData = async () => {
+      try {
+        const response = await fetch(`${API_URL}/inventory/low-stock-count/`);
+        if (response.ok) {
+          const data = await response.json();
+          setLowStockCount(data.low_count);
+          setCriticalStockCount(data.critical_count);
+        }
+      } catch (error) {
+        console.error("Failed to fetch low stock data:", error);
+      }
+    };
+
+    fetchLowStockData();
+  }, []);
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -26,8 +49,10 @@ export function Analytics() {
             <span className="text-gray-600">Low Stock Alerts</span>
             <AlertTriangle className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">0</div>
-          <div className="text-sm text-gray-500 mt-1">Items below threshold</div>
+          <div className="text-3xl font-bold text-gray-900">{lowStockCount + criticalStockCount}</div>
+          <div className="text-sm text-gray-500 mt-1">
+            {criticalStockCount > 0 ? `${criticalStockCount} critical, ${lowStockCount} low` : "Items below threshold"}
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">

@@ -11,6 +11,8 @@ export function AuditLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterAction, setFilterAction] = useState("All");
   const [filterEntity, setFilterEntity] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const session = getSession();
 
   useEffect(() => {
@@ -40,6 +42,12 @@ export function AuditLog() {
     return matchesSearch && matchesAction && matchesEntity;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+  const paginatedLogs = filteredLogs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const criticalActions = auditLogs.filter(log => 
     ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE'].includes(log.action)
   ).length;
@@ -50,6 +58,10 @@ export function AuditLog() {
   ).length;
 
   const uniqueUsers = new Set(auditLogs.map(log => log.user_id)).size;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterAction, filterEntity]);
 
   return (
     <div className="p-8">
@@ -164,7 +176,7 @@ export function AuditLog() {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
+                paginatedLogs.map((log) => (
                   <tr key={log.log_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.timestamp}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username}</td>
@@ -184,6 +196,60 @@ export function AuditLog() {
             </tbody>
           </table>
         </div>
+        {filteredLogs.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+              </select>
+              <span className="text-sm text-gray-600">entries</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-100 text-gray-700"
+                >
+                  {"<"}
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1 rounded border text-sm ${
+                      page === currentPage
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "border-gray-300 hover:bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-100 text-gray-700"
+                >
+                  {">"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

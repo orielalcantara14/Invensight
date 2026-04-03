@@ -107,11 +107,14 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
             COALESCE(i.quantity, 0) AS quantity,
             COALESCE(i.expected, 0) AS expected,
             COALESCE(i.actual, 0) AS actual,
+            (
+                (2 * COALESCE(i.actual, 0)) - COALESCE(i.quantity, 0) - COALESCE(i.expected, 0)
+            )::int AS difference,
             COALESCE(i.reorder_level, 10) AS reorder_level,
             COALESCE(p.unit_price::float, 0.0) AS unit_price,
             CASE
-                WHEN COALESCE(i.quantity, 0) <= 0 THEN 'Critical'
-                WHEN COALESCE(i.quantity, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
+                WHEN COALESCE(i.actual, 0) <= 0 THEN 'Critical'
+                WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                 ELSE 'Normal'
             END AS status,
             COALESCE(i.last_updated::text, '') AS last_updated,
@@ -149,11 +152,14 @@ def get_inventory():
                     COALESCE(i.quantity, 0) AS quantity,
                     COALESCE(i.expected, 0) AS expected,
                     COALESCE(i.actual, 0) AS actual,
+                    (
+                        (2 * COALESCE(i.actual, 0)) - COALESCE(i.quantity, 0) - COALESCE(i.expected, 0)
+                    )::int AS difference,
                     COALESCE(i.reorder_level, 10) AS reorder_level,
                     COALESCE(p.unit_price::float, 0.0) AS unit_price,
                     CASE
-                        WHEN COALESCE(i.quantity, 0) <= 0 THEN 'Critical'
-                        WHEN COALESCE(i.quantity, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
+                    WHEN COALESCE(i.actual, 0) <= 0 THEN 'Critical'
+                    WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                         ELSE 'Normal'
                     END AS status,
                     COALESCE(i.last_updated::text, '') AS last_updated,
@@ -386,6 +392,74 @@ def delete_inventory_item(inventory_id: int):
             return {"message": "Inventory item deleted"}
     except Exception as e:
         conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.get("/low-stock-count/")
+def get_low_stock_count():
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0) AS critical_count,
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > 0 AND COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)) AS low_count,
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)) AS total_low_stock
+                FROM inventory i
+                """
+            )
+            row = cur.fetchone()
+            return {
+                "critical_count": row["critical_count"],
+                "low_count": row["low_count"],
+                "total_low_stock": row["total_low_stock"]
+            }
+    except Exception as e:
+        logger.error(f"Error fetching low stock count: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.get("/{inventory_id}/trace/")
+def get_inventory_trace(inventory_id: int):
+    """
+    Traceability ledger for this inventory item (PO pending/received, returns, etc.).
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    event_id,
+                    created_at,
+                    event_type,
+                    reference_type,
+                    reference_id,
+                    reason,
+                    quantity_before,
+                    quantity_after,
+                    expected_before,
+                    expected_after,
+                    actual_before,
+                    actual_after,
+                    quantity_delta,
+                    expected_delta,
+                    actual_delta,
+                    difference_before,
+                    difference_after
+                FROM inventory_stock_events
+                WHERE inventory_id = %s
+                ORDER BY created_at DESC, event_id DESC
+                """,
+                (inventory_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"Error fetching inventory trace: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

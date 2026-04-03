@@ -266,11 +266,32 @@ export interface InventoryItem {
   quantity: number;
   expected: number;
   actual: number;
+  difference: number;
   reorder_level: number;
   unit_price: number;
   status: 'Normal' | 'Low' | 'Critical';
   last_updated: string;
   reason_adjustment: string;
+}
+
+export interface InventoryStockEvent {
+  event_id: number;
+  created_at: string;
+  event_type: string;
+  reference_type: string;
+  reference_id: string;
+  reason: string;
+  quantity_before: number;
+  quantity_after: number;
+  expected_before: number;
+  expected_after: number;
+  actual_before: number;
+  actual_after: number;
+  quantity_delta: number;
+  expected_delta: number;
+  actual_delta: number;
+  difference_before: number;
+  difference_after: number;
 }
 
 export interface InventoryPayload {
@@ -297,6 +318,34 @@ export interface UpdateInventoryPayload {
   reorder_level: number;
   actual: number;
   reason_adjustment: string;
+}
+
+// ── Product Returns ─────────────────────────────────────────────────────────
+
+export interface ProductReturnItem {
+  item_id: number;
+  product_id: number;
+  product_name?: string;
+  quantity: number;
+}
+
+export interface ProductReturn {
+  return_id: number;
+  supplier_id?: number;
+  supplier_name?: string;
+  status: "Pending" | "Approved" | "Rejected" | string;
+  created_at?: string;
+  approved_at?: string;
+  rejected_at?: string;
+  reason?: string | null;
+  total_quantity: number;
+  items?: ProductReturnItem[];
+}
+
+export interface CreateProductReturnPayload {
+  supplier_id: number;
+  items: Array<{ product_id: number; quantity: number }>;
+  reason?: string;
 }
 
 /** Matches `LoginResponse` from the API (snake_case). */
@@ -494,6 +543,7 @@ export const api = {
     }),
 
   getInventoryItems: () => request<InventoryItem[]>("/api/inventory/"),
+  getInventoryTrace: (inventoryId: number) => request<InventoryStockEvent[]>(`/api/inventory/${inventoryId}/trace/`),
   addInventoryItem: (payload: InventoryPayload) =>
     request<InventoryItem>("/api/inventory/", {
       method: "POST",
@@ -523,6 +573,22 @@ export const api = {
   deletePurchaseOrder: (orderId: string) =>
     request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, {
       method: "DELETE",
+    }),
+
+  getProductReturns: () => request<ProductReturn[]>("/api/product-returns/"),
+  getProductReturn: (returnId: number) => request<ProductReturn>(`/api/product-returns/${returnId}`),
+  createProductReturn: (payload: CreateProductReturnPayload) =>
+    request<{ ok: boolean; return_id: number }>("/api/product-returns/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  approveProductReturn: (returnId: number) =>
+    request<{ ok: boolean }>(`/api/product-returns/${returnId}/approve`, {
+      method: "PUT",
+    }),
+  rejectProductReturn: (returnId: number) =>
+    request<{ ok: boolean }>(`/api/product-returns/${returnId}/reject`, {
+      method: "PUT",
     }),
 
   login: (payload: LoginPayload) =>

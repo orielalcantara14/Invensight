@@ -127,6 +127,8 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
 
             order_id = _generate_order_id()
             total_items = sum(item.quantity for item in payload.items)
+            today = date.today()
+            reference_type = "purchase_orders"
 
             cur.execute("""
                 INSERT INTO purchase_orders (order_id, supplier_id, user_id, status, expected_delivery, total_items, notes)
@@ -141,11 +143,82 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
                 """, (order_id, item.product_id, item.quantity, item.unit_price))
 
                 cur.execute("""
+                    SELECT
+                        inventory_id,
+                        quantity,
+                        expected,
+                        actual
+                    FROM inventory
+                    WHERE product_id = %s
+                    FOR UPDATE
+                """, (item.product_id,))
+                inv = cur.fetchone()
+                if not inv:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product ID {item.product_id} not found in inventory",
+                    )
+
+                quantity_before = inv["quantity"]
+                expected_before = inv["expected"]
+                actual_before = inv["actual"]
+                expected_after = expected_before + item.quantity
+                quantity_after = quantity_before
+                actual_after = actual_before
+
+                difference_before = (2 * actual_before) - quantity_before - expected_before
+                difference_after = (2 * actual_after) - quantity_after - expected_after
+
+                cur.execute("""
                     UPDATE inventory
                     SET expected = expected + %s,
                         last_updated = %s
                     WHERE product_id = %s
-                """, (item.quantity, date.today(), item.product_id))
+                """, (item.quantity, today, item.product_id))
+
+                cur.execute(
+                    """
+                    INSERT INTO inventory_stock_events (
+                        inventory_id,
+                        product_id,
+                        event_type,
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_delta,
+                        expected_delta,
+                        actual_delta,
+                        difference_before,
+                        difference_after,
+                        reference_type,
+                        reference_id,
+                        reason
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        inv["inventory_id"],
+                        item.product_id,
+                        "PO_PENDING",
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_after - quantity_before,
+                        expected_after - expected_before,
+                        actual_after - actual_before,
+                        int(difference_before),
+                        int(difference_after),
+                        reference_type,
+                        order_id,
+                        payload.notes or "",
+                    ),
+                )
 
             cur.execute("""
                 UPDATE supplier
@@ -186,20 +259,81 @@ def mark_order_as_received(order_id: str):
 
             for item in items:
                 cur.execute("""
-                    SELECT quantity, expected, actual FROM inventory WHERE product_id = %s
+                    SELECT
+                        inventory_id,
+                        quantity,
+                        expected,
+                        actual
+                    FROM inventory
+                    WHERE product_id = %s
+                    FOR UPDATE
                 """, (item["product_id"],))
                 inv_row = cur.fetchone()
                 if not inv_row:
                     raise HTTPException(status_code=400, detail=f"Product ID {item['product_id']} not found in inventory")
 
                 qty = item["quantity"]
+                quantity_before = inv_row["quantity"]
+                expected_before = inv_row["expected"]
+                actual_before = inv_row["actual"]
+                quantity_after = quantity_before + qty
+                expected_after = expected_before
+                actual_after = actual_before + qty
+
+                difference_before = (2 * actual_before) - quantity_before - expected_before
+                difference_after = (2 * actual_after) - quantity_after - expected_after
+
                 cur.execute("""
                     UPDATE inventory
                     SET quantity = quantity + %s,
-                        expected = GREATEST(expected - %s, actual),
+                        actual = actual + %s,
                         last_updated = %s
                     WHERE product_id = %s
                 """, (qty, qty, date.today(), item["product_id"]))
+
+                cur.execute(
+                    """
+                    INSERT INTO inventory_stock_events (
+                        inventory_id,
+                        product_id,
+                        event_type,
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_delta,
+                        expected_delta,
+                        actual_delta,
+                        difference_before,
+                        difference_after,
+                        reference_type,
+                        reference_id,
+                        reason
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        inv_row["inventory_id"],
+                        item["product_id"],
+                        "PO_RECEIVED",
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_after - quantity_before,
+                        expected_after - expected_before,
+                        actual_after - actual_before,
+                        int(difference_before),
+                        int(difference_after),
+                        "purchase_orders",
+                        order_id,
+                        "",
+                    ),
+                )
 
             cur.execute("""
                 UPDATE purchase_orders
@@ -246,11 +380,83 @@ def delete_purchase_order(order_id: str):
 
             for item in items:
                 cur.execute("""
+                    SELECT
+                        inventory_id,
+                        quantity,
+                        expected,
+                        actual
+                    FROM inventory
+                    WHERE product_id = %s
+                    FOR UPDATE
+                """, (item["product_id"],))
+                inv = cur.fetchone()
+                if not inv:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product ID {item['product_id']} not found in inventory",
+                    )
+
+                qty = item["quantity"]
+                quantity_before = inv["quantity"]
+                expected_before = inv["expected"]
+                actual_before = inv["actual"]
+                quantity_after = quantity_before
+                expected_after = max(expected_before - qty, actual_before)
+                actual_after = actual_before
+
+                difference_before = (2 * actual_before) - quantity_before - expected_before
+                difference_after = (2 * actual_after) - quantity_after - expected_after
+
+                cur.execute("""
                     UPDATE inventory
                     SET expected = GREATEST(expected - %s, actual),
                         last_updated = %s
                     WHERE product_id = %s
-                """, (item["quantity"], date.today(), item["product_id"]))
+                """, (qty, date.today(), item["product_id"]))
+
+                cur.execute(
+                    """
+                    INSERT INTO inventory_stock_events (
+                        inventory_id,
+                        product_id,
+                        event_type,
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_delta,
+                        expected_delta,
+                        actual_delta,
+                        difference_before,
+                        difference_after,
+                        reference_type,
+                        reference_id,
+                        reason
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        inv["inventory_id"],
+                        item["product_id"],
+                        "PO_CANCELLED_PENDING",
+                        quantity_before,
+                        quantity_after,
+                        expected_before,
+                        expected_after,
+                        actual_before,
+                        actual_after,
+                        quantity_after - quantity_before,
+                        expected_after - expected_before,
+                        actual_after - actual_before,
+                        int(difference_before),
+                        int(difference_after),
+                        "purchase_orders",
+                        order_id,
+                        "",
+                    ),
+                )
 
             cur.execute("DELETE FROM purchase_orders WHERE order_id = %s", (order_id,))
 

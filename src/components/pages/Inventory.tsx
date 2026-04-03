@@ -1,8 +1,9 @@
-import { Search, Download, Package, Edit2, Trash2 } from "lucide-react";
+import { Search, Download, Package, Edit2, Trash2, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { api, type InventoryItem } from "@/services/api";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
+import { InventoryTraceModal } from "../modals/InventoryTraceModal";
 import { toast } from "sonner";
 import {
   Pagination,
@@ -22,6 +23,7 @@ export function Inventory() {
   const [filterCategory, setFilterCategory] = useState("All");
   const [categories, setCategories] = useState<any[]>([]);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [traceItem, setTraceItem] = useState<InventoryItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
@@ -242,6 +244,9 @@ export function Inventory() {
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Reorder Level
                 </th>
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Difference
+                </th>
                 <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -250,7 +255,7 @@ export function Inventory() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                     </div>
@@ -258,7 +263,7 @@ export function Inventory() {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 font-medium">No inventory items found</p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add items to start managing your inventory</p>
@@ -311,6 +316,20 @@ export function Inventory() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {item.reorder_level}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
+                          {item.difference}
+                        </span>
+                        <button
+                          onClick={() => setTraceItem(item)}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="View stock trace"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
@@ -414,6 +433,14 @@ export function Inventory() {
         onClose={() => setEditingItem(null)}
         onSuccess={fetchInventory}
         item={editingItem}
+      />
+
+      <InventoryTraceModal
+        isOpen={!!traceItem}
+        onClose={() => setTraceItem(null)}
+        item={traceItem}
+        inventoryId={traceItem?.inventory_id ?? null}
+        title="Inventory Discrepancy Details"
       />
     </div>
   );

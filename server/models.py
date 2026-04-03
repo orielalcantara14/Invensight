@@ -228,6 +228,7 @@ class InventoryResponse(BaseModel):
     quantity: int
     expected: int
     actual: int
+    difference: int
     reorder_level: int
     unit_price: float
     status: str
@@ -294,6 +295,37 @@ class PurchaseOrderResponse(BaseModel):
     total_items: int
     notes: Optional[str] = None
     items: Optional[List[PurchaseOrderItemResponse]] = None
+
+
+class ProductReturnItemRequest(BaseModel):
+    product_id: int
+    quantity: int
+
+
+class CreateProductReturnRequest(BaseModel):
+    supplier_id: int
+    items: List[ProductReturnItemRequest]
+    reason: Optional[str] = ""
+
+
+class ProductReturnItemResponse(BaseModel):
+    item_id: int
+    product_id: int
+    product_name: Optional[str] = None
+    quantity: int
+
+
+class ProductReturnResponse(BaseModel):
+    return_id: int
+    supplier_id: int
+    supplier_name: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+    approved_at: Optional[str] = None
+    rejected_at: Optional[str] = None
+    reason: Optional[str] = None
+    items: Optional[List[ProductReturnItemResponse]] = None
+    total_quantity: int
 
 
 class AuditLogEntryResponse(BaseModel):

@@ -1,8 +1,9 @@
 import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "@/services/api";
 import { toast } from "sonner";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/types";
+import { ProductReturns } from "./ProductReturns";
 
 interface OrderItemInput {
   product_id: number;
@@ -27,6 +28,7 @@ export function Orders() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [activeTab, setActiveTab] = useState<"orders" | "returns">("orders");
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,16 @@ export function Orders() {
     setItemsPerPage(value);
     setCurrentPage(1);
   };
+
+  const orderIdDisplayMap = useMemo(() => {
+    const map = new Map<string, string>();
+    orders.forEach((order, index) => {
+      map.set(order.order_id, `PO-${String(index + 1).padStart(6, "0")}`);
+    });
+    return map;
+  }, [orders]);
+
+  const formatOrderId = (orderId: string) => orderIdDisplayMap.get(orderId) || orderId;
 
   const addOrderItem = () => {
     setNewOrder((prev) => ({
@@ -225,7 +237,7 @@ export function Orders() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Orders</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{orders.length}</div>
@@ -240,6 +252,41 @@ export function Orders() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={() => {
+            setActiveTab("orders");
+            setShowCreateModal(false);
+            setShowViewModal(false);
+            setSelectedOrder(null);
+          }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            activeTab === "orders"
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+          }`}
+        >
+          Order List
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("returns");
+            setShowCreateModal(false);
+            setShowViewModal(false);
+            setSelectedOrder(null);
+          }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            activeTab === "returns"
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+          }`}
+        >
+          Product Returns
+        </button>
+      </div>
+
+      {activeTab === "orders" && (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
@@ -306,7 +353,7 @@ export function Orders() {
                 paginatedOrders.map((order) => (
                   <tr key={order.order_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {order.order_id}
+                      {formatOrderId(order.order_id)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {order.supplier_name}
@@ -404,6 +451,9 @@ export function Orders() {
           </div>
         )}
       </div>
+      )}
+
+      {activeTab === "returns" && <ProductReturns />}
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -567,7 +617,7 @@ export function Orders() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-500 dark:text-gray-400">Order ID</label>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedOrder.order_id}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{formatOrderId(selectedOrder.order_id)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500 dark:text-gray-400">Status</label>

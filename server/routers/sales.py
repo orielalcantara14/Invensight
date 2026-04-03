@@ -278,15 +278,27 @@ def create_sale(sale: CreateSaleRequest):
                 item_subtotal = round(item.unit_price * item.quantity, 2)
 
                 cur.execute(
-                    "SELECT quantity FROM inventory WHERE product_id = %s",
+                    "SELECT quantity, actual FROM inventory WHERE product_id = %s",
                     (item.product_id,)
                 )
                 inv_row = cur.fetchone()
-                current_stock = inv_row["quantity"] if inv_row else 0
-                if current_stock < item.quantity:
+                physical_stock = inv_row["quantity"] if inv_row else 0
+                sellable_stock = inv_row["actual"] if inv_row else 0
+                if sellable_stock < item.quantity:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Insufficient stock for product ID {item.product_id}. Available: {current_stock}, Requested: {item.quantity}"
+                        detail=(
+                            f"Insufficient sellable stock for product ID {item.product_id}. "
+                            f"Available (Actual): {sellable_stock}, Requested: {item.quantity}"
+                        ),
+                    )
+                if physical_stock < item.quantity:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Insufficient physical stock for product ID {item.product_id}. "
+                            f"Available (Quantity): {physical_stock}, Requested: {item.quantity}"
+                        ),
                     )
 
                 cur.execute(
