@@ -269,7 +269,7 @@ export interface InventoryItem {
   difference: number;
   reorder_level: number;
   unit_price: number;
-  status: 'Normal' | 'Low' | 'Critical';
+  status: 'Normal' | 'Low' | 'Out of Stock';
   last_updated: string;
   reason_adjustment: string;
 }
@@ -691,6 +691,7 @@ export const api = {
 
   getPurchaseOrders: () => request<any[]>("/api/purchase-orders/"),
   getPurchaseOrder: (orderId: string) => request<any>(`/api/purchase-orders/${orderId}`),
+  getUpcomingDeliveries: () => request<{ deliveries: any[]; count: number }>("/api/purchase-orders/upcoming-deliveries"),
   createPurchaseOrder: (payload: { supplier_id: number; expected_delivery: string; items: Array<{ product_id: number; quantity: number; unit_price?: number }>; notes?: string }) =>
     request<{ ok: boolean; order_id: string }>("/api/purchase-orders/", {
       method: "POST",

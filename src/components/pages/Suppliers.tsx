@@ -116,7 +116,7 @@ export function Suppliers() {
             <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
               <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Products Supplied</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Product Lines</span>
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalProducts}</div>
         </div>
@@ -166,7 +166,7 @@ export function Suppliers() {
                   Contact Number
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Product Supplied
+                  Supplier Products
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Total Orders
@@ -283,6 +283,7 @@ export function Suppliers() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={fetchSuppliers}
+        existingSuppliers={suppliers}
       />
 
       <EditSupplierModal
@@ -290,6 +291,7 @@ export function Suppliers() {
         onClose={() => setEditingSupplier(null)}
         onSuccess={fetchSuppliers}
         supplier={editingSupplier}
+        existingSuppliers={suppliers}
       />
     </div>
   );

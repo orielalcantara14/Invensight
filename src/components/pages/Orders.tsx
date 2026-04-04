@@ -22,6 +22,8 @@ interface SupplierOption {
 interface ProductOption {
   product_id: number;
   product_name: string;
+  reorder_level?: number;
+  unit_price?: number;
 }
 
 export function Orders() {
@@ -152,6 +154,20 @@ export function Orders() {
       if (item.quantity <= 0) {
         toast.error("Quantity must be greater than 0");
         return;
+      }
+      const product = products.find((p) => p.product_id === item.product_id);
+      if (product) {
+        const reorderLevel = product.reorder_level ?? 5;
+        if (item.quantity < reorderLevel) {
+          toast.error(`Order quantity for ${product.product_name} must be at least ${reorderLevel} (reorder level)`);
+          return;
+        }
+        if (item.unit_price !== null && product.unit_price !== undefined) {
+          if (Math.abs(item.unit_price - product.unit_price) > 0.01) {
+            toast.error(`Unit price for ${product.product_name} must be ${product.unit_price}`);
+            return;
+          }
+        }
       }
     }
 

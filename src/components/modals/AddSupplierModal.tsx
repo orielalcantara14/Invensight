@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 import { BaseModal } from "./BaseModal";
-import { api } from "@/services/api";
+import { api, type Supplier } from "@/services/api";
 import { toast } from "sonner";
 
 interface AddSupplierModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  existingSuppliers: Supplier[];
 }
 
 export function AddSupplierModal({
   isOpen,
   onClose,
   onSuccess,
+  existingSuppliers,
 }: AddSupplierModalProps) {
   const normalizePhilippineMobile = (raw: string): string | null => {
     const digits = raw.replace(/\D/g, "");
@@ -38,11 +40,22 @@ export function AddSupplierModal({
       toast.error("Supplier name is required");
       return;
     }
+    const isDuplicate = existingSuppliers.some(
+      (s) => s.supplier_name.toLowerCase() === formData.supplier_name.toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error("A supplier with this name already exists");
+      return;
+    }
     const normalizedContact = formData.contact_number
       ? normalizePhilippineMobile(formData.contact_number)
       : null;
     if (formData.contact_number && !normalizedContact) {
       toast.error("Contact number must be a valid Philippine mobile number");
+      return;
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("Please enter a valid email address (e.g., example@gmail.com)");
       return;
     }
 
@@ -137,7 +150,7 @@ export function AddSupplierModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Products Supplied
+            Supplier Products
           </label>
           <input
             type="text"

@@ -16,6 +16,7 @@ export function Sales() {
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("All");
   const [salesStats, setSalesStats] = useState<{
     total_revenue: number;
     total_transactions: number;
@@ -30,7 +31,7 @@ export function Sales() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, dateFrom, dateTo]);
+  }, [searchTerm, dateFrom, dateTo, paymentMethodFilter]);
 
   const fetchSalesStats = useCallback((viewMode: ViewMode) => {
     setChartLoading(true);
@@ -127,7 +128,11 @@ export function Sales() {
     const matchesDateFrom = !fromDate || recordDate >= fromDate;
     const matchesDateTo = !toDate || recordDate <= toDate;
 
-    return matchesSearch && matchesDateFrom && matchesDateTo;
+    const matchesPaymentMethod = paymentMethodFilter === "All" || 
+      (paymentMethodFilter === "Cash" && record.payment_method === "Cash") ||
+      (paymentMethodFilter === "Cashless" && record.payment_method !== "Cash");
+
+    return matchesSearch && matchesDateFrom && matchesDateTo && matchesPaymentMethod;
   });
 
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -354,6 +359,15 @@ export function Sales() {
                   placeholder="To"
                 />
               </div>
+              <select
+                value={paymentMethodFilter}
+                onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+              >
+                <option value="All">All Payment Methods</option>
+                <option value="Cash">Cash</option>
+                <option value="Cashless">Cashless (GCash/PayMaya)</option>
+              </select>
               <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <Download className="w-4 h-4" />
                 Export

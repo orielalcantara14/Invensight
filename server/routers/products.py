@@ -6,6 +6,7 @@ from database import get_connection
 from models import CreatePosProductRequest, UpdatePosProductRequest, CategoryResponse, CreateCategoryRequest, UpdateCategoryRequest
 import psycopg2.extras
 from datetime import date
+from utils import build_sku
 
 
 router = APIRouter()
@@ -35,87 +36,8 @@ def _record_price_history(cur, product_id: int, old_price, new_price):
         (product_id, old_val, new_val),
     )
 
-def _build_sku(cur, raw_sku: str, product_name: str = "", category_name: str = "") -> str:
-    # 1. Start with Category Code (e.g., Engine Oil -> EO)
-    cat_code = ""
-    if category_name and category_name != "Uncategorized":
-        # Use first letters of each word in category_name
-        cat_code = "".join([word[0].upper() for word in category_name.split() if word])
-    
-    # If no category code but raw_sku (prefix) exists, use that instead
-    prefix_base = cat_code if cat_code else (raw_sku or "").strip().upper()
-    if not prefix_base:
-        prefix_base = "PRD"
-        
-    # 2. Brand Code (e.g., HONDA -> HO)
-    brand_code = ""
-    if product_name:
-        parts = product_name.split()
-        if parts:
-            brand_code = parts[0][:2].upper()
-            
-    # 3. Details Code (e.g., BLUE 1L -> BL1L)
-    details_code = ""
-    if product_name:
-        parts = product_name.split()
-        if len(parts) > 1:
-            # Last part is likely the unit (e.g., 1L, 800ML)
-            unit_part = parts[-1]
-            digit = "".join(filter(str.isdigit, unit_part))
-            unit_letter = "".join(filter(str.isalpha, unit_part))
-            unit_code = ""
-            if digit: unit_code += digit[0]
-            if unit_letter: unit_code += unit_letter[0].upper()
-            
-            # Parts between brand and unit
-            middle_parts = parts[1:-1]
-            middle_code = ""
-            if len(middle_parts) == 1:
-                word = middle_parts[0].upper()
-                if word == "GOLD":
-                    middle_code = "GL"
-                elif len(word) >= 2:
-                    middle_code = word[:2]
-                else:
-                    middle_code = word
-            elif len(middle_parts) >= 2:
-                middle_code = "".join([p[0].upper() for p in middle_parts[:2]])
-            elif not middle_parts and not unit_code:
-                if not unit_code and len(unit_part) >= 2:
-                    unit_code = unit_part[:2].upper()
-            
-            details_code = f"{middle_code}{unit_code}"
-
-    # Assemble the base SKU
-    if brand_code and details_code:
-        prefix = f"{prefix_base}-{brand_code}-{details_code}"
-    elif brand_code:
-        prefix = f"{prefix_base}-{brand_code}"
-    else:
-        prefix = prefix_base
-
-    # Check for collisions
-    cur.execute("SELECT 1 FROM products WHERE sku = %s", (prefix,))
-    if not cur.fetchone():
-        return prefix
-
-    # If it exists, add sequence
-    cur.execute(
-        """
-        SELECT sku FROM products WHERE sku LIKE %s || '%%'
-        """,
-        (prefix,),
-    )
-    existing_skus = [row["sku"] for row in cur.fetchall()]
-    
-    max_n = 0
-    pattern = re.compile(re.escape(prefix) + r"-(\d+)$")
-    for s in existing_skus:
-        m = pattern.match(s)
-        if m:
-            max_n = max(max_n, int(m.group(1)))
-            
-    return f"{prefix}-{str(max_n + 1).zfill(3)}"
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 @router.post("/upload")
@@ -124,14 +46,30 @@ async def upload_image(file: UploadFile = File(...)):
     if not os.path.exists(UPLOAD_DIR):
         os.makedirs(UPLOAD_DIR)
     
-    # Secure file name (you can use uuid or timestamp)
-    import time
-    file_extension = os.path.splitext(file.filename)[1]
-    filename = f"{int(time.time())}{file_extension}"
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File name is required")
+    
+    file_extension = os.path.splitext(file.filename)[1].lower()
+    if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not allowed. Allowed types: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
+        )
+    
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+    
+    import uuid
+    filename = f"{uuid.uuid4().hex}{file_extension}"
     file_path = os.path.join(UPLOAD_DIR, filename)
     
+    file_path = os.path.realpath(file_path)
+    if not file_path.startswith(os.path.realpath(UPLOAD_DIR)):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(content)
     
     return {"url": f"/uploads/{filename}"}
 
@@ -232,11 +170,13 @@ def get_products():
                     COALESCE(p.category_id, 0) AS category_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
                     COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
-                    COALESCE(i.quantity, 0) AS quantity
+                    COALESCE(i.quantity, 0) AS quantity,
+                    COALESCE(i.reorder_level, 5) AS reorder_level
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 LEFT JOIN inventory i ON p.product_id = i.product_id
+                WHERE p.status != 'Archived'
                 ORDER BY p.product_name
             """)
             return [dict(row) for row in cur.fetchall()]
@@ -263,7 +203,7 @@ def get_pos_products():
                     COALESCE(i.quantity, 0) AS stock,
                     CAST(COALESCE(p.pos_price, p.unit_price, 0.0) AS FLOAT) as pos_price,
                     CAST(COALESCE(p.unit_price, 0.0) AS FLOAT) as unit_price,
-                    'Active' as status,
+                    p.status,
                     COALESCE(p.image_url, '') AS image_url,
                     p.supplier_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
@@ -276,6 +216,7 @@ def get_pos_products():
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 LEFT JOIN inventory i ON p.product_id = i.product_id
+                WHERE p.status != 'Archived'
                 ORDER BY p.product_name
                 """
             )
@@ -306,7 +247,14 @@ def create_pos_product(payload: CreatePosProductRequest):
                 else:
                     category_id = None
             
-            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
+            cur.execute(
+                "SELECT supplier_id FROM supplier WHERE supplier_id = %s",
+                (payload.supplier_id,),
+            )
+            if not cur.fetchone():
+                raise HTTPException(status_code=400, detail="Invalid supplier_id: supplier does not exist")
+            
+            sku = build_sku(cur, payload.sku, payload.product_name, category_name)
             
             cur.execute(
                 "SELECT product_id FROM products WHERE sku = %s",
@@ -333,7 +281,8 @@ def create_pos_product(payload: CreatePosProductRequest):
                         sku = %s,
                         unit_price = %s,
                         pos_price = %s,
-                        unit_of_measurement = %s
+                        unit_of_measurement = %s,
+                        status = %s
                     WHERE product_id = %s
                     """,
                     (
@@ -346,6 +295,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                         payload.unit_price,
                         payload.pos_price,
                         payload.unit_of_measurement,
+                        payload.status,
                         product_id,
                     ),
                 )
@@ -356,9 +306,9 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO products (
-                        product_id, category_id, supplier_id, product_name, image_url, specific_category, unit_price, pos_price, sku, date_added, unit_of_measurement
+                        product_id, category_id, supplier_id, product_name, image_url, specific_category, unit_price, pos_price, sku, date_added, unit_of_measurement, status
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         product_id,
@@ -372,6 +322,7 @@ def create_pos_product(payload: CreatePosProductRequest):
                         sku,
                         date.today(),
                         payload.unit_of_measurement,
+                        payload.status,
                     ),
                 )
                 _record_price_history(cur, product_id, None, payload.unit_price)
@@ -455,7 +406,7 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
             product_id = existing["product_id"]
             current_sku = (existing.get("sku") or "").strip().upper()
             old_unit_price = existing.get("unit_price")
-            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
+            sku = build_sku(cur, payload.sku, payload.product_name, category_name)
 
             if sku != current_sku:
                 cur.execute(
@@ -477,7 +428,8 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     sku = %s,
                     unit_price = %s,
                     pos_price = %s,
-                    unit_of_measurement = %s
+                    unit_of_measurement = %s,
+                    status = %s
                 WHERE product_id = %s
                 """,
                 (
@@ -490,10 +442,36 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     payload.unit_price,
                     payload.pos_price,
                     payload.unit_of_measurement,
+                    payload.status,
                     product_id,
                 ),
             )
             _record_price_history(cur, product_id, old_unit_price, payload.unit_price)
+
+            cur.execute("SELECT inventory_id, quantity FROM inventory WHERE product_id = %s", (product_id,))
+            inv_row = cur.fetchone()
+            if inv_row:
+                if inv_row["quantity"] != payload.stock:
+                    cur.execute(
+                        """
+                        UPDATE inventory
+                        SET quantity = %s, actual = %s, expected = %s, last_updated = CURRENT_DATE
+                        WHERE product_id = %s
+                        """,
+                        (payload.stock, payload.stock, payload.stock, product_id),
+                    )
+            else:
+                cur.execute(
+                    "SELECT COALESCE(MAX(inventory_id), 0) + 1 AS next_inv_id FROM inventory",
+                )
+                next_inv_id = cur.fetchone()["next_inv_id"]
+                cur.execute(
+                    """
+                    INSERT INTO inventory (inventory_id, product_id, quantity, expected, actual, reorder_level, last_updated, reason_adjustment)
+                    VALUES (%s, %s, %s, %s, %s, 0, CURRENT_DATE, 'Initial stock sync from POS update')
+                    """,
+                    (next_inv_id, product_id, payload.stock, payload.stock, payload.stock),
+                )
 
             conn.commit()
             return {"ok": True}
@@ -530,24 +508,41 @@ def delete_pos_product(pos_id: int):
             if not target:
                 raise HTTPException(status_code=404, detail="Product not found")
 
-            cur.execute(
-                """
-                DELETE FROM inventory
-                WHERE product_id = %s
-                """,
-                (target["product_id"],),
-            )
+            product_id = target["product_id"]
 
             cur.execute(
                 """
-                DELETE FROM products p
-                WHERE p.product_id = %s
-                  AND NOT EXISTS (
-                    SELECT 1 FROM sold_items si WHERE si.product_id = p.product_id
-                  )
+                SELECT 1 FROM sold_items si WHERE si.product_id = %s LIMIT 1
                 """,
-                (target["product_id"],),
+                (product_id,),
             )
+            has_sales = cur.fetchone() is not None
+
+            if has_sales:
+                cur.execute(
+                    """
+                    UPDATE products SET status = 'Archived'
+                    WHERE product_id = %s
+                    """,
+                    (product_id,),
+                )
+            else:
+                cur.execute(
+                    """
+                    DELETE FROM inventory
+                    WHERE product_id = %s
+                    """,
+                    (product_id,),
+                )
+
+                cur.execute(
+                    """
+                    DELETE FROM products
+                    WHERE product_id = %s
+                    """,
+                    (product_id,),
+                )
+
             conn.commit()
             return {"ok": True}
     except HTTPException:

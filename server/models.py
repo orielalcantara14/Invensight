@@ -1,10 +1,29 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Literal
+import re
+
+
+def sanitize_string(value: str) -> str:
+    if not value:
+        return value
+    value = value.strip()
+    value = re.sub(r'<[^>]*>', '', value)
+    value = re.sub(r'[\'";\\]', '', value)
+    return value[:500]
 
 
 class CartItem(BaseModel):
     product_id: int
     quantity: int
+
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, v):
+        if v < 1:
+            raise ValueError("Quantity must be at least 1")
+        if v > 10000:
+            raise ValueError("Quantity exceeds maximum allowed")
+        return v
     unit_price: float
 
 
@@ -20,6 +39,30 @@ class CreateSaleRequest(BaseModel):
     items: List[CartItem]
     service_charge: float = 0.0
     paymongo_source_id: Optional[str] = None
+
+    @field_validator("customer_name", "customer_info", "address")
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v)
+
+    @field_validator("payment_method")
+    @classmethod
+    def validate_payment_method(cls, v):
+        allowed = {"Cash", "GCash", "PayMaya"}
+        if v not in allowed:
+            raise ValueError(f"Payment method must be one of: {', '.join(allowed)}")
+        return v
+
+    @field_validator("cash_received")
+    @classmethod
+    def validate_cash_received(cls, v):
+        if v < 0:
+            raise ValueError("Cash received cannot be negative")
+        if v > 1000000:
+            raise ValueError("Cash received exceeds maximum allowed amount")
+        return v
 
 
 class PayMongoSourceRequest(BaseModel):
@@ -46,7 +89,7 @@ class CreatePosProductRequest(BaseModel):
     image_url: Optional[str] = None
     specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
-    supplier_id: Optional[int] = None
+    supplier_id: int
     unit_price: float
     pos_price: Optional[float] = None
     unit_of_measurement: Optional[str] = None
@@ -98,6 +141,48 @@ class CreateUserRequest(BaseModel):
     email: Optional[str] = None
     is_active: bool = True
 
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Username is required")
+        if len(v) > 100:
+            raise ValueError("Username exceeds maximum length")
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
+        return v.strip()
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Full name is required")
+        if len(v) > 200:
+            raise ValueError("Full name exceeds maximum length")
+        return sanitize_string(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if not v:
+            raise ValueError("Password is required")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 200:
+            raise ValueError("Password exceeds maximum length")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        if v is None:
+            return v
+        if len(v) > 255:
+            raise ValueError("Email exceeds maximum length")
+        if v and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+            raise ValueError("Invalid email format")
+        return v.strip().lower()
+
 
 class RoleResponse(BaseModel):
     id: int
@@ -129,6 +214,24 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Username is required")
+        if len(v) > 100:
+            raise ValueError("Username exceeds maximum length")
+        return v.strip()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if not v:
+            raise ValueError("Password is required")
+        if len(v) > 200:
+            raise ValueError("Password exceeds maximum length")
+        return v
+
 
 class LoginResponse(BaseModel):
     user_id: int
@@ -157,10 +260,39 @@ class ProfileUpdateRequest(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
 
+    @field_validator("full_name", "address")
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        if v is None:
+            return v
+        if len(v) > 255:
+            raise ValueError("Email exceeds maximum length")
+        if v and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+            raise ValueError("Invalid email format")
+        return v.strip().lower()
+
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v):
+        if not v:
+            raise ValueError("New password is required")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if len(v) > 200:
+            raise ValueError("Password exceeds maximum length")
+        return v
 
 
 class ActivityItem(BaseModel):

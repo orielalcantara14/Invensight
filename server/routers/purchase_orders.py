@@ -2,11 +2,44 @@ from fastapi import APIRouter, HTTPException
 from database import get_connection
 from models import CreatePurchaseOrderRequest, PurchaseOrderResponse, PurchaseOrderItemResponse
 import psycopg2.extras
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import random
 import string
 
 router = APIRouter()
+
+
+@router.get("/upcoming-deliveries")
+def get_upcoming_deliveries():
+    conn = get_connection()
+    try:
+        tomorrow = date.today() + timedelta(days=1)
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    po.order_id,
+                    po.supplier_id,
+                    s.supplier_name,
+                    po.expected_delivery,
+                    po.total_items,
+                    po.notes
+                FROM purchase_orders po
+                LEFT JOIN supplier s ON po.supplier_id = s.supplier_id
+                WHERE po.status = 'Pending' AND po.expected_delivery = %s
+                ORDER BY po.expected_delivery ASC
+            """, (tomorrow,))
+            rows = cur.fetchall()
+            result = []
+            for row in rows:
+                order = dict(row)
+                if isinstance(order.get("expected_delivery"), date):
+                    order["expected_delivery"] = order["expected_delivery"].isoformat()
+                result.append(order)
+            return {"deliveries": result, "count": len(result)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 def _generate_order_id():
@@ -125,10 +158,36 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
                 raise HTTPException(status_code=400, detail="This supplier is currently inactive.")
 
             for item in payload.items:
-                cur.execute("SELECT product_id, product_name FROM products WHERE product_id = %s", (item.product_id,))
+                cur.execute("""
+                    SELECT 
+                        p.product_id, 
+                        p.product_name, 
+                        p.status,
+                        CAST(p.unit_price AS FLOAT) as unit_price,
+                        COALESCE(i.reorder_level, 5) AS reorder_level
+                    FROM products p
+                    LEFT JOIN inventory i ON p.product_id = i.product_id
+                    WHERE p.product_id = %s
+                """, (item.product_id,))
                 product_row = cur.fetchone()
                 if not product_row:
                     raise HTTPException(status_code=400, detail=f"Product ID {item.product_id} not found in inventory")
+                if (product_row.get("status") or "").strip().lower() == "archived":
+                    raise HTTPException(status_code=400, detail=f"Product '{product_row['product_name']}' is archived and cannot be added to purchase orders.")
+                
+                reorder_level = product_row["reorder_level"]
+                if item.quantity < reorder_level:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Order quantity for {product_row['product_name']} must be at least {reorder_level} (reorder level)"
+                    )
+                
+                if item.unit_price is not None and product_row["unit_price"] is not None:
+                    if abs(item.unit_price - product_row["unit_price"]) > 0.01:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Unit price for {product_row['product_name']} must be {product_row['unit_price']}"
+                        )
 
             order_id = _generate_order_id()
             total_items = sum(item.quantity for item in payload.items)

@@ -1,9 +1,10 @@
-import { Search, Download, Package, Edit2, Trash2, Eye } from "lucide-react";
+import { Search, Download, Package, Edit2, Trash2, Eye, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { api, type InventoryItem } from "@/services/api";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
 import { InventoryTraceModal } from "../modals/InventoryTraceModal";
+import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { toast } from "sonner";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 
@@ -18,6 +19,9 @@ export function Inventory() {
   const [traceItem, setTraceItem] = useState<InventoryItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [searchParams] = useSearchParams();
 
@@ -48,15 +52,24 @@ export function Inventory() {
     fetchInventory();
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this inventory item? This will NOT delete the product itself.")) return;
+  const handleDelete = async (id: number, productName: string) => {
+    setItemToDelete({ id, name: productName });
+    setDeleteModalOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
     try {
-      await api.deleteInventoryItem(id);
+      await api.deleteInventoryItem(itemToDelete.id);
       toast.success("Inventory item deleted successfully");
       fetchInventory();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete inventory item");
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
     }
   };
 
@@ -93,7 +106,7 @@ export function Inventory() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, filterCategory]);
 
-  const criticalCount = items.filter(item => item.status === "Critical").length;
+  const outOfStockCount = items.filter(item => item.status === "Out of Stock").length;
   const lowCount = items.filter(item => item.status === "Low").length;
 
   return (
@@ -108,8 +121,21 @@ export function Inventory() {
         </div>
       </div>
 
+      {/* Out of Stock Alert Banner */}
+      {outOfStockCount > 0 && (
+        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">Out of Stock Alert</h3>
+            <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+              You have <strong>{outOfStockCount}</strong> product{outOfStockCount > 1 ? "s" : ""} that {outOfStockCount > 1 ? "are" : "is"} currently out of stock.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Total Items</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{items.length}</div>
@@ -122,9 +148,9 @@ export function Inventory() {
           <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Low Stock</div>
           <div className="text-2xl font-bold text-orange-600">{lowCount}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Critical Stock</div>
-          <div className="text-2xl font-bold text-red-600">{criticalCount}</div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-red-200 dark:border-red-800">
+          <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Out of Stock</div>
+          <div className="text-2xl font-bold text-red-600">{outOfStockCount}</div>
         </div>
       </div>
 
@@ -152,7 +178,7 @@ export function Inventory() {
                 <option value="All">All Status</option>
                 <option value="Normal">Normal</option>
                 <option value="Low">Low Stock</option>
-                <option value="Critical">Critical</option>
+                <option value="Out of Stock">Out of Stock</option>
               </select>
               <button className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <Download className="w-4 h-4" />
@@ -206,6 +232,9 @@ export function Inventory() {
                   Reorder Level
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Difference
                 </th>
                 <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -216,7 +245,7 @@ export function Inventory() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center">
+                  <td colSpan={13} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                     </div>
@@ -224,7 +253,7 @@ export function Inventory() {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center">
+                  <td colSpan={13} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 font-medium">No inventory items found</p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add items to start managing your inventory</p>
@@ -278,6 +307,17 @@ export function Inventory() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {item.reorder_level}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        item.status === 'Out of Stock' 
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                          : item.status === 'Low' 
+                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
@@ -301,7 +341,7 @@ export function Inventory() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(item.inventory_id)}
+                          onClick={() => handleDelete(item.inventory_id, item.product_name)}
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -339,6 +379,19 @@ export function Inventory() {
         inventoryId={traceItem?.inventory_id ?? null}
         title="Inventory Discrepancy Details"
         onSuccess={fetchInventory}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Inventory Item"
+        message="Are you sure you want to delete this inventory item? This will NOT delete the product itself."
+        itemName={itemToDelete?.name}
+        isDeleting={isDeleting}
       />
     </div>
   );

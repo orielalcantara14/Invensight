@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTriangle, CheckCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTriangle, CheckCircle, Truck } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
 import { api, type DashboardStats } from "@/services/api";
@@ -9,6 +9,7 @@ export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +32,16 @@ export function Dashboard() {
         }
       });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    api.getUpcomingDeliveries()
+      .then(res => {
+        setUpcomingDeliveries(res.deliveries || []);
+      })
+      .catch(err => {
+        console.error("Failed to load upcoming deliveries:", err);
+      });
   }, []);
 
   if (loading) {
@@ -76,6 +87,27 @@ export function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Sales & Inventory Management System</p>
       </div>
+
+      {/* Expected Delivery Reminder */}
+      {upcomingDeliveries.length > 0 && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+          <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+              {upcomingDeliveries.length === 1 
+                ? "You have an expected delivery arriving tomorrow." 
+                : `You have ${upcomingDeliveries.length} expected deliveries arriving tomorrow.`}
+            </h3>
+            <div className="mt-2 space-y-1">
+              {upcomingDeliveries.map((delivery) => (
+                <p key={delivery.order_id} className="text-sm text-blue-700 dark:text-blue-400">
+                  <strong>Order #{delivery.order_id}</strong> from {delivery.supplier_name || "Unknown Supplier"} - {delivery.total_items} item{delivery.total_items !== 1 ? "s" : ""}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

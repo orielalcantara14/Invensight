@@ -5,91 +5,10 @@ import psycopg2.extras
 from datetime import date
 import logging
 import re
+from utils import build_sku
 
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
-
-def _build_sku(cur, raw_sku: str, product_name: str = "", category_name: str = "") -> str:
-    # 1. Start with Category Code (e.g., Engine Oil -> EO)
-    cat_code = ""
-    if category_name and category_name != "Uncategorized":
-        # Use first letters of each word in category_name
-        cat_code = "".join([word[0].upper() for word in category_name.split() if word])
-    
-    # If no category code but raw_sku (prefix) exists, use that instead
-    prefix_base = cat_code if cat_code else (raw_sku or "").strip().upper()
-    if not prefix_base:
-        prefix_base = "PRD"
-        
-    # 2. Brand Code (e.g., HONDA -> HO)
-    brand_code = ""
-    if product_name:
-        parts = product_name.split()
-        if parts:
-            brand_code = parts[0][:2].upper()
-            
-    # 3. Details Code (e.g., BLUE 1L -> BL1L)
-    details_code = ""
-    if product_name:
-        parts = product_name.split()
-        if len(parts) > 1:
-            # Last part is likely the unit (e.g., 1L, 800ML)
-            unit_part = parts[-1]
-            digit = "".join(filter(str.isdigit, unit_part))
-            unit_letter = "".join(filter(str.isalpha, unit_part))
-            unit_code = ""
-            if digit: unit_code += digit[0]
-            if unit_letter: unit_code += unit_letter[0].upper()
-            
-            # Parts between brand and unit
-            middle_parts = parts[1:-1]
-            middle_code = ""
-            if len(middle_parts) == 1:
-                word = middle_parts[0].upper()
-                if word == "GOLD":
-                    middle_code = "GL"
-                elif len(word) >= 2:
-                    middle_code = word[:2]
-                else:
-                    middle_code = word
-            elif len(middle_parts) >= 2:
-                middle_code = "".join([p[0].upper() for p in middle_parts[:2]])
-            elif not middle_parts and not unit_code:
-                if not unit_code and len(unit_part) >= 2:
-                    unit_code = unit_part[:2].upper()
-            
-            details_code = f"{middle_code}{unit_code}"
-
-    # Assemble the base SKU
-    if brand_code and details_code:
-        prefix = f"{prefix_base}-{brand_code}-{details_code}"
-    elif brand_code:
-        prefix = f"{prefix_base}-{brand_code}"
-    else:
-        prefix = prefix_base
-
-    # Check for collisions
-    cur.execute("SELECT 1 FROM products WHERE sku = %s", (prefix,))
-    if not cur.fetchone():
-        return prefix
-
-    # If it exists, add sequence
-    cur.execute(
-        """
-        SELECT sku FROM products WHERE sku LIKE %s || '%%'
-        """,
-        (prefix,),
-    )
-    existing_skus = [row["sku"] for row in cur.fetchall()]
-    
-    max_n = 0
-    pattern = re.compile(re.escape(prefix) + r"-(\d+)$")
-    for s in existing_skus:
-        m = pattern.match(s)
-        if m:
-            max_n = max(max_n, int(m.group(1)))
-            
-    return f"{prefix}-{str(max_n + 1).zfill(3)}"
 
 def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
     cur.execute(
@@ -113,7 +32,7 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
             COALESCE(i.reorder_level, 10) AS reorder_level,
             COALESCE(p.unit_price::float, 0.0) AS unit_price,
             CASE
-                WHEN COALESCE(i.actual, 0) <= 0 THEN 'Critical'
+                WHEN COALESCE(i.actual, 0) = 0 THEN 'Out of Stock'
                 WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                 ELSE 'Normal'
             END AS status,
@@ -158,7 +77,7 @@ def get_inventory():
                     COALESCE(i.reorder_level, 10) AS reorder_level,
                     COALESCE(p.unit_price::float, 0.0) AS unit_price,
                     CASE
-                    WHEN COALESCE(i.actual, 0) <= 0 THEN 'Critical'
+                    WHEN COALESCE(i.actual, 0) = 0 THEN 'Out of Stock'
                     WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                         ELSE 'Normal'
                     END AS status,
@@ -168,6 +87,7 @@ def get_inventory():
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
+                WHERE p.status != 'Archived'
                 ORDER BY p.product_name
                 """
             )
@@ -207,7 +127,7 @@ def add_inventory_item(payload: CreateInventoryRequest):
                 if c_row:
                     category_name = c_row["category_name"]
 
-            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
+            sku = build_sku(cur, payload.sku, payload.product_name, category_name)
             
             cur.execute("SELECT product_id FROM products WHERE sku = %s", (sku,))
             p_row = cur.fetchone()
@@ -312,7 +232,7 @@ def update_inventory_item(inventory_id: int, payload: UpdateInventoryRequest):
                 if c_row:
                     category_name = c_row["category_name"]
 
-            sku = _build_sku(cur, payload.sku, payload.product_name, category_name)
+            sku = build_sku(cur, payload.sku, payload.product_name, category_name)
 
             cur.execute(
                 """

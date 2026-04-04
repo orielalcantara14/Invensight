@@ -1,8 +1,13 @@
 import logging
+import time
+import re
+from collections import defaultdict
+from threading import Lock
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import os
 from datetime import date
 from routers.products import router as products_router
@@ -26,6 +31,66 @@ logging.basicConfig(
 log = logging.getLogger("invensight.main")
 
 app = FastAPI(title="InvenSight API", version="1.0.0")
+
+
+class RateLimiter:
+    def __init__(self, max_requests: int, window_seconds: int):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = defaultdict(list)
+        self.lock = Lock()
+
+    def is_allowed(self, key: str) -> bool:
+        now = time.time()
+        with self.lock:
+            self.requests[key] = [
+                t for t in self.requests[key] if now - t < self.window_seconds
+            ]
+            if len(self.requests[key]) >= self.max_requests:
+                return False
+            self.requests[key].append(now)
+            return True
+
+
+login_limiter = RateLimiter(max_requests=5, window_seconds=60)
+api_limiter = RateLimiter(max_requests=100, window_seconds=60)
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    path = request.url.path
+
+    if path == "/api/login":
+        if not login_limiter.is_allowed(f"login:{client_ip}"):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many login attempts. Please try again later."},
+            )
+    elif path.startswith("/api/"):
+        if not api_limiter.is_allowed(f"api:{client_ip}"):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."},
+            )
+
+    response = await call_next(request)
+    return response
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.on_event("startup")
@@ -175,6 +240,8 @@ def ensure_products_image_column():
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measurement VARCHAR(50)")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS specific_category VARCHAR(150)")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_price DECIMAL(10, 2)")
+            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'")
+            cur.execute("UPDATE products SET status = 'Active' WHERE status IS NULL OR status = ''")
             conn.commit()
     finally:
         conn.close()
@@ -252,6 +319,17 @@ def ensure_users_roles_schema():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS auditlog (
+                    log_id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(user_id),
+                    action VARCHAR(100) NOT NULL,
+                    entity_type VARCHAR(100),
+                    entity_id INTEGER,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    details TEXT
+                )
+            """)
             cur.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100)"
             )
@@ -409,8 +487,8 @@ def ensure_inventory_stock_events_schema():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS inventory_stock_events (
                     event_id SERIAL PRIMARY KEY,
-                    inventory_id INTEGER REFERENCES inventory(inventory_id),
-                    product_id INTEGER REFERENCES products(product_id),
+                    inventory_id INTEGER REFERENCES inventory(inventory_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
                     event_type VARCHAR(50) NOT NULL,
                     quantity_before INTEGER NOT NULL,
                     quantity_after INTEGER NOT NULL,
@@ -429,6 +507,33 @@ def ensure_inventory_stock_events_schema():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            cur.execute("""
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name = 'inventory_stock_events_inventory_id_fkey' 
+                AND table_name = 'inventory_stock_events'
+            """)
+            if cur.fetchone():
+                cur.execute("""
+                    ALTER TABLE inventory_stock_events 
+                    DROP CONSTRAINT inventory_stock_events_inventory_id_fkey,
+                    ADD CONSTRAINT inventory_stock_events_inventory_id_fkey 
+                    FOREIGN KEY (inventory_id) REFERENCES inventory(inventory_id) ON DELETE CASCADE
+                """)
+            
+            cur.execute("""
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name = 'inventory_stock_events_product_id_fkey' 
+                AND table_name = 'inventory_stock_events'
+            """)
+            if cur.fetchone():
+                cur.execute("""
+                    ALTER TABLE inventory_stock_events 
+                    DROP CONSTRAINT inventory_stock_events_product_id_fkey,
+                    ADD CONSTRAINT inventory_stock_events_product_id_fkey 
+                    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+                """)
+            
             conn.commit()
     except Exception as e:
         conn.rollback()

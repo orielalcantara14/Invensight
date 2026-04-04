@@ -38,7 +38,13 @@ def create_supplier(payload: CreateSupplierRequest):
     try:
         normalized_contact = _normalize_ph_mobile(payload.contact_number)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # Get next ID manually if not using serial
+            cur.execute(
+                "SELECT supplier_id FROM supplier WHERE LOWER(supplier_name) = LOWER(%s)",
+                (payload.supplier_name,),
+            )
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="A supplier with this name already exists")
+            
             cur.execute("SELECT COALESCE(MAX(supplier_id), 0) + 1 AS next_id FROM supplier")
             supplier_id = cur.fetchone()["next_id"]
             
@@ -73,6 +79,13 @@ def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
     try:
         normalized_contact = _normalize_ph_mobile(payload.contact_number)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT supplier_id FROM supplier WHERE LOWER(supplier_name) = LOWER(%s) AND supplier_id != %s",
+                (payload.supplier_name, supplier_id),
+            )
+            if cur.fetchone():
+                raise HTTPException(status_code=400, detail="A supplier with this name already exists")
+            
             cur.execute(
                 """
                 UPDATE supplier SET 

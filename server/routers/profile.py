@@ -139,9 +139,9 @@ def change_password(
     body: ChangePasswordRequest,
     user_id: int = Depends(get_request_user_id),
 ):
-    if len(body.new_password) < 6:
+    if len(body.new_password) < 8:
         raise HTTPException(
-            status_code=400, detail="New password must be at least 6 characters"
+            status_code=400, detail="New password must be at least 8 characters"
         )
 
     conn = get_connection()

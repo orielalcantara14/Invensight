@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AddCategoryModal } from "../modals/AddCategoryModal";
 import { AddProductModal } from "../modals/AddProductModal";
 import { EditProductModal } from "../modals/EditProductModal";
+import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 
 export function Products() {
@@ -23,6 +24,12 @@ export function Products() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<PosProduct | null>(null);
+  const [deleteProductModalOpen, setDeleteProductModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [deleteCategoryModalOpen, setDeleteCategoryModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -44,14 +51,24 @@ export function Products() {
     fetchData();
   }, []);
 
-  const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this category? It will only delete if no products are using it.")) return;
+  const handleDeleteCategory = async (id: number, name: string) => {
+    setCategoryToDelete({ id, name });
+    setDeleteCategoryModalOpen(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    setIsDeletingCategory(true);
     try {
-      await api.deleteCategory(id);
+      await api.deleteCategory(categoryToDelete.id);
       toast.success("Category deleted");
       fetchData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete category");
+    } finally {
+      setIsDeletingCategory(false);
+      setDeleteCategoryModalOpen(false);
+      setCategoryToDelete(null);
     }
   };
 
@@ -60,14 +77,24 @@ export function Products() {
     setIsEditProductOpen(true);
   };
 
-  const handleDeleteProduct = async (posId: number) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+  const handleDeleteProduct = async (posId: number, productName: string) => {
+    setProductToDelete({ id: posId, name: productName });
+    setDeleteProductModalOpen(true);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
     try {
-      await api.deletePosProduct(posId);
+      await api.deletePosProduct(productToDelete.id);
       toast.success("Product deleted successfully");
       fetchData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete product");
+    } finally {
+      setIsDeletingProduct(false);
+      setDeleteProductModalOpen(false);
+      setProductToDelete(null);
     }
   };
 
@@ -160,7 +187,7 @@ export function Products() {
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-gray-900 truncate text-sm">{cat.category_name}</span>
                   <button 
-                    onClick={() => handleDeleteCategory(cat.category_id)}
+                    onClick={() => handleDeleteCategory(cat.category_id, cat.category_name)}
                     className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -310,7 +337,7 @@ export function Products() {
                         <button 
                           className="p-2 text-red-500 bg-red-50/50 hover:bg-red-50 rounded-full transition-colors shadow-sm" 
                           title="Delete"
-                          onClick={() => handleDeleteProduct(product.pos_id)}
+                          onClick={() => handleDeleteProduct(product.pos_id, product.product_name)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -352,6 +379,32 @@ export function Products() {
         }}
         onSuccess={fetchData}
         product={selectedProductForEdit}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteProductModalOpen}
+        onClose={() => {
+          setDeleteProductModalOpen(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={confirmDeleteProduct}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+        itemName={productToDelete?.name}
+        isDeleting={isDeletingProduct}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteCategoryModalOpen}
+        onClose={() => {
+          setDeleteCategoryModalOpen(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={confirmDeleteCategory}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? It will only delete if no products are using it."
+        itemName={categoryToDelete?.name}
+        isDeleting={isDeletingCategory}
       />
     </div>
   );

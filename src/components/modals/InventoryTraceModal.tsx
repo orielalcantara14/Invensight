@@ -23,8 +23,12 @@ export function InventoryTraceModal({
   const [events, setEvents] = useState<InventoryStockEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [quantityChange, setQuantityChange] = useState("");
+  const [discrepancyType, setDiscrepancyType] = useState<"shortage" | "surplus">("shortage");
+  const [quantityAmount, setQuantityAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "shortage" | "surplus">("all");
 
   useEffect(() => {
     if (!isOpen || !inventoryId) return;
@@ -43,6 +47,30 @@ export function InventoryTraceModal({
   const discrepancyEvents = events.filter(
     (ev) => ev.quantity_delta !== 0 || ev.expected_delta !== 0 || ev.actual_delta !== 0
   );
+
+  const filteredDiscrepancyEvents = discrepancyEvents.filter((ev) => {
+    if (!ev.created_at) return false;
+    const eventDate = new Date(ev.created_at);
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (eventDate < fromDate) return false;
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (eventDate > toDate) return false;
+    }
+    if (filterType === "shortage") {
+      const primary = ev.actual_delta !== 0 ? ev.actual_delta : ev.expected_delta !== 0 ? ev.expected_delta : ev.quantity_delta;
+      if (primary >= 0) return false;
+    }
+    if (filterType === "surplus") {
+      const primary = ev.actual_delta !== 0 ? ev.actual_delta : ev.expected_delta !== 0 ? ev.expected_delta : ev.quantity_delta;
+      if (primary <= 0) return false;
+    }
+    return true;
+  });
 
   const formatDiscrepancyChange = (ev: InventoryStockEvent) => {
     // Prefer sellable-impact number (actual), then expected, then quantity.
@@ -63,25 +91,27 @@ export function InventoryTraceModal({
 
   const handleAddDiscrepancy = async () => {
     if (!inventoryId) return;
-    if (!quantityChange.trim() || !reason.trim()) {
-      toast.error("Please enter both quantity change and reason");
+    if (!quantityAmount.trim() || !reason.trim()) {
+      toast.error("Please enter both quantity and reason");
       return;
     }
-    const parsedChange = Number(quantityChange);
-    if (!Number.isInteger(parsedChange) || parsedChange === 0) {
-      toast.error("Quantity change must be a non-zero whole number");
+    const parsedAmount = Number(quantityAmount);
+    if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Quantity must be a positive whole number");
       return;
     }
+    const quantityChange = discrepancyType === "shortage" ? -parsedAmount : parsedAmount;
 
     setIsSaving(true);
     try {
       await api.addInventoryDiscrepancy(inventoryId, {
-        quantity_change: parsedChange,
+        quantity_change: quantityChange,
         reason: reason.trim(),
       });
       toast.success("Discrepancy record added successfully");
-      setQuantityChange("");
+      setQuantityAmount("");
       setReason("");
+      setDiscrepancyType("shortage");
       await refreshTrace();
       onSuccess?.();
     } catch (error) {
@@ -115,13 +145,47 @@ export function InventoryTraceModal({
 
           <div>
             <h3 className="mb-2 text-lg font-semibold text-gray-900">Individual Discrepancies</h3>
+            <div className="mb-3 flex flex-wrap gap-3">
+              <div className="flex-1 min-w-[140px]">
+                <label className="mb-1 block text-xs font-medium text-gray-600">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <label className="mb-1 block text-xs font-medium text-gray-600">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="mb-1 block text-xs font-medium text-gray-600">Discrepancy Type</label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as "all" | "shortage" | "surplus")}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Discrepancies</option>
+                  <option value="shortage">Shortage (-)</option>
+                  <option value="surplus">Surplus (+)</option>
+                </select>
+              </div>
+            </div>
             {isLoading ? (
               <div className="rounded-lg border border-gray-200 p-6 text-center text-gray-500">Loading trace...</div>
-            ) : discrepancyEvents.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 p-6 text-center text-gray-500">No discrepancy records found.</div>
+            ) : filteredDiscrepancyEvents.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 p-6 text-center text-gray-500">
+                {(dateFrom || dateTo || filterType !== "all") ? "No discrepancy records found for the selected filters." : "No discrepancy records found."}
+              </div>
             ) : (
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                {discrepancyEvents.map((ev, index) => (
+                {filteredDiscrepancyEvents.map((ev, index) => (
                   <div key={ev.event_id} className="rounded-lg border border-gray-200 p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -148,16 +212,29 @@ export function InventoryTraceModal({
           <div className="border-t border-gray-200 pt-3">
             <h3 className="mb-2 text-lg font-semibold text-gray-900">Add New Discrepancy Record</h3>
             <div className="space-y-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Quantity Change</label>
-                <input
-                  type="number"
-                  value={quantityChange}
-                  onChange={(e) => setQuantityChange(e.target.value)}
-                  placeholder="Enter negative for shortage, positive for surplus"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">Use negative numbers for shortages (e.g., -1 for 1 missing)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Discrepancy Type</label>
+                  <select
+                    value={discrepancyType}
+                    onChange={(e) => setDiscrepancyType(e.target.value as "shortage" | "surplus")}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="shortage">Shortage (-)</option>
+                    <option value="surplus">Surplus (+)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Quantity</label>
+                  <input
+                    type="number"
+                    value={quantityAmount}
+                    onChange={(e) => setQuantityAmount(e.target.value)}
+                    placeholder="Enter quantity"
+                    min="1"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Reason</label>

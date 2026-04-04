@@ -298,8 +298,30 @@ def create_sale(sale: CreateSaleRequest):
                     (item.product_id,)
                 )
                 inv_row = cur.fetchone()
-                physical_stock = inv_row["quantity"] if inv_row else 0
-                sellable_stock = inv_row["actual"] if inv_row else 0
+                if not inv_row:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product ID {item.product_id} has no inventory record."
+                    )
+                physical_stock = inv_row["quantity"]
+                sellable_stock = inv_row["actual"]
+
+                cur.execute(
+                    "SELECT product_name, status FROM products WHERE product_id = %s",
+                    (item.product_id,)
+                )
+                prod_row = cur.fetchone()
+                if not prod_row:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product ID {item.product_id} does not exist."
+                    )
+                if (prod_row.get("status") or "").strip().lower() == "archived":
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product '{prod_row['product_name']}' is archived and cannot be sold."
+                    )
+
                 if sellable_stock < item.quantity:
                     raise HTTPException(
                         status_code=400,

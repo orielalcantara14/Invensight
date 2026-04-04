@@ -112,8 +112,8 @@ export function AddProductModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.product_name || !formData.unit_price) {
-      toast.error("Please fill in all required fields");
+    if (!formData.product_name || !formData.unit_price || !formData.supplier_id) {
+      toast.error("Please fill in all required fields including supplier");
       return;
     }
     const unitCost = parseFloat(formData.unit_price);
@@ -300,15 +300,16 @@ export function AddProductModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Supplier
+              Supplier *
             </label>
             <select
               value={formData.supplier_id}
               onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoadingSuppliers}
+              required
             >
-              <option value="">No Supplier</option>
+              <option value="">Select Supplier</option>
               {suppliers.map((sup) => (
                 <option key={sup.supplier_id} value={sup.supplier_id}>
                   {sup.supplier_name}
