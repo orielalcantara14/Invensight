@@ -7,6 +7,7 @@ import { InventoryTraceModal } from "../modals/InventoryTraceModal";
 import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { toast } from "sonner";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
+import { exportToExcel } from "@/utils/export";
 
 export function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -92,6 +93,24 @@ export function Inventory() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+  const handleExport = () => {
+    const data = filteredItems.map(item => ({
+      "Product Name": item.product_name,
+      "SKU": item.sku,
+      "Supplier": item.supplier_name || "-",
+      "Category": item.category_name,
+      "Specific Category": item.specific_category || "-",
+      "Unit Measurement": item.unit_of_measurement || "-",
+      "Quantity": item.quantity,
+      "Expected": item.expected,
+      "Actual": item.actual,
+      "Reorder Level": item.reorder_level,
+      "Status": item.status,
+      "Difference": item.difference
+    }));
+    exportToExcel(data, "Inventory_Export");
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -180,7 +199,10 @@ export function Inventory() {
                 <option value="Low">Low Stock</option>
                 <option value="Out of Stock">Out of Stock</option>
               </select>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Export
               </button>

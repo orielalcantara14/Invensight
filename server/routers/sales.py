@@ -13,7 +13,7 @@ load_dotenv()
 
 router = APIRouter()
 
-TAX_RATE = 0.06
+TAX_RATE = 0.03
 
 PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "sk_test_kw8iRka1GRSvzamLKByrcoie")
 
@@ -21,6 +21,29 @@ def get_auth_header():
     auth_str = f"{PAYMONGO_SECRET_KEY}:"
     encoded_auth = base64.b64encode(auth_str.encode()).decode()
     return f"Basic {encoded_auth}"
+
+def get_tax_rate():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT setting_value FROM system_settings WHERE setting_key = 'tax_rate'")
+            result = cur.fetchone()
+            if result:
+                return float(result[0])
+    except Exception as e:
+        print(f"Error fetching tax rate from database: {e}")
+    finally:
+        conn.close()
+    return TAX_RATE
+
+
+@router.get("/settings/tax-rate")
+def get_tax_rate_setting():
+    try:
+        tax_rate = get_tax_rate()
+        return {"tax_rate": tax_rate, "tax_percentage": tax_rate * 100}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def _normalize_ph_mobile(raw: str | None) -> str | None:
     if raw is None:
@@ -228,7 +251,7 @@ def create_sale(sale: CreateSaleRequest):
             subtotal = sum(
                 round(item.unit_price * item.quantity, 2) for item in sale.items
             )
-            tax_amount = round(subtotal * TAX_RATE, 2)
+            tax_amount = round(subtotal * get_tax_rate(), 2)
             total_amount = round(subtotal + tax_amount + sale.service_charge, 2)
             
             # For GCash/PayMongo, cash_received might be equal to total_amount or provided from UI

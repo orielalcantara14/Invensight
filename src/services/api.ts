@@ -25,6 +25,13 @@ export interface Terminal {
   location: string;
 }
 
+export interface Supplier {
+  supplier_id: number;
+  supplier_name: string;
+  contact_person?: string;
+  contact_number?: string;
+}
+
 export interface PosProduct {
   pos_id: number;
   product_id: number;

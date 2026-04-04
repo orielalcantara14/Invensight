@@ -699,6 +699,32 @@ def ensure_sales_invoice_id_sequence():
 
 
 @app.on_event("startup")
+def ensure_settings_schema():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    setting_key VARCHAR(100) PRIMARY KEY,
+                    setting_value TEXT NOT NULL,
+                    description TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                INSERT INTO system_settings (setting_key, setting_value, description)
+                VALUES ('tax_rate', '0.03', 'Current sales tax rate (3%)')
+                ON CONFLICT (setting_key) DO UPDATE SET setting_value = '0.03', updated_at = CURRENT_TIMESTAMP
+            """)
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Settings schema migration error: {e}")
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
 def seed_default_roles():
     conn = get_connection()
     try:

@@ -8,6 +8,7 @@ import { AddProductModal } from "../modals/AddProductModal";
 import { EditProductModal } from "../modals/EditProductModal";
 import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
+import { exportToExcel } from "@/utils/export";
 
 export function Products() {
   const [products, setProducts] = useState<PosProduct[]>([]);
@@ -123,6 +124,21 @@ export function Products() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
+  const handleExport = () => {
+    const data = filteredProducts.map(p => ({
+      "Product Name": p.product_name,
+      "SKU": p.sku,
+      "Category": p.category,
+      "Specific Category": p.specific_category || "-",
+      "Unit Measurement": p.unit_of_measurement || "-",
+      "Unit Price": p.unit_price,
+      "POS Price": p.pos_price,
+      "Stock": p.stock,
+      "Date Added": p.date_added ? new Date(p.date_added).toLocaleDateString() : "N/A"
+    }));
+    exportToExcel(data, "Products_Export");
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -230,7 +246,10 @@ export function Products() {
                   <option key={cat.category_id} value={cat.category_name}>{cat.category_name}</option>
                 ))}
               </select>
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all shadow-sm">
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all shadow-sm"
+              >
                 <Download className="w-4 h-4 text-gray-500" />
                 Export
               </button>

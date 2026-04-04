@@ -94,7 +94,7 @@ export function ViewInvoiceModal({ isOpen, onClose, invoice, loading }: ViewInvo
                 <span>₱{(invoice.total_amount - invoice.tax_amount - invoice.service_charge).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tax (6%)</span>
+                <span className="text-gray-500">Tax (3%)</span>
                 <span>₱{invoice.tax_amount.toFixed(2)}</span>
               </div>
               {invoice.service_charge > 0 && (

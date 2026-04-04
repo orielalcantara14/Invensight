@@ -1,10 +1,11 @@
-import { Search, Plus, Users, Edit2, Trash2, Mail, Phone, MapPin, Package, ShoppingCart } from "lucide-react";
+import { Search, Plus, Users, Edit2, Trash2, Mail, Phone, MapPin, Package, ShoppingCart, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api, type Supplier } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { AddSupplierModal } from "@/components/modals/AddSupplierModal";
 import { EditSupplierModal } from "@/components/modals/EditSupplierModal";
 import { toast } from "sonner";
+import { exportToExcel } from "@/utils/export";
 
 export function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -55,6 +56,20 @@ export function Suppliers() {
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedSuppliers = filteredSuppliers.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleExport = () => {
+    const data = filteredSuppliers.map(s => ({
+      "Supplier ID": s.supplier_id,
+      "Name": s.supplier_name,
+      "Address": s.address || "-",
+      "Email": s.email || "-",
+      "Contact": s.contact_number || "-",
+      "Products Supplied": s.product_supplied || "-",
+      "Total Orders": s.total_orders || 0,
+      "Status": s.status || "Active"
+    }));
+    exportToExcel(data, "Suppliers_Export");
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -136,15 +151,24 @@ export function Suppliers() {
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Supplier List</h2>
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email or contact..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
-              />
+            <div className="flex gap-3 w-full md:w-auto">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email or contact..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
+                />
+              </div>
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
             </div>
           </div>
         </div>

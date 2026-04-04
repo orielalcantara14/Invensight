@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
+import { exportToExcel } from "@/utils/export";
 type ViewMode = "daily" | "monthly" | "annual";
 
 export function Sales() {
@@ -138,6 +139,20 @@ export function Sales() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
+
+  const handleExport = () => {
+    const data = filteredRecords.map(r => ({
+      "Invoice Number": `INV-${String(r.invoice_id).padStart(6, "0")}`,
+      "Date": new Date(r.invoice_date).toLocaleString(),
+      "Customer": r.customer_info,
+      "Contact": r.contact_number || "",
+      "Items Count": r.items.length,
+      "Total Amount": r.total_amount,
+      "Payment Method": r.payment_method,
+      "Status": r.payment_status
+    }));
+    exportToExcel(data, "Sales_Export");
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -368,7 +383,10 @@ export function Sales() {
                 <option value="Cash">Cash</option>
                 <option value="Cashless">Cashless (GCash/PayMaya)</option>
               </select>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Export
               </button>

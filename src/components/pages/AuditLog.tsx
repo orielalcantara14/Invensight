@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { AuditLogEntry } from "@/services/api";
 import { api } from "@/services/api";
 import { getSession } from "@/auth/session";
+import { exportToExcel } from "@/utils/export";
 
 export function AuditLog() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -41,6 +42,19 @@ export function AuditLog() {
     
     return matchesSearch && matchesAction && matchesEntity;
   });
+
+  const handleExport = () => {
+    const data = filteredLogs.map(log => ({
+      "Timestamp": log.timestamp,
+      "User": log.username,
+      "Action": log.action,
+      "Entity Type": log.entity_type,
+      "Entity ID": log.entity_id,
+      "Details": log.details || "",
+      "IP Address": log.ip_address || "N/A"
+    }));
+    exportToExcel(data, "AuditLog_Export");
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
   const paginatedLogs = filteredLogs.slice(
@@ -119,7 +133,10 @@ export function AuditLog() {
                 <option value="Inventory">Inventory</option>
                 <option value="Order">Order</option>
               </select>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Export
               </button>
