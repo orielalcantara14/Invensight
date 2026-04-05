@@ -6,7 +6,6 @@ export interface Product {
   unit_price: number;
   pos_price?: number;
   sku: string;
-  image_url: string;
   category_name: string;
   category_id: number;
   supplier_name?: string;
@@ -37,7 +36,6 @@ export interface PosProduct {
   product_id: number;
   sku: string;
   product_name: string;
-  image_url: string;
   price_modified: boolean;
   category_id: number | null;
   specific_category?: string;
@@ -56,7 +54,6 @@ export interface PosProduct {
 export interface PosProductPayload {
   sku: string;
   product_name: string;
-  image_url: string | null;
   category_id: number | null;
   specific_category?: string;
   supplier_id: number | null;
@@ -571,17 +568,6 @@ export const api = {
     request<{ message: string }>(`/api/categories/${categoryId}`, {
       method: "DELETE",
     }),
-  uploadImage: (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    return fetch(`${API_URL}/api/upload`, {
-      method: "POST",
-      body: formData,
-    }).then((res) => {
-      if (!res.ok) throw new Error("Upload failed");
-      return res.json() as Promise<{ url: string }>;
-    });
-  },
   getTerminals: () => request<Terminal[]>("/api/pos-terminals"),
   getPosProducts: () => request<PosProduct[]>("/api/pos-products"),
   createPosProduct: (payload: PosProductPayload) =>

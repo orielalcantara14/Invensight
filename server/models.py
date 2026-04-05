@@ -86,7 +86,6 @@ class PayMongoPaymentIntentRequest(BaseModel):
 class CreatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    image_url: Optional[str] = None
     specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
     supplier_id: int
@@ -100,7 +99,6 @@ class CreatePosProductRequest(BaseModel):
 class UpdatePosProductRequest(BaseModel):
     sku: str
     product_name: str
-    image_url: Optional[str] = None
     specific_category: Optional[str] = Field(default=None, max_length=150)
     category_id: Optional[int] = None
     supplier_id: Optional[int] = None

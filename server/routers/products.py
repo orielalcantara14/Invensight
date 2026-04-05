@@ -36,43 +36,6 @@ def _record_price_history(cur, product_id: int, old_price, new_price):
         (product_id, old_val, new_val),
     )
 
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-
-
-@router.post("/upload")
-async def upload_image(file: UploadFile = File(...)):
-    UPLOAD_DIR = "uploads"
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
-    
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="File name is required")
-    
-    file_extension = os.path.splitext(file.filename)[1].lower()
-    if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File type not allowed. Allowed types: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
-        )
-    
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
-    
-    import uuid
-    filename = f"{uuid.uuid4().hex}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    
-    file_path = os.path.realpath(file_path)
-    if not file_path.startswith(os.path.realpath(UPLOAD_DIR)):
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
-    
-    return {"url": f"/uploads/{filename}"}
-
 
 @router.get("/categories")
 def get_categories():
@@ -165,7 +128,6 @@ def get_products():
                     CAST(p.unit_price AS FLOAT) as unit_price,
                     CAST(COALESCE(p.pos_price, p.unit_price, 0.0) AS FLOAT) as pos_price,
                     p.sku,
-                    COALESCE(p.image_url, '') AS image_url,
                     COALESCE(c.category_name, 'Uncategorized') AS category_name,
                     COALESCE(p.category_id, 0) AS category_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
@@ -204,7 +166,6 @@ def get_pos_products():
                     CAST(COALESCE(p.pos_price, p.unit_price, 0.0) AS FLOAT) as pos_price,
                     CAST(COALESCE(p.unit_price, 0.0) AS FLOAT) as unit_price,
                     p.status,
-                    COALESCE(p.image_url, '') AS image_url,
                     p.supplier_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
                     COALESCE(i.reorder_level, 0) AS reorder_level,
@@ -276,7 +237,6 @@ def create_pos_product(payload: CreatePosProductRequest):
                         category_id = %s,
                         supplier_id = %s,
                         product_name = %s,
-                        image_url = %s,
                         specific_category = %s,
                         sku = %s,
                         unit_price = %s,
@@ -289,7 +249,6 @@ def create_pos_product(payload: CreatePosProductRequest):
                         category_id,
                         payload.supplier_id,
                         payload.product_name,
-                        payload.image_url,
                         payload.specific_category,
                         sku,
                         payload.unit_price,
@@ -306,16 +265,15 @@ def create_pos_product(payload: CreatePosProductRequest):
                 cur.execute(
                     """
                     INSERT INTO products (
-                        product_id, category_id, supplier_id, product_name, image_url, specific_category, unit_price, pos_price, sku, date_added, unit_of_measurement, status
+                        product_id, category_id, supplier_id, product_name, specific_category, unit_price, pos_price, sku, date_added, unit_of_measurement, status
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         product_id,
                         category_id,
                         payload.supplier_id,
                         payload.product_name,
-                        payload.image_url,
                         payload.specific_category,
                         payload.unit_price,
                         payload.pos_price,
@@ -423,7 +381,6 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     category_id = %s,
                     supplier_id = %s,
                     product_name = %s,
-                    image_url = %s,
                     specific_category = %s,
                     sku = %s,
                     unit_price = %s,
@@ -436,7 +393,6 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                     category_id,
                     payload.supplier_id,
                     payload.product_name,
-                    payload.image_url,
                     payload.specific_category,
                     sku,
                     payload.unit_price,

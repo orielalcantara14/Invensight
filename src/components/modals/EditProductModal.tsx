@@ -53,7 +53,6 @@ export function EditProductModal({
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +60,6 @@ export function EditProductModal({
     sku: "",
     product_name: "",
     unit_of_measurement: "",
-    image_url: "",
     category_id: "",
     specific_category: "",
     supplier_id: "",
@@ -87,7 +85,6 @@ export function EditProductModal({
         sku: product.sku,
         product_name: product.product_name,
         unit_of_measurement: product.unit_of_measurement || "",
-        image_url: product.image_url || "",
         category_id: product.category_id?.toString() || "",
         specific_category: product.specific_category || "",
         supplier_id: product.supplier_id?.toString() || "",
@@ -158,17 +155,10 @@ export function EditProductModal({
 
     setIsSubmitting(true);
     try {
-      let finalImageUrl = formData.image_url;
-      if (selectedFile) {
-        const uploadResult = await api.uploadImage(selectedFile);
-        finalImageUrl = uploadResult.url;
-      }
-
       await api.updatePosProduct(product.pos_id, {
         sku: formData.sku,
         product_name: formData.product_name,
         unit_of_measurement: formData.unit_of_measurement || undefined,
-        image_url: finalImageUrl || null,
         category_id: formData.category_id ? parseInt(formData.category_id) : null,
         specific_category: formData.specific_category || undefined,
         supplier_id: formData.supplier_id ? parseInt(formData.supplier_id) : null,
@@ -178,7 +168,6 @@ export function EditProductModal({
         status: formData.status,
       });
       toast.success("Product updated successfully");
-      setSelectedFile(null);
       onSuccess();
       onClose();
     } catch (error) {
@@ -390,36 +379,6 @@ export function EditProductModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
               disabled
             />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product Image
-            </label>
-            <div className="flex items-center justify-center w-full">
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {selectedFile ? selectedFile.name : formData.image_url ? "Current image: " + formData.image_url.split('/').pop() : "PNG, JPG or GIF (MAX. 800x400px)"}
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      setSelectedFile(e.target.files[0]);
-                    }
-                  }}
-                />
-              </label>
-            </div>
           </div>
         </div>
 

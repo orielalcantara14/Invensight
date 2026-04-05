@@ -177,7 +177,6 @@ def ensure_products_and_categories_tables():
                     category_id INTEGER REFERENCES categories(category_id),
                     supplier_id INTEGER,
                     product_name VARCHAR(255) NOT NULL,
-                    image_url TEXT,
                     specific_category VARCHAR(150),
                     unit_price DECIMAL(10, 2),
                     pos_price DECIMAL(10, 2),
@@ -232,11 +231,10 @@ def ensure_products_and_pos_schema():
 
 
 @app.on_event("startup")
-def ensure_products_image_column():
+def ensure_products_extra_columns():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url text")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measurement VARCHAR(50)")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS specific_category VARCHAR(150)")
             cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_price DECIMAL(10, 2)")
