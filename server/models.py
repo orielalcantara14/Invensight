@@ -70,8 +70,8 @@ class PayMongoSourceRequest(BaseModel):
     type: str = "gcash"
     currency: str = "PHP"
     description: str
-    customer_name: str
-    customer_phone: str
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
     customer_email: Optional[str] = None
 
 

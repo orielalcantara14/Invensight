@@ -34,9 +34,9 @@ def create_source(payload: PayMongoSourceRequest):
                     "failed": "http://localhost:5173/pos?payment=failed"
                 },
                 "billing": {
-                    "name": payload.customer_name,
+                    "name": payload.customer_name or "Walk-in Customer",
                     "email": payload.customer_email or "walkin@example.com",
-                    "phone": payload.customer_phone
+                    **({"phone": payload.customer_phone} if payload.customer_phone else {})
                 }
             }
         }
