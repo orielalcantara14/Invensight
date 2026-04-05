@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import { BaseModal } from "./BaseModal";
+import { PermissionsModal } from "./PermissionsModal";
 import type { Role } from "@/types";
 
 interface EditRoleModalProps {
@@ -8,7 +9,7 @@ interface EditRoleModalProps {
   onClose: () => void;
   onSave: (
     roleId: number,
-    data: { name: string; permissions: string }
+    data: { name: string; permissions: Record<string, string[]> }
   ) => void | Promise<void>;
   error?: string | null;
   saving?: boolean;
@@ -23,13 +24,14 @@ export function EditRoleModal({
   saving = false,
 }: EditRoleModalProps) {
   const [name, setName] = useState("");
-  const [permissions, setPermissions] = useState("");
+  const [permissions, setPermissions] = useState<Record<string, string[]>>({});
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const initialFocusRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && role) {
       setName(role.name);
-      setPermissions(role.permissions || "");
+      setPermissions(typeof role.permissions === 'object' ? role.permissions : {});
       setTimeout(() => initialFocusRef.current?.focus(), 100);
     }
   }, [isOpen, role]);
@@ -37,7 +39,7 @@ export function EditRoleModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!role) return;
-    await onSave(role.id, { name: name.trim(), permissions: permissions.trim() });
+    await onSave(role.id, { name: name.trim(), permissions });
   };
 
   if (!role) return null;
@@ -64,18 +66,35 @@ export function EditRoleModal({
         </div>
 
         <div>
-          <label htmlFor="edit-role-permissions" className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
             Permissions
           </label>
-          <textarea
-            id="edit-role-permissions"
-            value={permissions}
-            onChange={(e) => setPermissions(e.target.value)}
-            className="min-h-[100px] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Describe permissions for this role"
-            disabled={saving}
-          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => setShowPermissionsModal(true)}
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300 font-medium whitespace-nowrap disabled:opacity-50"
+            >
+              Configure Permissions
+            </button>
+            <div className="text-sm text-gray-500 py-2">
+              {Object.keys(permissions).length > 0 
+                ? `${Object.keys(permissions).length} modules selected`
+                : "No permissions selected"}
+            </div>
+          </div>
         </div>
+
+        {showPermissionsModal && (
+          <PermissionsModal
+            isOpen={showPermissionsModal}
+            onClose={() => setShowPermissionsModal(false)}
+            initialPermissions={permissions}
+            onSave={(perms: Record<string, string[]>) => setPermissions(perms)}
+            primaryLabel="Done"
+          />
+        )}
 
         {error ? (
           <p className="text-sm text-red-600" role="alert">

@@ -144,7 +144,7 @@ export interface User {
 export interface Role {
   id: number;
   name: string;
-  permissions: string;
+  permissions: Record<string, string[]>;
   userCount: number;
 }
 

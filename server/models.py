@@ -185,7 +185,7 @@ class CreateUserRequest(BaseModel):
 class RoleResponse(BaseModel):
     id: int
     name: str
-    permissions: str
+    permissions: Dict[str, List[str]]
     user_count: int
 
 
@@ -198,12 +198,12 @@ class UserManagementStatsResponse(BaseModel):
 
 class CreateRoleRequest(BaseModel):
     name: str
-    permissions: str = ""
+    permissions: Optional[Dict[str, List[str]]] = None
 
 
 class UpdateRoleRequest(BaseModel):
     name: str
-    permissions: str = ""
+    permissions: Optional[Dict[str, List[str]]] = None
 
 
 class LoginRequest(BaseModel):
@@ -238,6 +238,7 @@ class LoginResponse(BaseModel):
     employee_id: int
     role: str
     email: Optional[str] = None
+    permissions: Optional[Dict[str, List[str]]] = None
 
 
 class ProfileResponse(BaseModel):

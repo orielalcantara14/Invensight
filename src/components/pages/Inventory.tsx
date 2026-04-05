@@ -41,6 +41,11 @@ export function Inventory() {
       if (initialSearch) {
         setSearchTerm(initialSearch);
       }
+      
+      const initialStatus = searchParams.get("status");
+      if (initialStatus) {
+        setFilterStatus(initialStatus);
+      }
     } catch (error) {
       console.error("Inventory fetch error:", error);
       toast.error("Failed to load inventory data");
@@ -102,6 +107,8 @@ export function Inventory() {
       "Category": item.category_name,
       "Specific Category": item.specific_category || "-",
       "Unit Measurement": item.unit_of_measurement || "-",
+      "Unit Cost": item.unit_price,
+      "Total Cost": (item.unit_price ?? 0) * (item.quantity ?? 0),
       "Quantity": item.quantity,
       "Expected": item.expected,
       "Actual": item.actual,
@@ -198,6 +205,7 @@ export function Inventory() {
                 <option value="Normal">Normal</option>
                 <option value="Low">Low Stock</option>
                 <option value="Out of Stock">Out of Stock</option>
+                <option value="Archived">Archived</option>
               </select>
               <button 
                 onClick={handleExport}
@@ -331,7 +339,9 @@ export function Inventory() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        item.status === 'Out of Stock' 
+                        item.status === 'Archived'
+                          ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                          : item.status === 'Out of Stock' 
                           ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
                           : item.status === 'Low' 
                           ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'

@@ -132,6 +132,7 @@ export function Products() {
       "Specific Category": p.specific_category || "-",
       "Unit Measurement": p.unit_of_measurement || "-",
       "Unit Price": p.unit_price,
+      "Total Cost": (p.unit_price ?? 0) * (p.stock ?? 0),
       "POS Price": p.pos_price,
       "Stock": p.stock,
       "Date Added": p.date_added ? new Date(p.date_added).toLocaleDateString() : "N/A"

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, type FormEvent } from 'react';
 import { BaseModal } from './BaseModal';
+import { PermissionsModal } from './PermissionsModal';
+import type { Role } from '@/types';
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface AddUserModalProps {
   }) => void | Promise<void>;
   /** Role names for the dropdown; defaults to [] if omitted (e.g. legacy call sites). */
   roleNames?: string[];
+  roles?: Role[];
   error?: string | null;
   saving?: boolean;
   submitLabel?: string;
@@ -24,10 +27,12 @@ export function AddUserModal({
   onClose,
   onAddUser,
   roleNames = [],
+  roles = [],
   error = null,
   saving = false,
-  submitLabel = 'Add User',
+  submitLabel = 'Next',
 }: AddUserModalProps) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
@@ -51,17 +56,38 @@ export function AddUserModal({
         role: '',
         status: 'Active',
       });
+      setStep(1);
     }
   }, [isOpen]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setStep(2);
+  };
+
+  const handleFinalSubmit = async () => {
     await onAddUser(formData);
   };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  if (step === 2) {
+    const matchedRole = roles.find(r => r.name === formData.role);
+    const matchedPermissions = matchedRole?.permissions || {};
+    return (
+      <PermissionsModal
+        isOpen={isOpen}
+        onClose={() => setStep(1)}
+        onSave={handleFinalSubmit}
+        initialPermissions={matchedPermissions}
+        isReadOnly={true}
+        primaryLabel={saving ? "Adding User…" : "Confirm & Add User"}
+        saving={saving}
+      />
+    );
+  }
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="Add New User" maxWidth="md">

@@ -32,6 +32,7 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
             COALESCE(i.reorder_level, 10) AS reorder_level,
             COALESCE(p.unit_price::float, 0.0) AS unit_price,
             CASE
+                WHEN p.status = 'Archived' THEN 'Archived'
                 WHEN COALESCE(i.actual, 0) = 0 THEN 'Out of Stock'
                 WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                 ELSE 'Normal'
@@ -77,8 +78,9 @@ def get_inventory():
                     COALESCE(i.reorder_level, 10) AS reorder_level,
                     COALESCE(p.unit_price::float, 0.0) AS unit_price,
                     CASE
-                    WHEN COALESCE(i.actual, 0) = 0 THEN 'Out of Stock'
-                    WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
+                        WHEN p.status = 'Archived' THEN 'Archived'
+                        WHEN COALESCE(i.actual, 0) = 0 THEN 'Out of Stock'
+                        WHEN COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) THEN 'Low'
                         ELSE 'Normal'
                     END AS status,
                     COALESCE(i.last_updated::text, '') AS last_updated,
@@ -87,7 +89,6 @@ def get_inventory():
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
-                WHERE p.status != 'Archived'
                 ORDER BY p.product_name
                 """
             )
@@ -324,10 +325,11 @@ def get_low_stock_count():
             cur.execute(
                 """
                 SELECT
-                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0) AS critical_count,
-                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > 0 AND COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)) AS low_count,
-                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)) AS total_low_stock
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0 AND p.status != 'Archived') AS critical_count,
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > 0 AND COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) AND p.status != 'Archived') AS low_count,
+                    COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10) AND p.status != 'Archived') AS total_low_stock
                 FROM inventory i
+                JOIN products p ON i.product_id = p.product_id
                 """
             )
             row = cur.fetchone()

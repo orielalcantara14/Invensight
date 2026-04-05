@@ -119,7 +119,7 @@ export function EditInventoryModal({
     }
   };
 
-  const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
+  const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat =>
     cat.toLowerCase().includes(formData.specific_category.toLowerCase())
   );
 
@@ -178,6 +178,10 @@ export function EditInventoryModal({
               <option value="Milliliter">Milliliter</option>
               <option value="Piece">Piece</option>
               <option value="Set">Set</option>
+              <option value="Set">Foot / Meter</option>
+              <option value="Set">Pair</option>
+              <option value="Set">Drum</option>
+              <option value="Set">Roll</option>
             </select>
           </div>
           <div className="relative" ref={dropdownRef}>
@@ -196,14 +200,14 @@ export function EditInventoryModal({
                   setIsDropdownOpen(true);
                 }}
               />
-              <div 
+              <div
                 className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
                 <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isDropdownOpen && "rotate-180")} />
               </div>
             </div>
-            
+
             {isDropdownOpen && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                 {filteredSpecificCategories.length > 0 ? (

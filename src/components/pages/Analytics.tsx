@@ -58,33 +58,37 @@ export function Analytics() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Forecast accuracy</span>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+        <Link to="/forecasting" className="block group">
+          <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-blue-500 transition-all hover:shadow-lg h-full">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-600 group-hover:text-blue-600 transition-colors">Forecast accuracy</span>
+              <TrendingUp className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{acc}</div>
+            <div className="text-sm text-gray-500 mt-1">
+              {overview?.forecast_accuracy != null
+                ? "Compared to days with recorded sales"
+                : "Add sales history to populate this metric"}
+            </div>
           </div>
-          <div className="text-3xl font-bold text-gray-900">{acc}</div>
-          <div className="text-sm text-gray-500 mt-1">
-            {overview?.forecast_accuracy != null
-              ? "Compared to days with recorded sales"
-              : "Add sales history to populate this metric"}
-          </div>
-        </div>
+        </Link>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Low stock alerts</span>
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
+        <Link to="/inventory?status=Low" className="block group">
+          <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-orange-500 transition-all hover:shadow-lg h-full">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-600 group-hover:text-orange-600 transition-colors">Low stock alerts</span>
+              <AlertTriangle className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+              {loading ? "…" : lowTotal != null ? lowTotal : "—"}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              {overview && overview.critical_stock_count > 0
+                ? `${overview.critical_stock_count} critical, ${overview.low_stock_count} low`
+                : "At or below reorder level"}
+            </div>
           </div>
-          <div className="text-3xl font-bold text-gray-900">
-            {loading ? "…" : lowTotal != null ? lowTotal : "—"}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">
-            {overview && overview.critical_stock_count > 0
-              ? `${overview.critical_stock_count} critical, ${overview.low_stock_count} low`
-              : "At or below reorder level"}
-          </div>
-        </div>
+        </Link>
 
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between mb-2">

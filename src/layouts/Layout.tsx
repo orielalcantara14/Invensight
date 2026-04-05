@@ -76,6 +76,43 @@ export function Layout() {
     },
   ];
 
+  const hasPermission = (menuName: string) => {
+    if (session?.username?.toLowerCase() === "rootadminnginamo") return true;
+    if (menuName === "Dashboard" || menuName === "Analytics" || menuName === "User Management") return true; // Let submenu handle inner blocks
+    
+    const nameMap: Record<string, string> = {
+      "Orders": "Purchase Order",
+      "Users & Roles": "Role Permissions" // or "User Management"
+    };
+    
+    const target = nameMap[menuName] || menuName;
+    
+    // If we have User Management, the submenus are "Users & Roles" and "Audit Log".
+    if (menuName === "Users & Roles") {
+        const p1 = session?.permissions?.["User Management"];
+        const p2 = session?.permissions?.["Role Permissions"];
+        const canView1 = p1?.some(a => a.toLowerCase() === "view");
+        const canView2 = p2?.some(a => a.toLowerCase() === "view");
+        return canView1 || canView2;
+    }
+
+    const actions = session?.permissions?.[target];
+    if (actions) return actions.some(a => a.toLowerCase() === "view");
+
+    return false;
+  };
+
+  const filteredNavigation = navigation.map(item => {
+    if (item.submenu) {
+      const filteredSub = item.submenu.filter(sub => hasPermission(sub.name));
+      return { ...item, submenu: filteredSub };
+    }
+    return item;
+  }).filter(item => {
+    if (item.submenu) return item.submenu.length > 0;
+    return hasPermission(item.name);
+  });
+
   const toggleMenu = (menuName: string) => {
     setExpandedMenus(prev => 
       prev.includes(menuName) 
@@ -129,7 +166,7 @@ export function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const Icon = item.icon;
             const isActive = item.path ? location.pathname === item.path : false;
             const isExpanded = expandedMenus.includes(item.name);

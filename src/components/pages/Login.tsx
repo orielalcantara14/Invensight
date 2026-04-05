@@ -35,6 +35,7 @@ export function Login() {
         employee_id: result.employee_id,
         role: result.role,
         email: result.email ?? null,
+        permissions: result.permissions,
       });
       navigate("/dashboard", { replace: true });
     } catch (err) {

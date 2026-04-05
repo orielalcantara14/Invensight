@@ -28,7 +28,12 @@ export interface Supplier {
   supplier_id: number;
   supplier_name: string;
   contact_person?: string;
-  contact_number?: string;
+  address?: string | null;
+  email?: string | null;
+  contact_number?: string | null;
+  product_supplied?: string | null;
+  total_orders?: number;
+  status?: string;
 }
 
 export interface PosProduct {
@@ -218,18 +223,18 @@ export interface UpdateUserPayload {
 export interface ApiRole {
   id: number;
   name: string;
-  permissions: string;
+  permissions: Record<string, string[]>;
   user_count: number;
 }
 
 export interface CreateRolePayload {
   name: string;
-  permissions: string;
+  permissions: Record<string, string[]>;
 }
 
 export interface UpdateRolePayload {
   name: string;
-  permissions: string;
+  permissions: Record<string, string[]>;
 }
 
 export interface LoginPayload {
@@ -237,16 +242,7 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface Supplier {
-  supplier_id: number;
-  supplier_name: string;
-  address: string | null;
-  email: string | null;
-  contact_number: string | null;
-  product_supplied: string | null;
-  total_orders: number;
-  status: string;
-}
+
 
 export interface SupplierPayload {
   supplier_name: string;
@@ -273,7 +269,7 @@ export interface InventoryItem {
   difference: number;
   reorder_level: number;
   unit_price: number;
-  status: 'Normal' | 'Low' | 'Out of Stock';
+  status: 'Normal' | 'Low' | 'Out of Stock' | 'Archived';
   last_updated: string;
   reason_adjustment: string;
 }
@@ -365,6 +361,7 @@ export interface LoginResult {
   employee_id: number;
   role: string;
   email?: string | null;
+  permissions?: Record<string, string[]>;
 }
 
 export interface Profile {

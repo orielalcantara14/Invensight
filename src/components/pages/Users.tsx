@@ -5,7 +5,6 @@ import { AddRoleModal } from "../modals/AddRoleModal";
 import { EditRoleModal } from "../modals/EditRoleModal";
 import { EditUserModal } from "../modals/EditUserModal";
 import { ViewRoleUsersModal } from "../modals/ViewRoleUsersModal";
-import { PermissionsModal } from "../modals/PermissionsModal";
 import type { User, Role } from "@/types";
 import { api, type ApiUser, type ApiRole, type UpdateUserPayload } from "@/services/api";
 import { getSession } from "@/auth/session";
@@ -111,51 +110,32 @@ export function Users() {
       setUserFormError("Only Root Admin and Administrators can create accounts.");
       return;
     }
-    setUserFormError(null);
-    setPendingPermissions({});
-    setPendingNewUser(user);
-    setIsAddUserModalOpen(false);
-    setIsPermissionsModalOpen(true);
-  };
-
-  const handleSavePermissions = async (permissions: Record<string, string[]>) => {
-    if (!pendingNewUser) {
-      setIsPermissionsModalOpen(false);
-      return;
-    }
     if (!session?.user_id) {
-      setIsPermissionsModalOpen(false);
-      setIsAddUserModalOpen(true);
       setUserFormError("Session is missing actor context. Please sign in again.");
       return;
     }
-    setSavingPermissionsStep(true);
-    setPendingPermissions(permissions);
     setUserFormError(null);
+    setSavingUser(true);
     try {
       await api.createUser({
-        username: pendingNewUser.username.trim(),
-        full_name: pendingNewUser.fullName.trim(),
-        email: pendingNewUser.email.trim() || null,
-        password: pendingNewUser.password,
-        role: pendingNewUser.role,
-        permissions,
-        is_active: pendingNewUser.status === "Active",
+        username: user.username.trim(),
+        full_name: user.fullName.trim(),
+        email: user.email.trim() || null,
+        password: user.password,
+        role: user.role,
+        permissions: {},
+        is_active: user.status === "Active",
       }, session.user_id);
-      setIsPermissionsModalOpen(false);
-      setPendingNewUser(null);
-      setPendingPermissions({});
+      setIsAddUserModalOpen(false);
       await refreshData();
     } catch (e) {
-      setIsPermissionsModalOpen(false);
-      setIsAddUserModalOpen(true);
       setUserFormError(e instanceof Error ? e.message : "Failed to create user");
     } finally {
-      setSavingPermissionsStep(false);
+      setSavingUser(false);
     }
   };
 
-  const handleAddRole = async (role: { name: string; permissions: string }) => {
+  const handleAddRole = async (role: { name: string; permissions: Record<string, string[]> }) => {
     if (!session?.user_id) {
       setRoleFormError("Session is missing actor context. Please sign in again.");
       return;
@@ -165,7 +145,7 @@ export function Users() {
     try {
       await api.createRole({
         name: role.name.trim(),
-        permissions: role.permissions.trim(),
+        permissions: role.permissions,
       }, session.user_id);
       setIsAddRoleModalOpen(false);
       await refreshData();
@@ -204,7 +184,7 @@ export function Users() {
     setEditRoleError(null);
   };
 
-  const handleSaveEditRole = async (roleId: number, data: { name: string; permissions: string }) => {
+  const handleSaveEditRole = async (roleId: number, data: { name: string; permissions: Record<string, string[]> }) => {
     if (!session?.user_id) {
       setEditRoleError("Session is missing actor context. Please sign in again.");
       return;
@@ -531,7 +511,11 @@ export function Users() {
                         {role.userCount} users
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{role.permissions || "—"}</p>
+                    <p className="text-sm text-gray-600 mb-3 text-ellipsis overflow-hidden break-words line-clamp-2">
+                       {role.permissions && Object.keys(role.permissions).length > 0
+                         ? Object.keys(role.permissions).join(", ")
+                         : "—"}
+                    </p>
                     <div className="flex gap-4">
                       <button
                         type="button"
@@ -572,9 +556,9 @@ export function Users() {
         onClose={closeAddUserModal}
         onAddUser={handleAddUser}
         roleNames={roleNames}
+        roles={roles}
         error={userFormError}
         saving={savingUser}
-        submitLabel="Next"
       />
       <AddRoleModal
         isOpen={isAddRoleModalOpen}
@@ -586,18 +570,7 @@ export function Users() {
         error={roleFormError}
         saving={savingRole}
       />
-      <PermissionsModal
-        isOpen={isPermissionsModalOpen}
-        onClose={() => {
-          setIsPermissionsModalOpen(false);
-          setPendingNewUser(null);
-          setPendingPermissions({});
-        }}
-        onSave={handleSavePermissions}
-        initialPermissions={pendingPermissions}
-        primaryLabel="Add User"
-        saving={savingPermissionsStep}
-      />
+
       <EditUserModal
         isOpen={editingUser !== null}
         user={editingUser}
@@ -608,6 +581,7 @@ export function Users() {
             ? [...roleNames, editingUser.role]
             : roleNames
         }
+        roles={roles}
         error={editError}
         saving={savingEdit}
       />

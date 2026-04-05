@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, type FormEvent } from "react";
 import { BaseModal } from "./BaseModal";
-import type { User } from "@/types";
+import type { User, Role } from "@/types";
 import type { UpdateUserPayload } from "@/services/api";
 import { PermissionsModal } from "./PermissionsModal";
 import { Shield } from "lucide-react";
@@ -11,6 +11,7 @@ interface EditUserModalProps {
   onClose: () => void;
   onSave: (userId: number, payload: UpdateUserPayload) => void | Promise<void>;
   roleNames: string[];
+  roles: Role[];
   error?: string | null;
   saving?: boolean;
 }
@@ -21,6 +22,7 @@ export function EditUserModal({
   onClose,
   onSave,
   roleNames = [],
+  roles = [],
   error = null,
   saving = false,
 }: EditUserModalProps) {
@@ -56,7 +58,7 @@ export function EditUserModal({
       email: email.trim() || null,
       role,
       is_active: status === "Active",
-      permissions,
+      permissions: Object.keys(permissions).length > 0 ? permissions : undefined,
     };
     const pw = newPassword.trim();
     if (pw) {
@@ -66,6 +68,9 @@ export function EditUserModal({
   };
 
   if (!user) return null;
+
+  const matchedRole = roles.find(r => r.name === role);
+  const matchedPermissions = matchedRole?.permissions || {};
 
   return (
     <>
@@ -180,7 +185,7 @@ export function EditUserModal({
               <Shield className="h-4 w-4 text-blue-600" />
               Manage Permissions
               <span className="ml-1 text-xs text-gray-400 font-normal">
-                ({Object.keys(permissions).length} modules allowed)
+                ({Object.keys(permissions).length > 0 ? Object.keys(permissions).length : Object.keys(matchedPermissions).length} modules allowed)
               </span>
             </button>
           </div>
@@ -215,8 +220,9 @@ export function EditUserModal({
         isOpen={isPermissionsModalOpen}
         onClose={() => setIsPermissionsModalOpen(false)}
         onSave={(p) => setPermissions(p)}
-        initialPermissions={permissions}
-        primaryLabel="Save Permissions"
+        initialPermissions={Object.keys(permissions).length > 0 ? permissions : matchedPermissions}
+        primaryLabel="Save Override"
+        isReadOnly={false}
       />
     </>
   );

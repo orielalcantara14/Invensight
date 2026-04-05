@@ -7,6 +7,7 @@ export interface SessionUser {
   employee_id: number;
   role: string;
   email?: string | null;
+  permissions?: Record<string, string[]>;
 }
 
 export function getSession(): SessionUser | null {

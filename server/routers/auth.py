@@ -4,6 +4,7 @@ from database import get_connection
 from models import LoginRequest, LoginResponse
 import psycopg2.extras
 import bcrypt
+import json
 
 router = APIRouter()
 
@@ -32,10 +33,15 @@ def login(body: LoginRequest):
             row = None
             cur.execute(
                 """
-                SELECT user_id, username, full_name, employee_id, role, is_active, password_hash, email
-                FROM users
-                WHERE username IS NOT NULL AND TRIM(username) <> ''
-                  AND LOWER(username) = LOWER(%s)
+                SELECT 
+                    u.user_id, u.username, u.full_name, u.employee_id, u.role, 
+                    u.is_active, u.password_hash, u.email,
+                    u.permissions_json,
+                    r.permissions_text
+                FROM users u
+                LEFT JOIN roles r ON LOWER(u.role) = LOWER(r.role_name) AND r.user_id IS NULL
+                WHERE u.username IS NOT NULL AND TRIM(u.username) <> ''
+                  AND LOWER(u.username) = LOWER(%s)
                 """,
                 (ident,),
             )
@@ -46,9 +52,14 @@ def login(body: LoginRequest):
                 if eid is not None:
                     cur.execute(
                         """
-                        SELECT user_id, username, full_name, employee_id, role, is_active, password_hash, email
-                        FROM users
-                        WHERE employee_id = %s
+                        SELECT 
+                            u.user_id, u.username, u.full_name, u.employee_id, u.role, 
+                            u.is_active, u.password_hash, u.email,
+                            u.permissions_json,
+                            r.permissions_text
+                        FROM users u
+                        LEFT JOIN roles r ON LOWER(u.role) = LOWER(r.role_name) AND r.user_id IS NULL
+                        WHERE u.employee_id = %s
                         """,
                         (eid,),
                     )
@@ -93,6 +104,15 @@ def login(body: LoginRequest):
                 )
             conn.commit()
 
+            perms = None
+            if row.get("permissions_json") and isinstance(row["permissions_json"], dict) and len(row["permissions_json"]) > 0:
+                perms = row["permissions_json"]
+            elif row.get("permissions_text"):
+                try:
+                    perms = json.loads(row["permissions_text"])
+                except:
+                    perms = {}
+
             return LoginResponse(
                 user_id=row["user_id"],
                 username=row["username"] or "",
@@ -100,6 +120,7 @@ def login(body: LoginRequest):
                 employee_id=row["employee_id"],
                 role=row["role"],
                 email=row.get("email"),
+                permissions=perms,
             )
     except HTTPException:
         conn.rollback()

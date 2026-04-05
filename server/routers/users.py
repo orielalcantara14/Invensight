@@ -785,7 +785,7 @@ def list_roles():
         RoleResponse(
             id=r["role_id"],
             name=r["role_name"],
-            permissions=r["permissions_text"] or "",
+            permissions=json.loads(r["permissions_text"]) if r["permissions_text"] else {},
             user_count=r["user_count"],
         )
         for r in rows
@@ -820,14 +820,14 @@ def create_role(
 
             cur.execute("SELECT COALESCE(MAX(role_id), 0) AS n FROM roles")
             next_rid = cur.fetchone()["n"] + 1
-            perms = (body.permissions or "").strip()
+            perms_json = json.dumps(_sanitize_permissions_for_storage(body.permissions)) if body.permissions else "{}"
             cur.execute(
                 """
                 INSERT INTO roles (role_id, role_name, user_id, permissions_text)
                 VALUES (%s, %s, NULL, %s)
                 RETURNING role_id, role_name, permissions_text
                 """,
-                (next_rid, name, perms or None),
+                (next_rid, name, perms_json),
             )
             row = cur.fetchone()
             conn.commit()
@@ -843,7 +843,7 @@ def create_role(
     return RoleResponse(
         id=row["role_id"],
         name=row["role_name"],
-        permissions=row["permissions_text"] or "",
+        permissions=json.loads(row["permissions_text"]) if row["permissions_text"] else {},
         user_count=0,
     )
 
@@ -899,7 +899,7 @@ def update_role(
                     (new_name, old_name),
                 )
 
-            perms = (body.permissions or "").strip()
+            perms_json = json.dumps(_sanitize_permissions_for_storage(body.permissions)) if body.permissions else "{}"
             cur.execute(
                 """
                 UPDATE roles
@@ -907,7 +907,7 @@ def update_role(
                 WHERE role_id = %s AND user_id IS NULL
                 RETURNING role_id, role_name, permissions_text
                 """,
-                (new_name, perms or None, role_id),
+                (new_name, perms_json, role_id),
             )
             row = cur.fetchone()
             cur.execute(
@@ -928,7 +928,7 @@ def update_role(
     return RoleResponse(
         id=row["role_id"],
         name=row["role_name"],
-        permissions=row["permissions_text"] or "",
+        permissions=json.loads(row["permissions_text"]) if row["permissions_text"] else {},
         user_count=user_count,
     )
 

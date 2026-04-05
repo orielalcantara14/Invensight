@@ -23,6 +23,26 @@ export function OrdersStyleTablePagination({
   const totalPages = Math.max(1, Math.ceil(itemCount / itemsPerPage));
   const page = Math.min(currentPage, totalPages);
 
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (page <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+      } else if (page >= totalPages - 3) {
+        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', page - 1, page, page + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
+
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
       <div className="flex items-center gap-2">
@@ -51,19 +71,25 @@ export function OrdersStyleTablePagination({
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => onPageChange(p)}
-              className={`px-3 py-1 rounded border text-sm ${
-                p === page
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-              }`}
-            >
-              {p}
-            </button>
+          {pageNumbers.map((p, index) => (
+            p === '...' ? (
+              <span key={`ellipsis-${index}`} className="px-3 py-1 flex items-center justify-center text-sm text-gray-500">
+                ...
+              </span>
+            ) : (
+              <button
+                key={`page-${p}`}
+                type="button"
+                onClick={() => onPageChange(p as number)}
+                className={`px-3 py-1 rounded border text-sm ${
+                  p === page
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {p}
+              </button>
+            )
           ))}
           <button
             type="button"

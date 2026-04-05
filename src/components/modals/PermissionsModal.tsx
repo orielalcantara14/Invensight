@@ -14,6 +14,7 @@ interface PermissionsModalProps {
   initialPermissions?: Record<string, string[]>;
   primaryLabel?: string;
   saving?: boolean;
+  isReadOnly?: boolean;
 }
 
 const defaultModules: Permission[] = [
@@ -38,25 +39,18 @@ export function PermissionsModal({
   initialPermissions = {},
   primaryLabel = 'Next',
   saving = false,
+  isReadOnly = false,
 }: PermissionsModalProps) {
   const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     if (isOpen) {
-      // Initialize from provided permissions; if empty, default to all checked.
-      if (Object.keys(initialPermissions).length > 0) {
-        setSelectedPermissions(initialPermissions);
-      } else {
-        const allPermissions: Record<string, string[]> = {};
-        defaultModules.forEach(({ module, actions }) => {
-          allPermissions[module] = actions;
-        });
-        setSelectedPermissions(allPermissions);
-      }
+      setSelectedPermissions(initialPermissions);
     }
   }, [isOpen, initialPermissions]);
 
   const handleModuleToggle = (module: string) => {
+    if (isReadOnly) return;
     setSelectedPermissions(prev => {
       const moduleData = defaultModules.find(m => m.module === module);
       if (!moduleData) return prev;
@@ -77,6 +71,7 @@ export function PermissionsModal({
   };
 
   const handleActionToggle = (module: string, action: string) => {
+    if (isReadOnly) return;
     setSelectedPermissions(prev => {
       const currentActions = prev[module] || [];
       const newActions = currentActions.includes(action)
@@ -124,11 +119,12 @@ export function PermissionsModal({
                 <button
                   type="button"
                   onClick={() => handleModuleToggle(module)}
+                  disabled={isReadOnly}
                   className={`flex items-center justify-center w-5 h-5 rounded border-2 transition-colors duration-200 ${
                     isModuleChecked(module, actions)
                       ? 'bg-blue-600 border-blue-600'
                       : 'border-gray-300 bg-white hover:border-blue-400'
-                  }`}
+                  } ${isReadOnly ? 'opacity-70 cursor-default' : ''}`}
                 >
                   {isModuleChecked(module, actions) && (
                     <Check className="w-3 h-3 text-white" />
@@ -142,13 +138,13 @@ export function PermissionsModal({
                 {actions.map(action => (
                   <label
                     key={`${module}-${action}`}
-                    className="flex items-center gap-2 cursor-pointer group"
+                    className={`flex items-center gap-2 group ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
                   >
                     <div className={`flex items-center justify-center w-4 h-4 rounded border transition-colors duration-200 ${
                       isActionChecked(module, action)
                         ? 'bg-blue-600 border-blue-600'
                         : 'border-gray-300 bg-white group-hover:border-blue-400'
-                    }`}>
+                    } ${isReadOnly ? 'opacity-70' : ''}`}>
                       {isActionChecked(module, action) && (
                         <Check className="w-3 h-3 text-white" />
                       )}
@@ -157,6 +153,7 @@ export function PermissionsModal({
                       type="checkbox"
                       checked={isActionChecked(module, action)}
                       onChange={() => handleActionToggle(module, action)}
+                      disabled={isReadOnly}
                       className="sr-only"
                     />
                     <span className={`text-sm ${
@@ -176,14 +173,16 @@ export function PermissionsModal({
 
         {/* Buttons */}
         <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
-          >
-            Cancel
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
+            >
+              Cancel
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSave}
