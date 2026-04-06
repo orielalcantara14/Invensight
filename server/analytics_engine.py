@@ -105,13 +105,6 @@ def build_sales_series(
         series: List[ForecastSeriesPoint] = []
         for i in range(days):
             d = start + timedelta(days=i)
-            icon = None
-            if actuals[i] > smoothed[i] * 1.3 and actuals[i] > 0:
-                if d.weekday() >= 5:
-                    icon = "weekend"
-                elif d.day in (15, 16, 28, 29, 30, 31):
-                    icon = "payday"
-
             series.append(
                 ForecastSeriesPoint(
                     date=d.isoformat(),
@@ -122,7 +115,7 @@ def build_sales_series(
                     trend_component=float(tr[i]),
                     weekly_component=float(wk[i]),
                     smoothed_sales=float(smoothed[i]),
-                    event_icon=icon,
+                    event_icon=None,
                 )
             )
         return series, "prophet", next_30d, fa, trend_dir

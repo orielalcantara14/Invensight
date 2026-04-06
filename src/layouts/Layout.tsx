@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -18,6 +18,7 @@ import {
   Monitor,
   Bell,
   User,
+  Archive,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { clearSession, getSession } from "@/auth/session";
@@ -33,6 +34,13 @@ export function Layout() {
 
   const displayName = session?.full_name?.trim() || session?.username || "User";
   const roleLabel = session?.role || "—";
+
+  useEffect(() => {
+    const currentRole = (session?.role ?? "").trim().toLowerCase();
+    if (currentRole === "cashier") {
+      navigate("/pos", { replace: true });
+    }
+  }, [session, navigate]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -71,13 +79,17 @@ export function Layout() {
       icon: Users,
       submenu: [
         { name: "Users & Roles", path: "/users", icon: Users },
-        { name: "Audit Log", path: "/audit-log", icon: Settings }
+        { name: "Audit Log", path: "/audit-log", icon: Settings },
+        { name: "Archive", path: "/archive", icon: Archive },
       ]
     },
   ];
 
   const hasPermission = (menuName: string) => {
     if (session?.username?.toLowerCase() === "rootadminnginamo") return true;
+    const currentRole = (session?.role ?? "").trim().toLowerCase();
+    if (currentRole === "cashier") return false;
+
     if (menuName === "Dashboard" || menuName === "Analytics" || menuName === "User Management") return true; // Let submenu handle inner blocks
     
     const nameMap: Record<string, string> = {
@@ -94,6 +106,11 @@ export function Layout() {
         const canView1 = p1?.some(a => a.toLowerCase() === "view");
         const canView2 = p2?.some(a => a.toLowerCase() === "view");
         return canView1 || canView2;
+    }
+
+    // Archive is accessible to Administrators and Root Admin
+    if (menuName === "Archive") {
+      return true;
     }
 
     const actions = session?.permissions?.[target];

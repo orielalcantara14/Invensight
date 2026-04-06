@@ -1,5 +1,5 @@
 import React, { useState, useEffect, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Lock, User } from "lucide-react";
 import { api } from "@/services/api";
 import { getSession, setSession } from "@/auth/session";
@@ -37,7 +37,8 @@ export function Login() {
         email: result.email ?? null,
         permissions: result.permissions,
       });
-      navigate("/dashboard", { replace: true });
+      const isCashier = result.role?.toLowerCase() === "cashier";
+      navigate(isCashier ? "/pos" : "/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

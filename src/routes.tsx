@@ -1,6 +1,7 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./layouts/Layout";
 import { RequireAuth } from "./components/RequireAuth";
+import { getSession, clearSession } from "./auth/session";
 import { Login } from "./components/pages/Login";
 import { Dashboard } from "./components/pages/Dashboard";
 import { Sales } from "./components/pages/Sales";
@@ -18,9 +19,18 @@ import { AuditLog } from "./components/pages/AuditLog";
 import { Profile } from "./components/pages/Profile";
 import { Settings } from "./components/pages/Settings";
 import { NotFound } from "./components/pages/NotFound";
+import { ArchivePage } from "./components/pages/Archive";
 import { POS } from "./components/pos/POS";
 
 function RootLayout() {
+  const session = getSession();
+  const currentRole = (session?.role ?? "").trim().toLowerCase();
+
+  if (currentRole === "cashier") {
+    clearSession();
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <RequireAuth>
       <Layout />
@@ -59,6 +69,7 @@ export const router = createBrowserRouter([
       { path: "user-management", Component: UserManagement },
       { path: "users", Component: Users },
       { path: "audit-log", Component: AuditLog },
+      { path: "archive", Component: ArchivePage },
       { path: "profile", Component: Profile },
       { path: "settings", Component: Settings },
       { path: "*", Component: NotFound },

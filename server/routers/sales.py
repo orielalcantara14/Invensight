@@ -255,11 +255,23 @@ def create_sale(sale: CreateSaleRequest):
             total_amount = round(subtotal + tax_amount + sale.service_charge, 2)
             
             # For GCash/PayMongo, cash_received might be equal to total_amount or provided from UI
-            cash_received = sale.cash_received
-            if sale.payment_method != "Cash":
+            if sale.payment_method == "Split":
+                cash_received = sale.cash_amount
+                # In split mode, ewallet_amount is usually exact, so change comes from cash_amount
+                # Remaining after e-wallet: remaining = total_amount - sale.ewallet_amount
+                # change = cash_received - remaining
+                change_amount = round(sale.cash_amount - (total_amount - sale.ewallet_amount), 2)
+                if change_amount < 0:
+                     raise HTTPException(
+                        status_code=400,
+                        detail=f"Insufficient payment for Split. Cash: ₱{sale.cash_amount:.2f}, E-Wallet: ₱{sale.ewallet_amount:.2f}, Total: ₱{total_amount:.2f}",
+                    )
+            elif sale.payment_method != "Cash":
                 cash_received = total_amount
-                
-            change_amount = round(cash_received - total_amount, 2)
+                change_amount = 0.0
+            else:
+                cash_received = sale.cash_received
+                change_amount = round(cash_received - total_amount, 2)
 
             if change_amount < 0 and sale.payment_method == "Cash":
                 raise HTTPException(
@@ -287,9 +299,10 @@ def create_sale(sale: CreateSaleRequest):
                 INSERT INTO sales (
                     pos_terminal_id, user_id, invoice_date, total_amount,
                     tax_amount, customer_info, payment_method, payment_status,
-                    service_charge, transaction_timestamp, cash_received, change_amount, cash_given, contact_number
+                    service_charge, transaction_timestamp, cash_received, change_amount, cash_given, contact_number,
+                    failure_reason
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING invoice_id
                 """,
                 (
@@ -300,13 +313,14 @@ def create_sale(sale: CreateSaleRequest):
                     tax_amount,
                     customer_display,
                     sale.payment_method,
-                    "Paid",
+                    sale.payment_status or "Paid",
                     sale.service_charge,
                     now,
                     cash_received,
                     change_amount,
                     cash_received,
                     normalized_contact,
+                    sale.failure_reason
                 ),
             )
             invoice_id = cur.fetchone()["invoice_id"]
@@ -378,27 +392,46 @@ def create_sale(sale: CreateSaleRequest):
                     ),
                 )
 
-                # --- Update stock in inventory ---
-                cur.execute(
-                    """
-                    UPDATE inventory
-                    SET quantity = quantity - %s,
-                        expected = GREATEST(expected - %s, actual - %s),
-                        actual = actual - %s,
-                        last_updated = %s
-                    WHERE product_id = %s
-                    """,
-                    (item.quantity, item.quantity, item.quantity, item.quantity, today, item.product_id)
-                )
+                # --- Update stock in inventory (only if paid) ---
+                if (sale.payment_status or "Paid").lower() == "paid":
+                    cur.execute(
+                        """
+                        UPDATE inventory
+                        SET quantity = quantity - %s,
+                            expected = GREATEST(expected - %s, actual - %s),
+                            actual = actual - %s,
+                            last_updated = %s
+                        WHERE product_id = %s
+                        """,
+                        (item.quantity, item.quantity, item.quantity, item.quantity, today, item.product_id)
+                    )
 
             # --- Insert payment ---
-            cur.execute(
-                """
-                INSERT INTO payments (invoice_id, payment_method, amount_paid, transaction_timestamp, paymongo_source_id)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (invoice_id, sale.payment_method, cash_received, now, sale.paymongo_source_id),
-            )
+            if sale.payment_method == "Split":
+                # Record Cash payment
+                cur.execute(
+                    """
+                    INSERT INTO payments (invoice_id, payment_method, amount_paid, transaction_timestamp)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (invoice_id, "Cash", sale.cash_amount - change_amount, now),
+                )
+                # Record E-Wallet payment
+                cur.execute(
+                    """
+                    INSERT INTO payments (invoice_id, payment_method, amount_paid, transaction_timestamp, paymongo_source_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (invoice_id, "E-Wallet", sale.ewallet_amount, now, sale.paymongo_source_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO payments (invoice_id, payment_method, amount_paid, transaction_timestamp, paymongo_source_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (invoice_id, sale.payment_method, cash_received, now, sale.paymongo_source_id),
+                )
 
             # --- Audit log (skip if user is root admin) ---
             cur.execute("SELECT username FROM users WHERE user_id = %s", (sale.user_id,))

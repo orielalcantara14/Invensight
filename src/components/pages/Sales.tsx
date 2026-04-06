@@ -2,7 +2,7 @@ import { Search, Download, ShoppingBag, Eye, Monitor, DollarSign, CheckCircle, X
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";

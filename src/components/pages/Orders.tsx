@@ -1,4 +1,4 @@
-import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown } from "lucide-react";
+import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archive } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
@@ -24,6 +24,7 @@ interface ProductOption {
   product_name: string;
   reorder_level?: number;
   unit_price?: number;
+  supplier_id?: number;
 }
 
 export function Orders() {
@@ -39,6 +40,9 @@ export function Orders() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; displayId: string } | null>(null);
+  const [archiving, setArchiving] = useState(false);
 
   const [newOrder, setNewOrder] = useState({
     supplier_id: 0,
@@ -61,7 +65,13 @@ export function Orders() {
       ]);
       setOrders(ordersRes);
       setSuppliers(suppliersRes);
-      setProducts(productsRes);
+      setProducts(productsRes.map(p => ({
+        product_id: p.product_id,
+        product_name: p.product_name,
+        reorder_level: p.reorder_level ?? undefined,
+        unit_price: p.unit_price ?? undefined,
+        supplier_id: p.supplier_id ?? undefined
+      })));
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -178,7 +188,7 @@ export function Orders() {
         items: newOrder.items.map((item) => ({
           product_id: item.product_id,
           quantity: item.quantity,
-          unit_price: item.unit_price,
+          unit_price: item.unit_price ?? undefined,
         })),
         notes: newOrder.notes || undefined,
       };
@@ -222,6 +232,26 @@ export function Orders() {
       loadData();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete order");
+    }
+  };
+
+  const handleArchiveOrder = (orderId: string) => {
+    const displayId = formatOrderId(orderId);
+    setArchiveTarget({ id: orderId, displayId });
+  };
+
+  const confirmArchiveOrder = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    try {
+      await api.archivePurchaseOrder(archiveTarget.id);
+      toast.success("Order archived successfully");
+      setArchiveTarget(null);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to archive order");
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -412,6 +442,15 @@ export function Orders() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
+                        {(order.status === "Received" || order.status === "Cancelled") && (
+                          <button
+                            onClick={() => handleArchiveOrder(order.order_id)}
+                            className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+                            title="Archive Order"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -511,11 +550,13 @@ export function Orders() {
                           className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
                         >
                           <option value={0}>Select Product</option>
-                          {products.map((p) => (
-                            <option key={p.product_id} value={p.product_id}>
-                              {p.product_name}
-                            </option>
-                          ))}
+                          {products
+                            .filter((p) => p.supplier_id === newOrder.supplier_id)
+                            .map((p) => (
+                              <option key={p.product_id} value={p.product_id}>
+                                {p.product_name}
+                              </option>
+                            ))}
                         </select>
                       </div>
                       <div className="w-24">
@@ -689,6 +730,65 @@ export function Orders() {
                   Mark as Received
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirm Modal */}
+      {archiveTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                  <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Order</h3>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to archive order{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">"{archiveTarget.displayId}"</span>?
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                It will be moved to the Archive module and can be fully restored at any time.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 pb-6">
+              <button
+                onClick={() => setArchiveTarget(null)}
+                disabled={archiving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchiveOrder}
+                disabled={archiving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {archiving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Archiving...
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-4 h-4" />
+                    Archive Order
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -8,9 +8,11 @@ export interface Product {
   sku: string;
   category_name: string;
   category_id: number;
+  supplier_id?: number | null;
   supplier_name?: string;
   unit_of_measurement?: string;
   quantity?: number;
+  reorder_level?: number;
 }
 
 export interface Category {
@@ -87,6 +89,10 @@ export interface CreateSalePayload {
   items: CartItemPayload[];
   service_charge: number;
   paymongo_source_id?: string;
+  cash_amount?: number;
+  ewallet_amount?: number;
+  payment_status?: string;
+  failure_reason?: string;
 }
 
 export interface PayMongoSourcePayload {
@@ -97,6 +103,22 @@ export interface PayMongoSourcePayload {
   customer_name?: string;
   customer_phone?: string;
   customer_email?: string;
+}
+
+export interface PayMongoCheckoutSessionPayload {
+  amount: number; // in centavos
+  currency: "PHP";
+  description: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  items?: Array<{
+    name: string;
+    amount: number;
+    quantity: number;
+    currency?: string;
+    description?: string;
+  }>;
 }
 
 export interface PayMongoPaymentIntentPayload {
@@ -618,6 +640,14 @@ export const api = {
   getPayMongoPaymentIntent: (paymentIntentId: string) =>
     request<{ data: any }>(`/api/paymongo/payment-intent/${paymentIntentId}`),
 
+  createPayMongoCheckoutSession: (payload: PayMongoCheckoutSessionPayload) =>
+    request<{ data: any }>("/api/paymongo/create-checkout-session", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getPayMongoCheckoutSession: (sessionId: string) =>
+    request<{ data: any }>(`/api/paymongo/checkout-session/${sessionId}`),
+
   getUsers: () => request<ApiUser[]>("/api/users"),
   getUserManagementStats: (actorUserId: number) =>
     requestAsActor<UserManagementStats>(actorUserId, "/api/user-management-stats"),
@@ -633,7 +663,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  deactivateUser: (userId: number, actorUserId: number) =>
+  deleteUser: (userId: number, actorUserId: number) =>
     requestAsActor<{ ok: boolean }>(actorUserId, `/api/users/${userId}`, {
       method: "DELETE",
     }),
@@ -668,6 +698,10 @@ export const api = {
   deleteSupplier: (supplierId: number) =>
     request<{ message: string }>(`/api/suppliers/${supplierId}`, {
       method: "DELETE",
+    }),
+  archiveSupplier: (supplierId: number) =>
+    request<{ ok: boolean }>(`/api/suppliers/${supplierId}/archive`, {
+      method: "PUT",
     }),
 
   getInventoryItems: () => request<InventoryItem[]>("/api/inventory/"),
@@ -708,6 +742,10 @@ export const api = {
     request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, {
       method: "DELETE",
     }),
+  archivePurchaseOrder: (orderId: string) =>
+    request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/archive`, {
+      method: "PUT",
+    }),
 
   getProductReturns: () => request<ProductReturn[]>("/api/product-returns/"),
   getProductReturn: (returnId: number) => request<ProductReturn>(`/api/product-returns/${returnId}`),
@@ -722,6 +760,46 @@ export const api = {
     }),
   rejectProductReturn: (returnId: number) =>
     request<{ ok: boolean }>(`/api/product-returns/${returnId}/reject`, {
+      method: "PUT",
+    }),
+  archiveProductReturn: (returnId: number) =>
+    request<{ ok: boolean }>(`/api/product-returns/${returnId}/archive`, {
+      method: "PUT",
+    }),
+
+  // ──── Archive module ────────────────────────────────────────────────────
+  getArchivedUsers: (actorUserId: number) =>
+    requestAsActor<any[]>(actorUserId, "/api/archive/users"),
+  restoreUser: (userId: number, actorUserId: number) =>
+    requestAsActor<{ ok: boolean }>(actorUserId, `/api/archive/users/${userId}/restore`, {
+      method: "PUT",
+    }),
+  permanentDeleteUser: (userId: number, actorUserId: number) =>
+    requestAsActor<{ ok: boolean }>(actorUserId, `/api/archive/users/${userId}/permanent`, {
+      method: "DELETE",
+    }),
+  getArchivedProducts: () => request<any[]>("/api/archive/products"),
+  restoreProduct: (productId: number) =>
+    request<{ ok: boolean }>(`/api/archive/products/${productId}/restore`, {
+      method: "PUT",
+    }),
+  permanentDeleteProduct: (productId: number) =>
+    request<{ ok: boolean }>(`/api/archive/products/${productId}/permanent`, {
+      method: "DELETE",
+    }),
+  getArchivedSuppliers: () => request<any[]>("/api/archive/suppliers"),
+  restoreSupplier: (supplierId: number) =>
+    request<{ ok: boolean }>(`/api/archive/suppliers/${supplierId}/restore`, {
+      method: "PUT",
+    }),
+  getArchivedOrders: () => request<any[]>("/api/archive/orders"),
+  restoreOrder: (orderId: string) =>
+    request<{ ok: boolean }>(`/api/archive/orders/${orderId}/restore`, {
+      method: "PUT",
+    }),
+  getArchivedProductReturns: () => request<any[]>("/api/archive/product-returns"),
+  restoreProductReturn: (returnId: number) =>
+    request<{ ok: boolean }>(`/api/archive/product-returns/${returnId}/restore`, {
       method: "PUT",
     }),
 

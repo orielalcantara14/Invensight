@@ -66,7 +66,13 @@ export function AddUserModal({
   };
 
   const handleFinalSubmit = async () => {
-    await onAddUser(formData);
+    const sanitized = {
+      ...formData,
+      username: formData.username.trim(),
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+    };
+    await onAddUser(sanitized);
   };
 
   const handleChange = (field: string, value: string) => {

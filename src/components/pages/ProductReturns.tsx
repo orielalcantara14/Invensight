@@ -1,4 +1,4 @@
-import { Plus, Eye, CheckCircle, XCircle, Package, X } from "lucide-react";
+import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
 import { toast } from "sonner";
@@ -20,6 +20,9 @@ export function ProductReturns() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<ProductReturn | null>(null);
+
+  const [archiveTarget, setArchiveTarget] = useState<{ id: number; displayId: string } | null>(null);
+  const [archiving, setArchiving] = useState(false);
 
   const [newReturn, setNewReturn] = useState<{
     supplier_id: number;
@@ -177,6 +180,25 @@ export function ProductReturns() {
     }
   };
 
+  const handleArchiveReturn = (returnId: number) => {
+    setArchiveTarget({ id: returnId, displayId: formatReturnId(returnId) });
+  };
+
+  const confirmArchiveReturn = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    try {
+      await api.archiveProductReturn(archiveTarget.id);
+      toast.success("Return archived successfully");
+      setArchiveTarget(null);
+      await fetchAll();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to archive return");
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -285,6 +307,15 @@ export function ProductReturns() {
                               <XCircle className="w-4 h-4" />
                             </button>
                           </>
+                        )}
+                        {(r.status === "Approved" || r.status === "Rejected") && (
+                          <button
+                            onClick={() => handleArchiveReturn(r.return_id)}
+                            className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+                            title="Archive Return"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -415,11 +446,13 @@ export function ProductReturns() {
                             className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
                           >
                             <option value={0}>Select Product</option>
-                            {products.map((p) => (
-                              <option key={p.product_id} value={p.product_id}>
-                                {p.product_name}
-                              </option>
-                            ))}
+                            {products
+                              .filter((p) => p.supplier_id === newReturn.supplier_id)
+                              .map((p) => (
+                                <option key={p.product_id} value={p.product_id}>
+                                  {p.product_name}
+                                </option>
+                              ))}
                           </select>
                         </div>
                         <div className="w-28">
@@ -558,6 +591,64 @@ export function ProductReturns() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Archive Confirm Modal */}
+      {archiveTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                  <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Return Request</h3>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to archive return request{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">"{archiveTarget.displayId}"</span>?
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                It will be moved to the Archive module and can be fully restored at any time.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 pb-6">
+              <button
+                onClick={() => setArchiveTarget(null)}
+                disabled={archiving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchiveReturn}
+                disabled={archiving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {archiving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Archiving...
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-4 h-4" />
+                    Archive Return
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

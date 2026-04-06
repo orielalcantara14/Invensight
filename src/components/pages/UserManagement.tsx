@@ -1,5 +1,5 @@
 import { Users, Shield, Settings, Activity, UserCheck, Clock, ArrowUpRight, Plus, FileText } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
 import { api, type AuditLogEntry } from "@/services/api";
@@ -21,9 +21,9 @@ export function UserManagement() {
   const isAdministrator = currentRole === "administrator";
   const canManageAccounts = isRootAdmin || isAdministrator;
   const allowedCreateRoleKeys = isRootAdmin
-    ? ["administrator", "manager", "sales staff"]
+    ? ["administrator", "manager", "sales staff", "cashier", "warehouse staff"]
     : isAdministrator
-      ? ["manager", "sales staff"]
+      ? ["manager", "sales staff", "cashier", "warehouse staff"]
       : [];
 
   const refreshCounts = useCallback(async () => {

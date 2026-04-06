@@ -39,6 +39,10 @@ class CreateSaleRequest(BaseModel):
     items: List[CartItem]
     service_charge: float = 0.0
     paymongo_source_id: Optional[str] = None
+    cash_amount: float = 0.0
+    ewallet_amount: float = 0.0
+    payment_status: Optional[str] = "Paid"
+    failure_reason: Optional[str] = None
 
     @field_validator("customer_name", "customer_info", "address")
     @classmethod
@@ -50,7 +54,7 @@ class CreateSaleRequest(BaseModel):
     @field_validator("payment_method")
     @classmethod
     def validate_payment_method(cls, v):
-        allowed = {"Cash", "GCash", "PayMaya"}
+        allowed = {"Cash", "GCash", "PayMaya", "Split"}
         if v not in allowed:
             raise ValueError(f"Payment method must be one of: {', '.join(allowed)}")
         return v
@@ -82,6 +86,15 @@ class PayMongoPaymentIntentRequest(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
 
+class PayMongoCheckoutSessionRequest(BaseModel):
+    amount: int  # in centavos
+    currency: str = "PHP"
+    description: str = "POS Sale"
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_email: Optional[str] = None
+    items: List[Dict] = Field(default_factory=list)
+
 
 class CreatePosProductRequest(BaseModel):
     sku: str
@@ -94,6 +107,12 @@ class CreatePosProductRequest(BaseModel):
     unit_of_measurement: Optional[str] = None
     stock: int
     status: str = "Active"
+
+    @field_validator("product_name", "specific_category", "unit_of_measurement")
+    @classmethod
+    def sanitize_product_fields(cls, v):
+        if v is None: return v
+        return sanitize_string(v)
 
 
 class UpdatePosProductRequest(BaseModel):
@@ -124,11 +143,25 @@ class UserResponse(BaseModel):
 class UpdateUserRequest(BaseModel):
     username: str
     full_name: str
-    email: Optional[str] = None
     role: str
     is_active: bool
     new_password: Optional[str] = None
     permissions: Optional[Dict[str, List[str]]] = None
+    email: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Full name is required")
+        return sanitize_string(v)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Username is required")
+        return v.strip().lower()
 
 
 class CreateUserRequest(BaseModel):
@@ -201,10 +234,24 @@ class CreateRoleRequest(BaseModel):
     name: str
     permissions: Optional[Dict[str, List[str]]] = None
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Role name is required")
+        return sanitize_string(v)
+
 
 class UpdateRoleRequest(BaseModel):
     name: str
     permissions: Optional[Dict[str, List[str]]] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Role name is required")
+        return sanitize_string(v)
 
 
 class LoginRequest(BaseModel):
@@ -546,6 +593,21 @@ class AnalyticsOverviewResponse(BaseModel):
     stock_forecast_engine: Optional[str] = None
     cache_generated_at: Optional[str] = None
 
+    @field_validator("top_sellers")
+    @classmethod
+    def sanitize_top_sellers(cls, v):
+        for item in v:
+            if hasattr(item, "name"):
+                item.name = sanitize_string(item.name)
+            if hasattr(item, "category"):
+                item.category = sanitize_string(item.category)
+        return v
+
+    @field_validator("today_sales_total")
+    @classmethod
+    def validate_positive_revenue(cls, v):
+        return max(0.0, v or 0.0)
+
 
 class ForecastSeriesPoint(BaseModel):
     date: str
@@ -568,6 +630,11 @@ class ProductForecastItem(BaseModel):
     confidence: float
     days_to_stockout: Optional[float] = None
     reorder_level: int
+
+    @field_validator("product_name")
+    @classmethod
+    def sanitize_product_name(cls, v):
+        return sanitize_string(v)
 
 
 class SalesForecastResponse(BaseModel):

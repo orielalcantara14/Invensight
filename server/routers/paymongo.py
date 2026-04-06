@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import PayMongoSourceRequest, PayMongoPaymentIntentRequest
+from models import PayMongoSourceRequest, PayMongoPaymentIntentRequest, PayMongoCheckoutSessionRequest
 import json
 import base64
 import urllib.request
@@ -133,9 +133,77 @@ def create_payment_intent(payload: PayMongoPaymentIntentRequest):
         print(f"PayMongo Unexpected Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/paymongo/payment-intent/{payment_intent_id}")
-def get_payment_intent(payment_intent_id: str):
-    url = f"https://api.paymongo.com/v1/payment_intents/{payment_intent_id}"
+@router.post("/paymongo/create-checkout-session")
+def create_checkout_session(payload: PayMongoCheckoutSessionRequest):
+    url = "https://api.paymongo.com/v1/checkout_sessions"
+    
+    # Sanitize and prepare line items
+    line_items = []
+    if payload.items:
+        for item in payload.items:
+            line_items.append({
+                "currency": item.get("currency", "PHP"),
+                "amount": item.get("amount"),
+                "description": item.get("description", "Product Item"),
+                "name": item.get("name", "Product"),
+                "quantity": item.get("quantity", 1)
+            })
+    else:
+        # Default single line item if none provided
+        line_items.append({
+            "currency": payload.currency,
+            "amount": payload.amount,
+            "description": payload.description,
+            "name": "POS Sale",
+            "quantity": 1
+        })
+    
+    data = {
+        "data": {
+            "attributes": {
+                "send_email_receipt": False,
+                "show_description": True,
+                "show_line_items": True,
+                "line_items": line_items,
+                "payment_method_types": ["gcash", "paymaya"],
+                "description": payload.description,
+                "success_url": "http://localhost:5173/pos?payment=success",
+                "cancel_url": "http://localhost:5173/pos?payment=failed",
+                "billing": {
+                    "name": payload.customer_name or "Walk-in Customer",
+                    "phone": payload.customer_phone,
+                    "email": payload.customer_email
+                }
+            }
+        }
+    }
+    
+    print(f"PayMongo CheckoutSession Request: {json.dumps(data, indent=2)}")
+    req = urllib.request.Request(url, data=json.dumps(data).encode())
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Authorization", get_auth_header())
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode())
+            print(f"PayMongo CheckoutSession Success: {json.dumps(res_data, indent=2)}")
+            return res_data
+    except urllib.error.HTTPError as e:
+        error_msg = e.read().decode()
+        print(f"PayMongo HTTP Error {e.code}: {error_msg}")
+        try:
+            error_detail = json.loads(error_msg)
+            raise HTTPException(status_code=e.code, detail=error_detail)
+        except:
+            raise HTTPException(status_code=e.code, detail=error_msg)
+    except Exception as e:
+        print(f"PayMongo Unexpected Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/paymongo/checkout-session/{session_id}")
+def get_checkout_session(session_id: str):
+    url = f"https://api.paymongo.com/v1/checkout_sessions/{session_id}"
     
     req = urllib.request.Request(url)
     req.add_header("Authorization", get_auth_header())

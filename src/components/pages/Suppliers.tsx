@@ -1,4 +1,4 @@
-import { Search, Plus, Users, Edit2, Trash2, Mail, Phone, MapPin, Package, ShoppingCart, Download } from "lucide-react";
+import { Search, Plus, Users, Edit2, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api, type Supplier } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
@@ -15,6 +15,8 @@ export function Suppliers() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
+  const [archiving, setArchiving] = useState(false);
 
   const fetchSuppliers = async () => {
     setIsLoading(true);
@@ -41,6 +43,25 @@ export function Suppliers() {
       fetchSuppliers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete supplier");
+    }
+  };
+
+  const handleArchive = (id: number, name: string) => {
+    setArchiveTarget({ id, name });
+  };
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    try {
+      await api.archiveSupplier(archiveTarget.id);
+      toast.success("Supplier archived successfully");
+      setArchiveTarget(null);
+      fetchSuppliers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to archive supplier");
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -95,7 +116,7 @@ export function Suppliers() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Supplier Management</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Manage suppliers and vendor relationships</p>
           </div>
-          <button 
+          <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
@@ -162,7 +183,7 @@ export function Suppliers() {
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
                 />
               </div>
-              <button 
+              <button
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
@@ -262,11 +283,10 @@ export function Suppliers() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${
-                        supplier.status === 'Active' 
-                          ? 'bg-green-100 text-green-700' 
+                      <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${supplier.status === 'Active'
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
-                      }`}>
+                        }`}>
                         {supplier.status || 'Active'}
                       </span>
                     </td>
@@ -275,14 +295,16 @@ export function Suppliers() {
                         <button
                           onClick={() => setEditingSupplier(supplier)}
                           className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          title="Edit Supplier"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(supplier.supplier_id)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                          onClick={() => handleArchive(supplier.supplier_id, supplier.supplier_name)}
+                          className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-full transition-colors"
+                          title="Archive Supplier"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Archive className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -317,6 +339,56 @@ export function Suppliers() {
         supplier={editingSupplier}
         existingSuppliers={suppliers}
       />
+
+      {/* Archive Confirm Modal */}
+      {archiveTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                  <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Supplier</h3>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                Are you sure you want to archive{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">"{archiveTarget.name}"</span>?
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                They will be moved to the Archive module and can be fully restored at any time.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 pb-6">
+              <button
+                onClick={() => setArchiveTarget(null)}
+                disabled={archiving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchive}
+                disabled={archiving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Archive className="w-4 h-4" />
+                {archiving ? "Archiving..." : "Archive Supplier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

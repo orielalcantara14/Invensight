@@ -86,7 +86,7 @@ export interface Supplier {
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 
-export type OrderStatus = 'Pending' | 'Processing' | 'Delivered' | 'Cancelled';
+export type OrderStatus = 'Pending' | 'Processing' | 'Delivered' | 'Cancelled' | 'Received' | 'Archived';
 export type ReturnStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface PurchaseOrder {
@@ -160,7 +160,7 @@ export interface GeneratedReport {
 
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
-export type POStatus = 'Pending' | 'Received' | 'Cancelled';
+export type POStatus = 'Pending' | 'Received' | 'Cancelled' | 'Archived';
 
 export interface PurchaseOrderItem {
   item_id: number;

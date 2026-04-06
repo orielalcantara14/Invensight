@@ -66,6 +66,7 @@ def get_purchase_orders():
                     po.notes
                 FROM purchase_orders po
                 LEFT JOIN supplier s ON po.supplier_id = s.supplier_id
+                WHERE po.status != 'Archived'
                 ORDER BY po.created_at DESC
             """)
             rows = cur.fetchall()
@@ -530,6 +531,39 @@ def delete_purchase_order(order_id: str):
                 WHERE supplier_id = %s
             """, (order_row["supplier_id"],))
 
+            conn.commit()
+            return {"ok": True}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.put("/{order_id}/archive")
+def archive_purchase_order(order_id: str):
+    """Archive a received or cancelled purchase order (soft archive)."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT order_id, status FROM purchase_orders WHERE order_id = %s",
+                (order_id,),
+            )
+            order_row = cur.fetchone()
+            if not order_row:
+                raise HTTPException(status_code=404, detail="Purchase order not found")
+            if order_row["status"] == "Pending":
+                raise HTTPException(status_code=400, detail="Cannot archive a pending order. Delete it instead.")
+            if order_row["status"] == "Archived":
+                raise HTTPException(status_code=400, detail="Order is already archived")
+            cur.execute(
+                "UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s",
+                (order_id,),
+            )
             conn.commit()
             return {"ok": True}
     except HTTPException:

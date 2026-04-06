@@ -130,6 +130,7 @@ def get_products():
                     p.sku,
                     COALESCE(c.category_name, 'Uncategorized') AS category_name,
                     COALESCE(p.category_id, 0) AS category_id,
+                    p.supplier_id,
                     COALESCE(s.supplier_name, 'No Supplier') AS supplier_name,
                     COALESCE(p.unit_of_measurement, '') AS unit_of_measurement,
                     COALESCE(i.quantity, 0) AS quantity,

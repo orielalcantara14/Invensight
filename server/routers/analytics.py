@@ -151,18 +151,22 @@ def get_analytics_overview() -> AnalyticsOverviewResponse:
             out_count, low_count, ok_count = _get_stock_status_counts(cur)
             
             # Fetch today's sales
-            cur.execute("SELECT COALESCE(SUM(total_amount), 0)::float as today_sales FROM sales WHERE DATE(invoice_date) = CURRENT_DATE")
+            cur.execute("""
+                SELECT COALESCE(SUM(total_amount), 0)::float as today_sales 
+                FROM sales 
+                WHERE invoice_date::date = CURRENT_DATE
+            """)
             today_sales_row = cur.fetchone()
             today_sales = float(today_sales_row["today_sales"]) if today_sales_row else 0.0
 
-            # Fetch top sellers (last 30 days or all time)
+            # Fetch top sellers (last 30 days or all time, Ph Timezone)
             cur.execute("""
                 SELECT p.product_name, c.category_name, SUM(si.quantity * si.unit_price) as revenue
                 FROM sold_items si
                 JOIN sales s ON si.invoice_id = s.invoice_id
                 JOIN products p ON si.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
-                WHERE s.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
+                WHERE (s.invoice_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date >= (now() AT TIME ZONE 'Asia/Manila')::date - INTERVAL '30 days'
                 GROUP BY p.product_id, p.product_name, c.category_name
                 ORDER BY revenue DESC
                 LIMIT 3

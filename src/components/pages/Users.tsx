@@ -1,4 +1,4 @@
-import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon, Pencil } from "lucide-react";
+import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon, Pencil, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
 import { AddRoleModal } from "../modals/AddRoleModal";
@@ -221,8 +221,8 @@ export function Users() {
     }
   };
 
-  const handleDeactivateUser = async (userId: number) => {
-    if (!window.confirm("Mark this user as inactive? They will keep a record in the system.")) {
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Delete this user? They will be moved to the Archive module and can be restored later.")) {
       return;
     }
     try {
@@ -230,10 +230,10 @@ export function Users() {
         setListError("Session is missing actor context. Please sign in again.");
         return;
       }
-      await api.deactivateUser(userId, session.user_id);
+      await api.deleteUser(userId, session.user_id);
       await refreshData();
     } catch (e) {
-      setListError(e instanceof Error ? e.message : "Failed to update user");
+      setListError(e instanceof Error ? e.message : "Failed to delete user");
     }
   };
 
@@ -249,9 +249,9 @@ export function Users() {
   });
 
   const allowedCreateRoleKeys = isRootAdmin
-    ? ["administrator", "manager", "sales staff"]
+    ? ["administrator", "manager", "sales staff", "cashier", "warehouse staff"]
     : isAdministrator
-      ? ["manager", "sales staff"]
+      ? ["manager", "sales staff", "cashier", "warehouse staff"]
       : [];
   const roleNames = roles
     .filter((r) => allowedCreateRoleKeys.includes(r.name.trim().toLowerCase()))
@@ -261,7 +261,7 @@ export function Users() {
     if (isRootAdmin) return true;
     if (!isAdministrator) return false;
     const roleKey = (user.role ?? "").trim().toLowerCase();
-    return roleKey === "manager" || roleKey === "sales staff";
+    return ["manager", "sales staff", "cashier", "warehouse staff"].includes(roleKey);
   };
 
   return (
@@ -454,11 +454,12 @@ export function Users() {
                               </button>
                               <button
                                 type="button"
-                                className="text-red-600 hover:text-red-900"
-                                onClick={() => handleDeactivateUser(user.id)}
-                                disabled={user.status === "Inactive"}
+                                className="inline-flex items-center gap-1 text-red-600 hover:text-red-900 font-medium text-sm"
+                                onClick={() => handleDeleteUser(user.id)}
+                                title="Delete user (moves to Archive)"
                               >
-                                Deactivate
+                                <Trash2 className="h-4 w-4" />
+                                Delete
                               </button>
                             </>
                           ) : (

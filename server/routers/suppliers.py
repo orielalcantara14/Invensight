@@ -25,7 +25,7 @@ def get_suppliers():
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT * FROM supplier ORDER BY supplier_name")
+            cur.execute("SELECT * FROM supplier WHERE status != 'Archived' ORDER BY supplier_name")
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -117,6 +117,30 @@ def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@router.put("/{supplier_id}/archive")
+def archive_supplier(supplier_id: int):
+    """Soft-archive a supplier (set status = 'Archived')."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE supplier SET status = 'Archived' WHERE supplier_id = %s AND status != 'Archived' RETURNING supplier_id",
+                (supplier_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Supplier not found or already archived")
+            conn.commit()
+            return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 
 @router.delete("/{supplier_id}")
 def delete_supplier(supplier_id: int):

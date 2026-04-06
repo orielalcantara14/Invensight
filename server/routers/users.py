@@ -27,14 +27,16 @@ ROOT_ADMIN_KEY_ENV = "ROOT_ADMIN_KEY"
 ROLE_ADMINISTRATOR = "administrator"
 ROLE_MANAGER = "manager"
 ROLE_SALES_STAFF = "sales staff"
-MANAGEABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF}
-ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF}
-ASSIGNABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF}
+ROLE_CASHIER = "cashier"
+MANAGEABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+ASSIGNABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
 RESTRICTED_MODULES_FOR_NON_ADMIN_ROLES = {"user management", "role permissions"}
 ROLE_LABELS = {
     ROLE_ADMINISTRATOR: "Administrator",
     ROLE_MANAGER: "Manager",
     ROLE_SALES_STAFF: "Sales Staff",
+    ROLE_CASHIER: "Cashier",
 }
 
 
@@ -126,7 +128,7 @@ def _canonical_role_or_400(role: str) -> str:
     if role_key not in ASSIGNABLE_BY_ROOT:
         raise HTTPException(
             status_code=400,
-            detail="Role must be one of: Administrator, Manager, Sales Staff",
+            detail="Role must be one of: Administrator, Manager, Sales Staff, Cashier",
         )
     return role_key
 
@@ -237,7 +239,7 @@ def _enforce_non_admin_target_module_restrictions(
     if forbidden:
         raise HTTPException(
             status_code=400,
-            detail="Manager and Sales Staff cannot be assigned user-management permissions",
+            detail="Manager, Sales Staff, and Cashier cannot be assigned user-management permissions",
         )
 
 
@@ -471,7 +473,7 @@ def update_user(
                 if existing_role_key not in MANAGEABLE_BY_ADMIN:
                     raise HTTPException(
                         status_code=403,
-                        detail="Administrators can only manage Manager and Sales Staff accounts",
+                        detail="Administrators can only manage Manager, Sales Staff, and Cashier accounts",
                     )
                 if requested_role_key not in ASSIGNABLE_BY_ADMIN:
                     raise HTTPException(
@@ -662,15 +664,16 @@ def deactivate_user(
                 if target_role_key not in MANAGEABLE_BY_ADMIN:
                     raise HTTPException(
                         status_code=403,
-                        detail="Administrators can only manage Manager and Sales Staff accounts",
+                        detail="Administrators can only manage Manager, Sales Staff, and Cashier accounts",
                     )
             else:
                 raise HTTPException(status_code=403, detail="Not allowed to manage users")
             cur.execute(
-                "UPDATE users SET is_active = false WHERE user_id = %s RETURNING user_id",
+                "UPDATE users SET is_active = false WHERE user_id = %s RETURNING user_id, username, full_name",
                 (user_id,),
             )
-            if not cur.fetchone():
+            deleted_row = cur.fetchone()
+            if not deleted_row:
                 raise HTTPException(status_code=404, detail="User not found")
             
             # --- Audit log (skip if actor is root admin) ---
@@ -682,10 +685,10 @@ def deactivate_user(
                     """,
                     (
                         actor_user_id,
-                        "DEACTIVATE_USER",
+                        "DELETE_USER",
                         "user",
                         user_id,
-                        f"Deactivated user account ID: {user_id}",
+                        f"Deleted (archived) user: {deleted_row.get('username', '')} (ID: {user_id})",
                     ),
                 )
             
@@ -699,6 +702,131 @@ def deactivate_user(
     finally:
         conn.close()
 
+    return {"ok": True}
+
+
+# ─────────────────────────────────────────────
+# Archive endpoints
+# ─────────────────────────────────────────────
+
+@router.get("/archive/users")
+def get_archived_users(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
+    """Return all users with is_active = false (soft-deleted / archived)."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            if not (actor.get("is_root_admin") or actor["role_key"] == ROLE_ADMINISTRATOR):
+                raise HTTPException(status_code=403, detail="Not allowed to view archive")
+            cur.execute(
+                """
+                SELECT user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
+                FROM users
+                WHERE is_active = false
+                  AND (username IS NULL OR LOWER(TRIM(username)) <> %s)
+                ORDER BY user_id
+                """,
+                (_root_admin_username(),),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    out = []
+    for r in rows:
+        ll = r["last_login"]
+        out.append({
+            "id": r["user_id"],
+            "username": r["username"] or "",
+            "full_name": r["full_name"],
+            "employee_id": r["employee_id"],
+            "role": r["role"],
+            "is_active": r["is_active"],
+            "last_login": ll.isoformat() if ll else None,
+            "email": r.get("email"),
+        })
+    return out
+
+
+@router.put("/archive/users/{user_id}/restore")
+def restore_user(
+    user_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
+    """Restore an archived user by setting is_active = true."""
+    conn = get_connection()
+    try:
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            if not (actor.get("is_root_admin") or actor["role_key"] == ROLE_ADMINISTRATOR):
+                raise HTTPException(status_code=403, detail="Not allowed to restore users")
+            cur.execute(
+                "UPDATE users SET is_active = true WHERE user_id = %s AND is_active = false RETURNING user_id, username",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Archived user not found")
+            if not actor.get("is_root_admin"):
+                cur.execute(
+                    """
+                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
+                    VALUES (%s, 'RESTORE_USER', 'user', %s, NOW(), %s)
+                    """,
+                    (actor_user_id, user_id, f"Restored user: {row.get('username', '')} (ID: {user_id})"),
+                )
+            conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.delete("/archive/users/{user_id}/permanent")
+def permanent_delete_user(
+    user_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id"),
+):
+    """Permanently delete a user from the database. User must already be archived (is_active=false)."""
+    conn = get_connection()
+    try:
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            if not actor.get("is_root_admin"):
+                raise HTTPException(status_code=403, detail="Only Root Admin can permanently delete users")
+            cur.execute(
+                "SELECT user_id, username, is_active FROM users WHERE user_id = %s",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="User not found")
+            if row["is_active"]:
+                raise HTTPException(status_code=400, detail="User must be archived before permanent deletion")
+            if _is_root_admin_username(row.get("username")):
+                raise HTTPException(status_code=403, detail="Cannot delete root admin account")
+            # Nullify audit log references before deleting
+            cur.execute("UPDATE auditlog SET user_id = NULL WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return {"ok": True}
 
 
@@ -784,15 +912,28 @@ def list_roles():
     finally:
         conn.close()
 
-    return [
-        RoleResponse(
-            id=r["role_id"],
-            name=r["role_name"],
-            permissions=json.loads(r["permissions_text"]) if r["permissions_text"] else {},
-            user_count=r["user_count"],
+    out: list[RoleResponse] = []
+    for r in rows:
+        perms = {}
+        pt = (r["permissions_text"] or "").strip()
+        if pt:
+            try:
+                parsed = json.loads(pt)
+                if isinstance(parsed, dict):
+                    perms = parsed
+            except:
+                # If it's malformed (like a plain text description), fallback to empty dict
+                pass
+        
+        out.append(
+            RoleResponse(
+                id=r["role_id"],
+                name=r["role_name"],
+                permissions=perms,
+                user_count=r["user_count"],
+            )
         )
-        for r in rows
-    ]
+    return out
 
 
 @router.post("/roles", response_model=RoleResponse)

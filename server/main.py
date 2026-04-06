@@ -22,6 +22,7 @@ from routers.dashboard import router as dashboard_router
 from routers.analytics import router as analytics_router
 from routers.purchase_orders import router as purchase_orders_router
 from routers.product_returns import router as product_returns_router
+from routers.archive import router as archive_router
 from database import get_connection, verify_database_connection
 
 logging.basicConfig(
@@ -125,6 +126,7 @@ app.include_router(purchase_orders_router, prefix="/api/purchase-orders", tags=[
 app.include_router(product_returns_router, prefix="/api/product-returns", tags=["Product Returns"])
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api/analytics")
+app.include_router(archive_router, prefix="/api/archive", tags=["Archive"])
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = "uploads"
@@ -138,6 +140,7 @@ DEFAULT_ROLE_TEMPLATES = [
     ("Administrator", "Full system access, user management, reports"),
     ("Manager", "Sales, inventory, forecasting, reports"),
     ("Sales Staff", "Sales transactions, customer info"),
+    ("Cashier", "Point of Sale transactions only"),
     ("Warehouse Staff", "Inventory, stock movements"),
 ]
 
@@ -653,6 +656,8 @@ def ensure_sales_invoice_id_sequence():
             cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS change_amount DECIMAL(10, 2)")
             cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS cash_given DECIMAL(10, 2)")
             cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS contact_number VARCHAR(50)")
+            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Paid'")
+            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS failure_reason TEXT")
             cur.execute("""
                 INSERT INTO pos_terminals (terminal_id, terminal_name, location, status, pos_id)
                 SELECT 1, 'POS Terminal #01', 'Main', 'Active', 1
@@ -728,23 +733,70 @@ def seed_default_roles():
     try:
         conn.autocommit = False
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM roles WHERE user_id IS NULL")
-            (count,) = cur.fetchone()
-            if count and count > 0:
-                conn.commit()
-                return
-            cur.execute("SELECT COALESCE(MAX(role_id), 0) AS n FROM roles")
-            row = cur.fetchone()
-            next_id = (row[0] or 0) + 1
+            import json
+            # Default permissions for each role
+            _DEFAULT_PERMS = {
+                "administrator": {
+                    "Sales": ["View", "Add", "Edit", "Delete"],
+                    "Inventory": ["View", "Add Item", "Edit", "Delete"],
+                    "Products": ["View", "Add Product", "Edit", "Delete"],
+                    "Suppliers": ["View", "Add Supplier", "Edit", "Delete"],
+                    "Reports": ["View", "Generate Report"],
+                    "User Management": ["View", "Add User", "Edit User", "Delete User"],
+                    "Role Permissions": ["View", "Create", "Edit", "Delete"],
+                    "Forecasting": ["View", "Generate Forecast"],
+                    "Stock Prediction": ["View", "Run Prediction"],
+                    "Audit Log": ["View", "Export"],
+                    "Purchase Order": ["View", "Create Order", "Edit", "Delete"],
+                    "Product Return": ["View", "Process Return", "Edit"]
+                },
+                "manager": {
+                    "Sales": ["View", "Add", "Edit"],
+                    "Inventory": ["View", "Add Item", "Edit"],
+                    "Products": ["View", "Add Product", "Edit"],
+                    "Suppliers": ["View", "Add Supplier", "Edit"],
+                    "Reports": ["View", "Generate Report"],
+                    "Forecasting": ["View", "Generate Forecast"],
+                    "Stock Prediction": ["View", "Run Prediction"],
+                    "Purchase Order": ["View", "Create Order", "Edit"],
+                    "Product Return": ["View", "Process Return", "Edit"]
+                },
+                "sales staff": {
+                    "Sales": ["View", "Add"],
+                    "Inventory": ["View"],
+                    "Products": ["View"],
+                    "Product Return": ["View", "Process Return"]
+                },
+                "warehouse staff": {
+                    "Inventory": ["View", "Add Item", "Edit"],
+                    "Products": ["View"],
+                    "Suppliers": ["View"],
+                    "Purchase Order": ["View"],
+                    "Product Return": ["View", "Process Return"]
+                },
+                "cashier": {
+                    "Sales": ["View", "Add"]
+                }
+            }
             for name, desc in DEFAULT_ROLE_TEMPLATES:
+                cur.execute(
+                    "SELECT 1 FROM roles WHERE user_id IS NULL AND LOWER(role_name) = LOWER(%s)",
+                    (name,),
+                )
+                if cur.fetchone():
+                    continue
+                
+                cur.execute("SELECT COALESCE(MAX(role_id), 0) AS n FROM roles")
+                next_id = cur.fetchone()[0] + 1
+                
+                perms = _DEFAULT_PERMS.get(name.lower(), {})
                 cur.execute(
                     """
                     INSERT INTO roles (role_id, role_name, user_id, permissions_text)
                     VALUES (%s, %s, NULL, %s)
                     """,
-                    (next_id, name, desc),
+                    (next_id, name, json.dumps(perms)),
                 )
-                next_id += 1
             conn.commit()
     except Exception:
         conn.rollback()

@@ -53,29 +53,32 @@ def run_prophet_daily_forecast(
     weekly = fc_in["weekly"].to_numpy(dtype=float) if "weekly" in fc_in.columns else np.zeros(days)
 
     y = np.array(actuals, dtype=float)
-    mask = y > 1e-6
+    mask = (y > 1e-6) | (yhat > 0.1)
     if mask.sum() >= 3:
-        mape = float(np.mean(np.abs((y[mask] - yhat[mask]) / y[mask])) * 100.0)
-        accuracy = max(0.0, min(100.0, 100.0 - mape))
+        # Use sMAPE for better numerical stability with near-zero data
+        smape = float(np.mean(2 * np.abs(y[mask] - yhat[mask]) / (np.abs(y[mask]) + np.abs(yhat[mask]))) * 100.0)
+        accuracy = max(0.0, min(100.0, 100.0 - (smape * 0.5))) # Scaled for better interpretability
     else:
         accuracy = float("nan")
-
-    mid = days // 2
-    m1 = float(np.mean(yhat[:mid])) if mid > 0 else float(np.mean(yhat))
-    m2 = float(np.mean(yhat[mid:])) if mid < days else m1
-    if m2 > m1 * 1.05:
-        direction = "up"
-    elif m2 < m1 * 0.95:
-        direction = "down"
-    else:
-        direction = "flat"
 
     try:
         future = m.make_future_dataframe(periods=30, include_history=False)
         fc_out = m.predict(future)
         next_30d_sum = float(fc_out["yhat"].sum())
+        
+        # Calculate Trend based on FUTURE forecast slope
+        f_mid = 15
+        f1 = float(np.mean(fc_out["yhat"][:f_mid]))
+        f2 = float(np.mean(fc_out["yhat"][f_mid:]))
+        if f2 > f1 * 1.03:
+            direction = "up"
+        elif f2 < f1 * 0.97:
+            direction = "down"
+        else:
+            direction = "flat"
     except Exception as e:
         log.warning("Prophet future predict failed: %s", e)
         next_30d_sum = float(np.sum(yhat[-7:])) if len(yhat) >= 7 else float(np.sum(yhat))
+        direction = "flat"
 
     return yhat, yhat_lower, yhat_upper, trend, weekly, next_30d_sum, accuracy, direction

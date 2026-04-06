@@ -1,6 +1,6 @@
 import { Search, Download, Package, Edit2, Trash2, Eye, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import { api, type InventoryItem } from "@/services/api";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
 import { InventoryTraceModal } from "../modals/InventoryTraceModal";

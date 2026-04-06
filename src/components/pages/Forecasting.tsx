@@ -3,8 +3,8 @@ import {
   Calendar,
   Activity,
   Loader2,
-  CloudRain,
-  Sun,
+  TrendingDown,
+  Activity as ForecastIcon,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -37,17 +37,7 @@ function trendLabel(t: string) {
   return "Stable Expected";
 }
 
-// Custom Dot to show Payday 💰 or Weekend 🏍️
-const CustomIconDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (!payload.event_icon) return null;
-  const icon = payload.event_icon === "payday" ? "💰" : "🏍️";
-  return (
-    <text x={cx} y={cy - 10} textAnchor="middle" fontSize={16}>
-      {icon}
-    </text>
-  );
-};
+// Icons removed for sanitization
 
 export function Forecasting() {
   const [loading, setLoading] = useState(true);
@@ -95,11 +85,11 @@ export function Forecasting() {
   const showCharts = chartData.length > 0 && !loading;
 
   const trendIcon = data?.trend_direction === "up" ? (
-    <Sun className="w-8 h-8 text-amber-500" />
+    <TrendingUp className="w-8 h-8 text-emerald-500" />
   ) : data?.trend_direction === "down" ? (
-    <CloudRain className="w-8 h-8 text-slate-400" />
+    <TrendingDown className="w-8 h-8 text-red-500" />
   ) : (
-    <Calendar className="w-8 h-8 text-blue-400" />
+    <Activity className="w-8 h-8 text-blue-400" />
   );
 
   return (
@@ -109,7 +99,7 @@ export function Forecasting() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Forecasting Report</h1>
           <p className="text-gray-500 mt-1">
-            See the predicted rhythm of your shop. Sunny peaks and cloudy lulls ahead.
+            Analyze projected sales intervals and revenue growth for the upcoming period.
           </p>
           {data?.served_from_cache && data?.cache_generated_at && (
             <p className="mt-2 text-xs text-gray-400 font-medium">
@@ -135,13 +125,13 @@ export function Forecasting() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-white to-sky-50 p-6 rounded-3xl shadow-sm border border-sky-100 flex flex-col justify-center">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sky-800 font-medium tracking-wide text-sm uppercase">Business Climate</span>
+            <span className="text-sky-800 font-medium tracking-wide text-sm uppercase">Market Trend</span>
             {trendIcon}
           </div>
           <div className="text-3xl font-extrabold text-gray-900">
             {loading ? "…" : data ? trendLabel(data.trend_direction) : "N/A"}
           </div>
-          <div className="text-sm text-sky-600 mt-2 font-medium">Predicted rhythm over the next 30 days</div>
+          <div className="text-sm text-sky-600 mt-2 font-medium">AI-calculated trend for next 30 days</div>
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -152,7 +142,7 @@ export function Forecasting() {
           <div className="text-3xl font-extrabold text-gray-900">
             {loading ? "…" : formatPhp(data?.next_period_forecast ?? null)}
           </div>
-          <div className="text-sm text-gray-500 mt-2 font-medium">Estimated revenue generation</div>
+          <div className="text-sm text-gray-500 mt-2 font-medium">AI-projected revenue generation</div>
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -164,10 +154,10 @@ export function Forecasting() {
             {loading
               ? "…"
               : data?.forecast_accuracy != null
-                ? `${data.forecast_accuracy.toFixed(0)}%`
+                ? `${data.forecast_accuracy.toFixed(1)}%`
                 : "N/A"}
           </div>
-          <div className="text-sm text-gray-500 mt-2 font-medium">Reliability based on historical data</div>
+          <div className="text-sm text-gray-500 mt-2 font-medium">Statistical model confidence score</div>
         </div>
       </div>
 
@@ -192,12 +182,12 @@ export function Forecasting() {
 
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-1">
-              {clearView ? "Smooth Trend Line" : "Raw Sales Data & Clouds"}
+              {clearView ? "Smooth Trend Line" : "Sales Performance Forecast"}
             </h2>
             <p className="text-sm text-gray-500 max-w-2xl">
               {clearView
                 ? "Noise removed. Showing the underlying rhythm and path of your business."
-                : "Actual daily sales paths, combined with the AI's blue safety cloud. Orange line is the exact prediction model."}
+                : "Actual daily sales data compared against AI projections and historical patterns."}
             </p>
           </div>
 
@@ -219,26 +209,12 @@ export function Forecasting() {
                   tickLine={false}
                 />
                 <Tooltip
-                  formatter={(v: number, name: string) => {
-                    const cleanName = name === 'interval' ? 'Safety Cloud' : name;
-                    return [formatPhp(v), cleanName];
-                  }}
+                  formatter={(v: number, name: string) => [formatPhp(v), name]}
                   contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
 
-                {/* Confidence Cloud */}
-                {!clearView && (
-                  <Area
-                    type="monotone"
-                    dataKey="interval"
-                    name="Safety Cloud"
-                    stroke="none"
-                    fill="#bae6fd"
-                    fillOpacity={0.5}
-                    isAnimationActive={true}
-                  />
-                )}
+                {/* Confidence Interval removed as per request */}
 
                 {/* Raw vs Smoothed selection */}
                 {clearView ? (
@@ -259,7 +235,7 @@ export function Forecasting() {
                       name="AI Prediction"
                       stroke="#f97316"
                       strokeWidth={2}
-                      dot={<CustomIconDot />}
+                      dot={false}
                       activeDot={{ r: 6 }}
                     />
                     <Line
@@ -277,11 +253,7 @@ export function Forecasting() {
             </ResponsiveContainer>
           </div>
 
-          {/* Key Legend explanation */}
-          <div className="mt-6 flex flex-wrap gap-4 text-xs font-medium text-gray-500 bg-gray-50 p-4 rounded-2xl">
-            <div className="flex items-center gap-1.5"><span className="text-base">💰</span> = Predicted Payday Surge</div>
-            <div className="flex items-center gap-1.5"><span className="text-base">🏍️</span> = Predicted Weekend Surge</div>
-          </div>
+          {/* Key Legend explanation removed */}
         </div>
       )}
 
@@ -315,9 +287,9 @@ export function Forecasting() {
 
       {!loading && !error && !showCharts && (
         <div className="mb-8 rounded-3xl border border-gray-200 bg-gray-50 p-12 text-center flex flex-col items-center">
-          <CloudRain className="w-16 h-16 text-gray-300 mb-4" />
+          <ForecastIcon className="w-16 h-16 text-gray-300 mb-4" />
           <h3 className="text-lg font-bold text-gray-900">Not Enough Data</h3>
-          <p className="text-gray-500 mt-1 max-w-sm">No series data returned. Ensure the API is running and regular sales exist in the database for the weather report to generate.</p>
+          <p className="text-gray-500 mt-1 max-w-sm">No series data returned. Ensure the API is running and regular sales exist in the database for the forecast model to generate.</p>
         </div>
       )}
     </div>

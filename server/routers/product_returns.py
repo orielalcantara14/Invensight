@@ -37,6 +37,7 @@ def get_product_returns():
                 FROM product_returns pr
                 LEFT JOIN product_return_items pri ON pri.return_id = pr.return_id
                 LEFT JOIN supplier s ON pr.supplier_id = s.supplier_id
+                WHERE pr.status != 'Archived'
                 GROUP BY
                     pr.return_id,
                     pr.supplier_id,
@@ -556,3 +557,35 @@ def reject_product_return(return_id: int):
     finally:
         conn.close()
 
+
+@router.put("/{return_id}/archive")
+def archive_product_return(return_id: int):
+    """Archive an approved or rejected product return."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT return_id, status FROM product_returns WHERE return_id = %s",
+                (return_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Product return not found")
+            if row["status"] == "Pending":
+                raise HTTPException(status_code=400, detail="Cannot archive a pending return.")
+            if row["status"] == "Archived":
+                raise HTTPException(status_code=400, detail="Return is already archived")
+            cur.execute(
+                "UPDATE product_returns SET status = 'Archived' WHERE return_id = %s",
+                (return_id,),
+            )
+            conn.commit()
+            return {"ok": True}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
