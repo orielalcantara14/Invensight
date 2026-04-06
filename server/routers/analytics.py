@@ -69,13 +69,15 @@ def _get_stock_status_counts(cur) -> tuple[int, int, int]:
     cur.execute(
         """
         SELECT
-            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0) AS out_count,
+            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0 AND p.status != 'Archived') AS out_count,
             COUNT(*) FILTER (
                 WHERE COALESCE(i.actual, 0) > 0
                 AND COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)
+                AND p.status != 'Archived'
             ) AS low_count,
-            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > COALESCE(i.reorder_level, 10)) AS ok_count
+            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > COALESCE(i.reorder_level, 10) AND p.status != 'Archived') AS ok_count
         FROM inventory i
+        JOIN products p ON i.product_id = p.product_id
         """
     )
     row = cur.fetchone()
