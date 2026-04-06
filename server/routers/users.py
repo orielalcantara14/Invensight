@@ -260,7 +260,7 @@ def list_users():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT user_id, username, full_name, employee_id, role, is_active, last_login, email
+                SELECT user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                 FROM users
                 WHERE (username IS NULL OR LOWER(TRIM(username)) <> %s)
                 ORDER BY user_id
@@ -285,6 +285,7 @@ def list_users():
                 is_active=r["is_active"],
                 last_login=ll.isoformat() if ll else None,
                 email=r.get("email"),
+                permissions_json=r.get("permissions_json"),
             )
         )
     return out
@@ -373,7 +374,7 @@ def create_user(
                     is_active, created_date, last_login, username, permissions_json, email
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, NULL, %s, %s::jsonb, %s)
-                RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                 """,
                 (
                     next_uid,
@@ -426,6 +427,7 @@ def create_user(
         is_active=row["is_active"],
         last_login=ll.isoformat() if ll else None,
         email=row.get("email"),
+        permissions_json=row.get("permissions_json"),
     )
 
 
@@ -522,7 +524,7 @@ def update_user(
                           password_hash = %s,
                           permissions_json = %s::jsonb
                         WHERE user_id = %s
-                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                         """,
                         (
                             uname,
@@ -546,7 +548,7 @@ def update_user(
                           is_active = %s,
                           password_hash = %s
                         WHERE user_id = %s
-                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                         """,
                         (
                             uname,
@@ -570,7 +572,7 @@ def update_user(
                           is_active = %s,
                           permissions_json = %s::jsonb
                         WHERE user_id = %s
-                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                         """,
                         (
                             uname,
@@ -592,7 +594,7 @@ def update_user(
                           role = %s,
                           is_active = %s
                         WHERE user_id = %s
-                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email
+                        RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                         """,
                         (
                             uname,
@@ -624,6 +626,7 @@ def update_user(
         is_active=row["is_active"],
         last_login=ll.isoformat() if ll else None,
         email=row.get("email"),
+        permissions_json=row.get("permissions_json"),
     )
 
 

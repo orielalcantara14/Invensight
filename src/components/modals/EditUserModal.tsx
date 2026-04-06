@@ -58,7 +58,7 @@ export function EditUserModal({
       email: email.trim() || null,
       role,
       is_active: status === "Active",
-      permissions: Object.keys(permissions).length > 0 ? permissions : undefined,
+      permissions: permissions,
     };
     const pw = newPassword.trim();
     if (pw) {

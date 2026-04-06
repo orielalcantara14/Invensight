@@ -118,6 +118,7 @@ class UserResponse(BaseModel):
     is_active: bool
     last_login: Optional[str] = None
     email: Optional[str] = None
+    permissions_json: Optional[Dict[str, List[str]]] = None
 
 
 class UpdateUserRequest(BaseModel):
