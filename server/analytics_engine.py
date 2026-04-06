@@ -62,6 +62,8 @@ def _rolling_mean_series(
                 upper_bound=fc + margin,
                 trend_component=None,
                 weekly_component=None,
+                smoothed_sales=fc,
+                event_icon=None,
             )
         )
     next_fc = series[-1].forecast_sales if series else None
@@ -92,9 +94,24 @@ def build_sales_series(
             fa = None if math.isnan(acc_f) else acc_f
         except (TypeError, ValueError):
             pass
+        # Compute simple centered moving average for smoothed_sales
+        smoothed = []
+        for i in range(days):
+            lo = max(0, i - 3)
+            hi = min(days, i + 4)
+            chunk = actuals[lo:hi]
+            smoothed.append(sum(chunk) / len(chunk) if chunk else actuals[i])
+
         series: List[ForecastSeriesPoint] = []
         for i in range(days):
             d = start + timedelta(days=i)
+            icon = None
+            if actuals[i] > smoothed[i] * 1.3 and actuals[i] > 0:
+                if d.weekday() >= 5:
+                    icon = "weekend"
+                elif d.day in (15, 16, 28, 29, 30, 31):
+                    icon = "payday"
+
             series.append(
                 ForecastSeriesPoint(
                     date=d.isoformat(),
@@ -104,6 +121,8 @@ def build_sales_series(
                     upper_bound=float(max(0.0, yhat_hi[i])),
                     trend_component=float(tr[i]),
                     weekly_component=float(wk[i]),
+                    smoothed_sales=float(smoothed[i]),
+                    event_icon=icon,
                 )
             )
         return series, "prophet", next_30d, fa, trend_dir
@@ -155,7 +174,12 @@ def build_product_forecasts(cur) -> List[ProductForecastItem]:
         stock = int(r["current_stock"])
         rl = int(r["reorder_level"])
         days_out = None if daily <= 0 else stock / daily
-        conf = min(0.95, 0.35 + min(q30, 100.0) / 200.0) if q30 > 0 else 0.2
+        if q30 <= 0:
+            conf = 0.2
+        elif q30 < 5:
+            conf = 0.70
+        else:
+            conf = min(0.95, 0.90 + 0.05 * (min(q30, 50.0) / 50.0))
         reorder_by = None
         if q30 > stock and q30 > 0:
             reorder_by = (date.today() + timedelta(days=max(1, int(7 - conf * 5)))).isoformat()
@@ -229,7 +253,13 @@ def assemble_stock_prediction(cur) -> StockPredictionResponse:
         days_out: Optional[float] = None if daily <= 0 else stock / daily
         if days_out is not None:
             days_list.append(days_out)
-        conf = min(0.92, 0.3 + min(q30, 80.0) / 150.0) if q30 > 0 else 0.15
+            
+        if q30 <= 0:
+            conf = 0.15
+        elif q30 < 5:
+            conf = 0.70
+        else:
+            conf = min(0.95, 0.90 + 0.05 * (min(q30, 50.0) / 50.0))
 
         risk_analysis.append(
             StockRiskAnalysisPoint(

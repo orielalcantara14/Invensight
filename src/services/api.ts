@@ -424,12 +424,23 @@ export interface DashboardStats {
   top_products: TopProductItem[];
 }
 
+export interface TopSellerOverview {
+  name: string;
+  revenue: number;
+  category?: string;
+}
+
 export interface AnalyticsOverview {
   forecast_accuracy: number | null;
+  today_sales_total: number;
+  items_out: number;
+  items_low: number;
+  items_ok: number;
   low_stock_alerts: number;
   critical_stock_count: number;
   low_stock_count: number;
   prediction_models: number;
+  top_sellers: TopSellerOverview[];
   last_updated: string | null;
   model_status?: AnalyticsModelStatus;
   served_from_cache?: boolean;
@@ -456,6 +467,8 @@ export interface ForecastSeriesPoint {
   upper_bound: number;
   trend_component?: number | null;
   weekly_component?: number | null;
+  smoothed_sales?: number | null;
+  event_icon?: string | null;
 }
 
 export interface ProductForecastItem {

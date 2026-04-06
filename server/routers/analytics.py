@@ -65,24 +65,24 @@ def _row_to_status(row: Dict[str, Any]) -> AnalyticsModelStatus:
     )
 
 
-def _get_low_stock_counts(cur) -> tuple[int, int, int]:
+def _get_stock_status_counts(cur) -> tuple[int, int, int]:
     cur.execute(
         """
         SELECT
-            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0) AS critical_count,
+            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= 0) AS out_count,
             COUNT(*) FILTER (
                 WHERE COALESCE(i.actual, 0) > 0
                 AND COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)
             ) AS low_count,
-            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) <= COALESCE(i.reorder_level, 10)) AS total_low_stock
+            COUNT(*) FILTER (WHERE COALESCE(i.actual, 0) > COALESCE(i.reorder_level, 10)) AS ok_count
         FROM inventory i
         """
     )
     row = cur.fetchone()
     return (
-        int(row["critical_count"] or 0),
+        int(row["out_count"] or 0),
         int(row["low_count"] or 0),
-        int(row["total_low_stock"] or 0),
+        int(row["ok_count"] or 0),
     )
 
 
@@ -146,7 +146,31 @@ def get_analytics_overview() -> AnalyticsOverviewResponse:
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            critical, low, total_low = _get_low_stock_counts(cur)
+            out_count, low_count, ok_count = _get_stock_status_counts(cur)
+            
+            # Fetch today's sales
+            cur.execute("SELECT COALESCE(SUM(total_amount), 0)::float as today_sales FROM sales WHERE DATE(invoice_date) = CURRENT_DATE")
+            today_sales_row = cur.fetchone()
+            today_sales = float(today_sales_row["today_sales"]) if today_sales_row else 0.0
+
+            # Fetch top sellers (last 30 days or all time)
+            cur.execute("""
+                SELECT p.product_name, c.category_name, SUM(si.quantity * si.unit_price) as revenue
+                FROM sold_items si
+                JOIN sales s ON si.invoice_id = s.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE s.invoice_date >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY p.product_id, p.product_name, c.category_name
+                ORDER BY revenue DESC
+                LIMIT 3
+            """)
+            top_seller_rows = cur.fetchall()
+            top_sellers = [
+                {"name": r["product_name"] or "Unknown", "revenue": float(r["revenue"] or 0), "category": r["category_name"] or ""}
+                for r in top_seller_rows
+            ]
+
             _ensure_cache_rows(cur)
             extras = load_overview_extras(cur)
             if not extras:
@@ -174,10 +198,15 @@ def get_analytics_overview() -> AnalyticsOverviewResponse:
             cache_gen = extras.get("cache_generated_at")
             return AnalyticsOverviewResponse(
                 forecast_accuracy=float(fa) if fa is not None else None,
-                low_stock_alerts=total_low,
-                critical_stock_count=critical,
-                low_stock_count=low,
+                today_sales_total=today_sales,
+                items_out=out_count,
+                items_low=low_count,
+                items_ok=ok_count,
+                low_stock_alerts=out_count + low_count,
+                critical_stock_count=out_count,
+                low_stock_count=low_count,
                 prediction_models=2,
+                top_sellers=top_sellers,
                 last_updated=last_u,
                 model_status=status,
                 served_from_cache=bool(cache_gen),

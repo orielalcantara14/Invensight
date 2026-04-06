@@ -521,12 +521,23 @@ class AnalyticsModelStatus(BaseModel):
     training_duration_ms: Optional[int] = None
 
 
+class TopSeller(BaseModel):
+    name: str
+    revenue: float
+    category: Optional[str] = None
+
+
 class AnalyticsOverviewResponse(BaseModel):
     forecast_accuracy: Optional[float] = None
+    today_sales_total: float = 0.0
+    items_out: int = 0
+    items_low: int = 0
+    items_ok: int = 0
     low_stock_alerts: int
     critical_stock_count: int
     low_stock_count: int
     prediction_models: int
+    top_sellers: List[TopSeller] = Field(default_factory=list)
     last_updated: Optional[str] = None
     model_status: Optional[AnalyticsModelStatus] = None
     served_from_cache: bool = False
@@ -543,6 +554,8 @@ class ForecastSeriesPoint(BaseModel):
     upper_bound: float
     trend_component: Optional[float] = None
     weekly_component: Optional[float] = None
+    smoothed_sales: Optional[float] = None
+    event_icon: Optional[str] = None
 
 
 class ProductForecastItem(BaseModel):
