@@ -512,6 +512,42 @@ class ProductReturnResponse(BaseModel):
     total_quantity: int
 
 
+class CustomerReturnItemRequest(BaseModel):
+    product_id: int
+    quantity: int
+    is_defective: bool = False
+    is_damaged: bool = False
+
+
+class CreateCustomerReturnRequest(BaseModel):
+    sale_id: int
+    return_type: str  # 'Refund' or 'Exchange'
+    reason: Optional[str] = None
+    items: List[CustomerReturnItemRequest]
+
+
+class CustomerReturnItemResponse(BaseModel):
+    item_id: int
+    product_id: int
+    product_name: str
+    quantity: int
+    is_defective: bool
+    is_damaged: bool
+
+
+class CustomerReturnResponse(BaseModel):
+    return_id: int
+    rma_number: str
+    sale_id: int
+    customer_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    return_date: str
+    return_type: str
+    status: str
+    reason: Optional[str] = None
+    items: List[CustomerReturnItemResponse]
+
+
 class AuditLogEntryResponse(BaseModel):
     log_id: int
     user_id: int

@@ -23,6 +23,7 @@ from routers.dashboard import router as dashboard_router
 from routers.analytics import router as analytics_router
 from routers.purchase_orders import router as purchase_orders_router
 from routers.product_returns import router as product_returns_router
+from routers.customer_returns import router as customer_returns_router
 from routers.archive import router as archive_router
 from routers.notifications import router as notifications_router
 from routers.settings import router as settings_router
@@ -363,6 +364,32 @@ def init_database_schema():
             """)
 
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS customer_returns (
+                    return_id SERIAL PRIMARY KEY,
+                    rma_number VARCHAR(50) UNIQUE NOT NULL,
+                    sale_id INTEGER REFERENCES sales(invoice_id),
+                    customer_name VARCHAR(255),
+                    contact_number VARCHAR(100),
+                    return_date DATE DEFAULT CURRENT_DATE,
+                    return_type VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'Pending',
+                    reason TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS customer_return_items (
+                    item_id SERIAL PRIMARY KEY,
+                    return_id INTEGER REFERENCES customer_returns(return_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL,
+                    is_defective BOOLEAN DEFAULT FALSE,
+                    is_damaged BOOLEAN DEFAULT FALSE
+                )
+            """)
+
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_settings (
                     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
                     setting_key VARCHAR(50) NOT NULL,
@@ -507,6 +534,7 @@ app.include_router(suppliers_router, prefix="/api/suppliers", tags=["Suppliers"]
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(purchase_orders_router, prefix="/api/purchase-orders", tags=["Purchase Orders"])
 app.include_router(product_returns_router, prefix="/api/product-returns", tags=["Product Returns"])
+app.include_router(customer_returns_router, prefix="/api/customer-returns", tags=["Customer Returns"])
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api/analytics")
 app.include_router(archive_router, prefix="/api/archive", tags=["Archive"])

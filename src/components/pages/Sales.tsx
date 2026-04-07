@@ -1,4 +1,4 @@
-import { Search, Download, ShoppingBag, Eye, Monitor, DollarSign, CheckCircle, XCircle, ShoppingCart } from "lucide-react";
+import { Search, Download, ShoppingBag, Eye, Monitor, DollarSign, CheckCircle, XCircle, ShoppingCart, RotateCcw } from "lucide-react";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useState, useEffect, useCallback } from "react";
@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
+import { ProcessReturnModal } from "@/components/modals/ProcessReturnModal";
 import { exportToExcel } from "@/utils/export";
 type ViewMode = "daily" | "monthly" | "annual";
 
@@ -14,6 +15,7 @@ export function Sales() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<SaleDetail | null>(null);
+  const [returnInvoice, setReturnInvoice] = useState<SaleDetail | null>(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -114,6 +116,25 @@ export function Sales() {
     } finally {
       setLoadingInvoice(false);
     }
+  };
+
+  const handleProcessReturn = async (invoiceId: number) => {
+    setLoadingInvoice(true);
+    try {
+      const detail = await api.getSale(invoiceId);
+      setReturnInvoice(detail);
+    } catch (err) {
+      console.error("Failed to fetch sale details:", err);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const handleReturnSuccess = () => {
+    api.getSales()
+      .then((res) => {
+        setSalesRecords(res.sales);
+      });
   };
 
   const filteredRecords = salesRecords.filter((record) => {
@@ -425,7 +446,7 @@ export function Sales() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -475,14 +496,25 @@ export function Sales() {
                         {record.payment_status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        onClick={() => handleViewInvoice(record.invoice_id)}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Invoice
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewInvoice(record.invoice_id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all border border-blue-100 shadow-sm"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View Invoice
+                        </button>
+                        {record.payment_status !== "Refunded" && (
+                          <button
+                            onClick={() => handleProcessReturn(record.invoice_id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg font-bold transition-all border border-orange-100 shadow-sm"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            Process Return
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -506,6 +538,13 @@ export function Sales() {
         onClose={() => setSelectedInvoice(null)}
         invoice={selectedInvoice}
         loading={loadingInvoice}
+      />
+
+      <ProcessReturnModal
+        isOpen={!!returnInvoice}
+        onClose={() => setReturnInvoice(null)}
+        invoice={returnInvoice}
+        onSuccess={handleReturnSuccess}
       />
     </div>
   );

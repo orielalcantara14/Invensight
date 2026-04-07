@@ -5,6 +5,7 @@ import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePaginat
 import { toast } from "sonner";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/types";
 import { ProductReturns } from "./ProductReturns";
+import { CustomerReturns } from "./CustomerReturns";
 
 interface OrderItemInput {
   product_id: number;
@@ -33,7 +34,7 @@ export function Orders() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
-  const [activeTab, setActiveTab] = useState<"orders" | "returns">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "returns" | "customer_returns">("orders");
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,6 +337,21 @@ export function Orders() {
         >
           Supplier Returns
         </button>
+        <button
+          onClick={() => {
+            setActiveTab("customer_returns");
+            setShowCreateModal(false);
+            setShowViewModal(false);
+            setSelectedOrder(null);
+          }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            activeTab === "customer_returns"
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+          }`}
+        >
+          Customer Returns
+        </button>
       </div>
 
       {activeTab === "orders" && (
@@ -473,6 +489,7 @@ export function Orders() {
       )}
 
       {activeTab === "returns" && <ProductReturns />}
+      {activeTab === "customer_returns" && <CustomerReturns />}
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

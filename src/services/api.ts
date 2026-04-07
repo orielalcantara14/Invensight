@@ -403,6 +403,40 @@ export interface CreateProductReturnPayload {
   reason?: string;
 }
 
+export interface CustomerReturnItem {
+  item_id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  is_defective: boolean;
+  is_damaged: boolean;
+}
+
+export interface CustomerReturn {
+  return_id: number;
+  rma_number: string;
+  sale_id: number;
+  customer_name: string;
+  contact_number: string;
+  return_date: string;
+  return_type: string;
+  status: string;
+  reason?: string;
+  items: CustomerReturnItem[];
+}
+
+export interface CreateCustomerReturnPayload {
+  sale_id: number;
+  return_type: string;
+  reason?: string;
+  items: Array<{
+    product_id: number;
+    quantity: number;
+    is_defective: boolean;
+    is_damaged: boolean;
+  }>;
+}
+
 /** Matches `LoginResponse` from the API (snake_case). */
 export interface LoginResult {
   user_id: number;
@@ -871,4 +905,15 @@ export const api = {
       userId,
       `/api/profile/activity?limit=${encodeURIComponent(String(limit))}`
     ),
+
+  getCustomerReturns: () => request<CustomerReturn[]>("/api/customer-returns/"),
+  createCustomerReturn: (payload: CreateCustomerReturnPayload) =>
+    request<{ ok: boolean; rma_number: string }>("/api/customer-returns/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  markCustomerReturnToSupplier: (returnId: number) =>
+    request<{ ok: boolean }>(`/api/customer-returns/${returnId}/to-supplier`, {
+      method: "PUT",
+    }),
 };
