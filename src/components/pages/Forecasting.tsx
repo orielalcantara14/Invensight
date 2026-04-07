@@ -5,6 +5,8 @@ import {
   Loader2,
   TrendingDown,
   Activity as ForecastIcon,
+  ChevronDown,
+  Layers,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -16,11 +18,12 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
-  Label,
+  Brush,
 } from "recharts";
 import { useState, useEffect, useMemo } from "react";
 import { api, type SalesForecastResponse } from "@/services/api";
+
+type Resolution = "7d" | "30d" | "1y";
 
 function formatPhp(n: number | null | undefined) {
   if (n == null || Number.isNaN(n)) return "N/A";
@@ -31,18 +34,11 @@ function formatPhp(n: number | null | undefined) {
   }).format(n);
 }
 
-function trendLabel(t: string) {
-  if (t === "up") return "Trending Up";
-  if (t === "down") return "Trending Down";
-  return "Stable Expected";
-}
-
-// Icons removed for sanitization
-
 export function Forecasting() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SalesForecastResponse | null>(null);
+  const [resolution, setResolution] = useState<Resolution>("30d");
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +46,8 @@ export function Forecasting() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.getSalesForecast(90);
+        // Fetch a large enough window to support annual view if available
+        const res = await api.getSalesForecast(365);
         if (!cancelled) setData(res);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load forecast");
@@ -65,235 +62,363 @@ export function Forecasting() {
 
   const chartData = useMemo(() => {
     if (!data?.series?.length) return [];
-    return data.series.map((s) => {
-      const d = s.date.slice(5);
-      return {
-        label: d,
-        actual_sales: s.actual_sales,
-        forecast_sales: s.forecast_sales,
-        lower_bound: s.lower_bound,
-        upper_bound: s.upper_bound,
-        interval: [s.lower_bound, s.upper_bound],
-        smoothed_sales: s.smoothed_sales ?? s.forecast_sales,
-        trend_component: s.trend_component ?? 0,
-        event_icon: s.event_icon,
-      };
-    });
-  }, [data]);
+    
+    let filtered = data.series;
+    const now = new Date();
+    
+    if (resolution === "7d") {
+      // Show 14 days historical + 7 days forecast
+      const cutoff = new Date();
+      cutoff.setDate(now.getDate() - 14);
+      const end = new Date();
+      end.setDate(now.getDate() + 7);
+      filtered = data.series.filter(s => {
+        const d = new Date(s.date);
+        return d >= cutoff && d <= end;
+      });
+    } else if (resolution === "30d") {
+      // Default 90 days total view
+      const cutoff = new Date();
+      cutoff.setDate(now.getDate() - 60);
+      const end = new Date();
+      end.setDate(now.getDate() + 30);
+      filtered = data.series.filter(s => {
+        const d = new Date(s.date);
+        return d >= cutoff && d <= end;
+      });
+    }
+    // Else (1y) use full 365 days
+
+    return filtered.map((s) => ({
+      date: s.date,
+      label: s.date.slice(5),
+      actual_sales: s.actual_sales,
+      forecast_sales: s.forecast_sales,
+      lower_bound: s.lower_bound,
+      upper_bound: s.upper_bound,
+      interval: [s.lower_bound, s.upper_bound],
+      trend: s.trend_component ?? 0,
+      seasonal: s.seasonal_component ?? 0,
+      holidays: s.holidays_component ?? 0,
+      yearly: s.yearly_component ?? 0,
+      weekly: s.weekly_component ?? 0,
+    }));
+  }, [data, resolution]);
 
   const showCharts = chartData.length > 0 && !loading;
 
-  const trendIcon = data?.trend_direction === "up" ? (
-    <TrendingUp className="w-8 h-8 text-emerald-500" />
-  ) : data?.trend_direction === "down" ? (
-    <TrendingDown className="w-8 h-8 text-red-500" />
-  ) : (
-    <Activity className="w-8 h-8 text-blue-400" />
-  );
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Forecasting Report</h1>
-          <p className="text-gray-500 mt-1">
-            Analyze projected sales intervals and revenue growth for the upcoming period.
+          <h1 className="text-4xl font-black tracking-tight text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900">
+            Forecasting Report
+          </h1>
+          <p className="text-gray-500 mt-2 font-medium flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-500" />
+            Prophet AI Additive Model: <code className="bg-gray-100 px-2 py-0.5 rounded text-indigo-700">y(t) = g(t) + s(t) + h(t) + ε</code>
           </p>
-          {data?.served_from_cache && data?.cache_generated_at && (
-            <p className="mt-2 text-xs text-gray-400 font-medium">
-              Data snapshot from {new Date(data.cache_generated_at).toLocaleString()}
-            </p>
-          )}
+        </div>
+
+        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
+          {(["7d", "30d", "1y"] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setResolution(r)}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                resolution === r
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              {r === "7d" ? "Next 7 Days" : r === "30d" ? "Monthly View" : "Annual View"}
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-white to-sky-50 p-6 rounded-3xl shadow-sm border border-sky-100 flex flex-col justify-center">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sky-800 font-medium tracking-wide text-sm uppercase">Current AI Predicted</span>
-            <Activity className="w-8 h-8 text-emerald-500" />
+        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform duration-500">
+            <TrendingUp size={80} />
           </div>
-          <div className="text-3xl font-extrabold text-gray-900">
-            {loading ? "…" : data?.series?.length ? formatPhp(data.series[data.series.length - 31]?.forecast_sales) : "N/A"}
+          <div className="relative z-10">
+            <span className="text-indigo-100 font-bold tracking-widest text-xs uppercase mb-2 block">Planned Revenue (30D)</span>
+            <div className="text-4xl font-black mb-2 tracking-tighter">
+              {loading ? "…" : formatPhp(data?.next_period_forecast ?? null)}
+            </div>
+            <p className="text-indigo-200 text-sm font-medium">Aggregated AI projection for the next cycle.</p>
           </div>
-          <div className="text-sm text-sky-600 mt-2 font-medium">Today's AI projected baseline</div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-gray-500 font-medium tracking-wide text-sm uppercase">Total Forecast (30D)</span>
-            <TrendingUp className="w-6 h-6 text-indigo-500" />
+        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col justify-center relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 text-emerald-500/10 group-hover:scale-110 transition-transform duration-500">
+            <Activity size={80} />
           </div>
-          <div className="text-3xl font-extrabold text-gray-900">
-            {loading ? "…" : formatPhp(data?.next_period_forecast ?? null)}
+          <div className="relative z-10">
+            <span className="text-gray-400 font-bold tracking-widest text-xs uppercase mb-2 block">Model Confidence</span>
+            <div className="text-4xl font-black text-gray-900 mb-2">
+              {loading ? "…" : data?.forecast_accuracy != null ? `${data.forecast_accuracy.toFixed(1)}%` : "N/A"}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
+                  style={{ width: `${data?.forecast_accuracy ?? 0}%` }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="text-sm text-gray-500 mt-2 font-medium">AI-projected revenue generation</div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-gray-500 font-medium tracking-wide text-sm uppercase">AI Confidence</span>
-            <Activity className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-gray-900">
-            {loading
-              ? "…"
-              : data?.forecast_accuracy != null
-                ? `${data.forecast_accuracy.toFixed(1)}%`
-                : "N/A"}
-          </div>
-          <div className="text-sm text-gray-500 mt-2 font-medium">Statistical model confidence score</div>
+        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col justify-center">
+            <span className="text-gray-400 font-bold tracking-widest text-xs uppercase mb-2 block">Forecast Engine</span>
+            <div className="text-2xl font-black text-gray-900 mb-1 capitalize">
+              {data?.forecast_engine || "Prophet AI"}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Operational</span>
+            </div>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm font-medium">
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+            <div className="absolute inset-0 bg-indigo-600/20 blur-xl rounded-full" />
+          </div>
+          <span className="font-bold text-gray-400 animate-pulse tracking-widest uppercase text-xs">Synthesizing Prophet Model…</span>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="rounded-3xl border-2 border-red-100 bg-red-50/50 p-6 text-red-800 text-sm font-bold flex items-center gap-4">
+          <div className="p-3 bg-red-100 rounded-2xl"><TrendingDown className="w-6 h-6" /></div>
           {error}
         </div>
       )}
 
-      {loading && (
-        <div className="flex items-center justify-center py-20 text-gray-500 gap-3">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span className="font-medium">Synthesizing forecast patterns…</span>
-        </div>
-      )}
-
       {!loading && !error && showCharts && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">
-              Sales Performance Forecast
-            </h2>
-            <p className="text-sm text-gray-500 max-w-2xl">
-              Actual daily sales data compared against AI projections and historical patterns.
-            </p>
+        <div className="space-y-8">
+          {/* Main Forecast Chart */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden relative group">
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Main Sales Interval</h2>
+                <p className="text-sm font-medium text-gray-400">Actual vs Predicted with Confidence Intervals</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-2xl text-gray-400 group-hover:text-indigo-600 transition-colors">
+                 <Calendar className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="h-[450px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                  <defs>
+                    <linearGradient id="colorInterval" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis 
+                    dataKey="label" 
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={10}
+                  />
+                  <YAxis 
+                    tickFormatter={(v) => `₱${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
+                    contentStyle={{ borderRadius: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                    formatter={(v: number, name: string) => [formatPhp(v), name]}
+                  />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    height={40} 
+                    iconType="circle"
+                    formatter={(val) => <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{val}</span>}
+                  />
+                  
+                  {/* Confidence Interval Area */}
+                  <Area
+                    type="monotone"
+                    dataKey="interval"
+                    stroke="none"
+                    fill="url(#colorInterval)"
+                    name="Confidence Band"
+                    activeDot={false}
+                    tooltipType="none"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="actual_sales"
+                    name="Observed"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                    connectNulls
+                  />
+                  
+                  <Line
+                    type="monotone"
+                    dataKey="forecast_sales"
+                    name="AI Predicted"
+                    stroke="#6366f1"
+                    strokeWidth={3}
+                    strokeDasharray="6 6"
+                    dot={false}
+                    activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
+                  />
+
+                  <Brush 
+                    dataKey="date" 
+                    height={40} 
+                    stroke="#e2e8f0" 
+                    fill="#fff"
+                    travellerWidth={12}
+                  >
+                    <ComposedChart data={chartData}>
+                       <Area type="monotone" dataKey="forecast_sales" fill="#6366f1" fillOpacity={0.1} stroke="none" />
+                    </ComposedChart>
+                  </Brush>
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="h-[430px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 60, right: 30, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                  dy={10}
-                />
-                <YAxis
-                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number, name: string) => [formatPhp(v), name]}
-                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-                />
-                <Legend 
-                  iconType="circle" 
-                  wrapperStyle={{ paddingTop: '20px' }} 
-                  payload={[
-                    { value: 'AI Prediction', type: 'line', color: '#f97316' },
-                    { value: 'Actual Sales', type: 'circle', color: '#3b82f6' },
-                    { value: 'Confidence Interval', type: 'rect', color: '#f97316' }
-                  ]}
-                />
+          {/* Decomposition Chart */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden relative group">
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight font-serif italic">Model Decomposition</h2>
+                <p className="text-sm font-medium text-gray-400">Additive components: Trend + Seasonality + Holidays</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-2xl text-gray-400 group-hover:text-indigo-600 transition-colors">
+                 <Layers className="w-6 h-6" />
+              </div>
+            </div>
 
-                {/* Confidence Interval (Base Layer) */}
-                <Area
-                  type="monotone"
-                  dataKey="interval"
-                  stroke="none"
-                  fill="#f97316"
-                  fillOpacity={0.15}
-                  name="Confidence Interval"
-                  tooltipType="none"
-                />
+            <div className="h-[450px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis 
+                    dataKey="label" 
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={10}
+                  />
+                  <YAxis 
+                    tickFormatter={(v) => `₱${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                    formatter={(v: number, name: string) => [formatPhp(v), name]}
+                  />
+                  <Legend 
+                     verticalAlign="top" 
+                     align="right" 
+                     height={40} 
+                     iconType="circle"
+                     formatter={(val) => <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{val}</span>}
+                  />
+                  
+                  <Line
+                    type="monotone"
+                    dataKey="trend"
+                    name="Trend [g(t)]"
+                    stroke="#6366f1"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                  
+                  <Line
+                    type="monotone"
+                    dataKey="seasonal"
+                    name="Seasonality [s(t)]"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={false}
+                  />
 
-                <Line
-                  type="monotone"
-                  dataKey="actual_sales"
-                  name="Actual Sales"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="forecast_sales"
-                  name="AI Prediction"
-                  stroke="#f97316"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={(props: any) => {
-                    const { cx, cy, index } = props;
-                    if (index === chartData.length - 1) {
-                      return (
-                        <circle key="last-dot" cx={cx} cy={cy} r={6} fill="#f97316" stroke="white" strokeWidth={2} />
-                      );
-                    }
-                    return <g key={`dot-${index}`} />;
-                  }}
-                  activeDot={{ r: 6 }}
-                />
+                  <Area
+                    type="step"
+                    dataKey="holidays"
+                    name="Holidays [h(t)]"
+                    fill="#ec4899"
+                    fillOpacity={0.4}
+                    stroke="#ec4899"
+                    strokeWidth={1}
+                  />
 
-                {/* Annotations matching reference image */}
-                <>
-                  {/* Last AI Predicted Point */}
-                  {chartData.length > 0 && (
-                    <ReferenceLine 
-                      x={chartData[chartData.length - 1]?.label} 
-                      stroke="#f97316" 
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                    >
-                      <Label 
-                        value="AI PREDICTED SALES" 
-                        position="insideTopRight" 
-                        dx={-10}
-                        dy={-30}
-                        style={{ 
-                          fontSize: '11px', 
-                          fontWeight: 700, 
-                          fill: '#f97316',
-                          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                      />
-                    </ReferenceLine>
-                  )}
-                </>
-              </ComposedChart>
-            </ResponsiveContainer>
+                  <Brush dataKey="date" height={30} stroke="#e2e8f0" fill="#fff" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-
-          {/* Key Legend explanation removed */}
         </div>
       )}
 
-      {/* Simplified Product Demand Section - Just a minimal highlight */}
-      {!loading && !error && data?.product_forecasts && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-50">
-            <h2 className="text-lg font-bold text-gray-900">Quick Velocity Scan (Top Expected)</h2>
-            <p className="text-sm text-gray-500">Highest predicted 30-day demand from your catalog.</p>
+      {/* Product Highlight */}
+      {!loading && !error && data?.product_forecasts && resolution !== "1y" && (
+        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">Demand Velocity Scan</h2>
+              <p className="text-sm font-medium text-gray-400">Products with highest 30-day projected throughput.</p>
+            </div>
+            <div className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest">
+              Catalog Insights
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50">
-                  <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">30d Demand</th>
+                <tr className="bg-white">
+                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Product Name</th>
+                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center">Confidence</th>
+                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">30d Demand Estimate</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.product_forecasts.slice(0, 5).map(p => (
-                  <tr key={p.product_id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-6 font-medium text-gray-900">{p.product_name}</td>
-                    <td className="py-4 px-6 text-right font-bold text-indigo-600">{p.predicted_demand_30d.toFixed(0)} units</td>
+                {data.product_forecasts.slice(0, 6).map(p => (
+                  <tr key={p.product_id} className="hover:bg-indigo-50/30 transition-all duration-300 group">
+                    <td className="py-6 px-8">
+                      <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-sm">{p.product_name}</div>
+                    </td>
+                    <td className="py-6 px-8">
+                        <div className="flex items-center justify-center gap-2">
+                             <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500" style={{ width: `${p.confidence * 100}%` }} />
+                             </div>
+                             <span className="text-[10px] font-black text-gray-400">{(p.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                    </td>
+                    <td className="py-6 px-8 text-right">
+                       <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-sm">
+                         {p.predicted_demand_30d.toFixed(0)} units
+                         <TrendingUp className="w-4 h-4" />
+                       </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

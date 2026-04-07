@@ -110,7 +110,12 @@ def build_sales_series(
 ) -> Tuple[List[ForecastSeriesPoint], str, Optional[float], Optional[float], str]:
     prophet = run_prophet_daily_forecast(start, days, actuals)
     if prophet is not None:
-        yhat, yhat_lo, yhat_hi, tr, wk, next_30d, acc, trend_dir, fyhat, flo, fhi, ftrend = prophet
+        (
+            yhat, yhat_lo, yhat_hi, 
+            tr, wk, yr, seas, hols, 
+            next_30d, acc, trend_dir, 
+            fyhat, flo, fhi, ftrend, fwk, fyr, fseas, fhols
+        ) = prophet
         fa: Optional[float] = None
         try:
             acc_f = float(acc)
@@ -119,7 +124,7 @@ def build_sales_series(
             pass
         
         series: List[ForecastSeriesPoint] = []
-        # 1. Historical loop (Populate both for comparison)
+        # 1. Historical loop
         for i in range(days):
             d = start + timedelta(days=i)
             series.append(
@@ -131,7 +136,10 @@ def build_sales_series(
                     upper_bound=float(max(0.0, yhat_hi[i])),
                     trend_component=float(tr[i]),
                     weekly_component=float(wk[i]),
-                    smoothed_sales=float(tr[i]), # Use TRUE TREND for smooth view
+                    yearly_component=float(yr[i]),
+                    seasonal_component=float(seas[i]),
+                    holidays_component=float(hols[i]),
+                    smoothed_sales=float(tr[i]), 
                     event_icon=None,
                 )
             )
@@ -139,7 +147,6 @@ def build_sales_series(
         # 2. Future loop
         for i in range(len(fyhat)):
             d = start + timedelta(days=days + i)
-            s_val = float(ftrend[i]) if i < len(ftrend) else float(fyhat[i])
             series.append(
                 ForecastSeriesPoint(
                     date=d.isoformat(),
@@ -147,9 +154,12 @@ def build_sales_series(
                     forecast_sales=float(max(0.0, fyhat[i])),
                     lower_bound=float(max(0.0, flo[i])),
                     upper_bound=float(max(0.0, fhi[i])),
-                    trend_component=None,
-                    weekly_component=None,
-                    smoothed_sales=s_val,
+                    trend_component=float(ftrend[i]),
+                    weekly_component=float(fwk[i]),
+                    yearly_component=float(fyr[i]),
+                    seasonal_component=float(fseas[i]),
+                    holidays_component=float(fhols[i]),
+                    smoothed_sales=float(ftrend[i]),
                     event_icon="ai_predicted",
                 )
             )

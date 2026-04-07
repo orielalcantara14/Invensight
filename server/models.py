@@ -617,6 +617,9 @@ class ForecastSeriesPoint(BaseModel):
     upper_bound: Optional[float] = None
     trend_component: Optional[float] = None
     weekly_component: Optional[float] = None
+    yearly_component: Optional[float] = None
+    seasonal_component: Optional[float] = None
+    holidays_component: Optional[float] = None
     smoothed_sales: Optional[float] = None
     event_icon: Optional[str] = None
 

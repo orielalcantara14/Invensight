@@ -517,6 +517,9 @@ export interface ForecastSeriesPoint {
   upper_bound: number;
   trend_component?: number | null;
   weekly_component?: number | null;
+  yearly_component?: number | null;
+  seasonal_component?: number | null;
+  holidays_component?: number | null;
   smoothed_sales?: number | null;
   event_icon?: string | null;
 }
