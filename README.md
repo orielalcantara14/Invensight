@@ -4,6 +4,10 @@ Inventory Management System with Sales Forecasting and POS Terminal integration.
 
 ## Team Setup Guide
 
+See the [TEAM_SETUP_GUIDE.md](file:///c:/Users/USER/Desktop/InvenSight/TEAM_SETUP_GUIDE.md) for a comprehensive, step-by-step setup for both Docker and Native (manual) environments.
+
+---
+
 To get this project running on your machine with the shared database:
 
 ### 1. Prerequisites
