@@ -18,6 +18,7 @@ from psycopg2.extras import Json
 
 from analytics_engine import assemble_sales_forecast, assemble_stock_prediction
 from database import get_connection
+from routers.notifications import dispatch_notification
 from models import SalesForecastResponse, StockPredictionResponse
 
 log = logging.getLogger("invensight.analytics_cache")

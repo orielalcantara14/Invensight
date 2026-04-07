@@ -65,7 +65,7 @@ const TABS: { key: ArchiveTab; label: string; icon: React.ElementType }[] = [
   { key: "products",        label: "Products",        icon: Package    },
   { key: "suppliers",       label: "Suppliers",       icon: Truck      },
   { key: "orders",          label: "Order List",      icon: FileText   },
-  { key: "product-returns", label: "Product Returns", icon: Archive    },
+  { key: "product-returns", label: "Supplier Returns", icon: Archive    },
 ];
 
 export function ArchivePage() {

@@ -171,8 +171,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...(options?.headers as Record<string, string> | undefined),
   };
 
-  // Automatically attach actor ID for audit logging if session exists
-  if (mutagenic && !headers["X-Actor-User-Id"]) {
+  // Automatically attach actor ID if session exists
+  if (!headers["X-Actor-User-Id"]) {
     const session = getSession();
     if (session?.user_id) {
       headers["X-Actor-User-Id"] = String(session.user_id);
@@ -375,7 +375,7 @@ export interface InventoryDiscrepancyPayload {
   reason: string;
 }
 
-// ── Product Returns ─────────────────────────────────────────────────────────
+// ── Supplier Returns ─────────────────────────────────────────────────────────
 
 export interface ProductReturnItem {
   item_id: number;
@@ -599,6 +599,11 @@ export interface AnalyticsModelStatusGroup {
 }
 
 export const api = {
+  get: <T>(path: string) => request<T>(path),
+  put: <T>(path: string, body?: any) => request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  post: <T>(path: string, body?: any) => request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  
   getDashboardStats: (view?: string) => request<DashboardStats>(`/api/dashboard/stats${view ? `?view=${view}` : ""}`),
   getAnalyticsOverview: () => request<AnalyticsOverview>("/api/analytics/overview"),
   getSalesForecast: (days = 90, options?: { useCache?: boolean }) =>

@@ -48,8 +48,8 @@ export function ProductReturns() {
       setSuppliers(suppliersRes);
       setProducts(productsRes);
     } catch (error) {
-      console.error("Failed to load product returns:", error);
-      toast.error("Failed to load product returns");
+      console.error("Failed to load supplier returns:", error);
+      toast.error("Failed to load supplier returns");
     } finally {
       setLoading(false);
     }
@@ -139,12 +139,12 @@ export function ProductReturns() {
       const res = await api.createProductReturn(payload);
       if (!res.ok) throw new Error("Failed to create return");
 
-      toast.success("Product return created successfully");
+      toast.success("Supplier return created successfully");
       setShowCreateModal(false);
       setNewReturn({ supplier_id: 0, reason: "", items: [] });
       await fetchAll();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create product return");
+      toast.error(error?.message || "Failed to create supplier return");
     }
   };
 
@@ -203,7 +203,7 @@ export function ProductReturns() {
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Product Returns</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Supplier Returns</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Allocate damaged/defective items for return to supplier</p>
         </div>
         <button
@@ -386,7 +386,7 @@ export function ProductReturns() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Product Return</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Supplier Return</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

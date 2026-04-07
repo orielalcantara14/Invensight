@@ -18,6 +18,7 @@ import { Users } from "./components/pages/Users";
 import { AuditLog } from "./components/pages/AuditLog";
 import { Profile } from "./components/pages/Profile";
 import { Settings } from "./components/pages/Settings";
+import { Notifications } from "./components/pages/Notifications";
 import { NotFound } from "./components/pages/NotFound";
 import { ArchivePage } from "./components/pages/Archive";
 import { POS } from "./components/pos/POS";
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
       { path: "archive", Component: ArchivePage },
       { path: "profile", Component: Profile },
       { path: "settings", Component: Settings },
+      { path: "notifications", Component: Notifications },
       { path: "*", Component: NotFound },
     ],
   },

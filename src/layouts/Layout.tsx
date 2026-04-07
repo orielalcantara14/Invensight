@@ -30,8 +30,7 @@ export function Layout() {
   const session = getSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const notificationsRef = useRef<HTMLDivElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const displayName = session?.full_name?.trim() || session?.username || "User";
   const roleLabel = session?.role || "—";
@@ -44,18 +43,18 @@ export function Layout() {
   }, [session, navigate]);
 
   useEffect(() => {
-    if (!notificationsOpen) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (
-        notificationsRef.current &&
-        !notificationsRef.current.contains(e.target as Node)
-      ) {
-        setNotificationsOpen(false);
+    const fetchCount = async () => {
+      try {
+        const res = await api.get<{is_read: boolean}[]>("/api/notifications");
+        setUnreadCount(res.filter((n) => !n.is_read).length);
+      } catch (e) {
+        console.error(e);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [notificationsOpen]);
+    fetchCount();
+    const inv = setInterval(fetchCount, 30000);
+    return () => clearInterval(inv);
+  }, []);
 
   const navigation = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -296,60 +295,19 @@ export function Layout() {
                 </div>
               </Link>
 
-              <div className="relative flex items-center" ref={notificationsRef}>
-                <button
-                  type="button"
-                  onClick={() => setNotificationsOpen((o) => !o)}
+              <div className="relative flex items-center">
+                <Link
+                  to="/notifications"
                   className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-gray-50 hover:text-slate-800"
-                  aria-expanded={notificationsOpen}
-                  aria-haspopup="true"
                   aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" strokeWidth={2} />
-                  <span className="absolute -right-0.5 -top-0.5 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
-                    5
-                  </span>
-                </button>
-
-              {notificationsOpen ? (
-                <div
-                  className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,20rem)] rounded-xl border border-gray-200 bg-white py-2 shadow-lg ring-1 ring-black/5"
-                  role="dialog"
-                  aria-label="Notifications"
-                >
-                  <div className="border-b border-gray-100 px-4 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Notifications
-                    </p>
-                  </div>
-                  <ul className="max-h-72 overflow-y-auto text-sm">
-                    {[
-                      "Low stock: 3 items below reorder level",
-                      "New order #1042 pending confirmation",
-                      "Weekly sales report is ready",
-                      "Backup completed successfully",
-                      "System maintenance scheduled Sunday 2am",
-                    ].map((text, i) => (
-                      <li
-                        key={i}
-                        className="border-b border-gray-50 px-4 py-3 last:border-0 hover:bg-gray-50"
-                      >
-                        <p className="text-gray-800">{text}</p>
-                        <p className="mt-0.5 text-xs text-gray-400">Just now</p>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="border-t border-gray-100 px-4 py-2">
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
-                      onClick={() => setNotificationsOpen(false)}
-                    >
-                      Mark all as read
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
               </div>
             </div>
 

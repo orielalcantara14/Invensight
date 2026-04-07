@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Printer, RefreshCw, AlertCircle, ArrowLeft, CreditCard, Smartphone, User, Phone, MapPin, X, CheckCircle2, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/services/api";
 import { getSession, clearSession } from "@/auth/session";
 import type { Product, Category, Terminal, Supplier } from "@/services/api";
@@ -22,6 +22,9 @@ interface SaleResult {
   total_amount: number;
   cash_received: number;
   change: number;
+  change_amount?: number;
+  cash_given?: number;
+  ewallet_amount?: number;
   payment_method?: string;
 }
 
@@ -126,13 +129,15 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
           <div className="col-span-2 text-right">Total</div>
         </div>
         {cartItems.map((item, idx) => {
-          const price = getPosPrice(item.product);
+          const product = item?.product;
+          if (!product) return null;
+          const price = getPosPrice(product);
           const total = price * item.quantity;
           return (
-            <div key={item.product.product_id} className="text-[11px] mb-2 border-b border-gray-50 pb-1 last:border-0">
-              <div className="font-bold leading-tight">{idx + 1}. {item.product.product_name}</div>
+            <div key={product.product_id} className="text-[11px] mb-2 border-b border-gray-50 pb-1 last:border-0">
+              <div className="font-bold leading-tight">{idx + 1}. {product.product_name || "Unknown"}</div>
               <div className="grid grid-cols-12 gap-1 text-gray-600 mt-0.5">
-                <div className="col-span-6 pl-3 text-[9px] truncate">[{item.product.sku}]</div>
+                <div className="col-span-6 pl-3 text-[9px] truncate">[{product.sku || ""}]</div>
                 <div className="col-span-2 text-center">{item.quantity}</div>
                 <div className="col-span-2 text-right">{fmt(price)}</div>
                 <div className="col-span-2 text-right font-bold text-black">{fmt(total)}</div>
@@ -165,17 +170,37 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
         {/* Payment */}
         <div className="font-bold uppercase text-[10px] mb-1">Payment Details:</div>
         <div className="text-[11px] space-y-0.5">
-          <div className="flex justify-between">
-            <span>Method</span>
-            <span>{result.payment_method || "Cash"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Paid</span>
-            <span>{fmt(result.cash_received)}</span>
-          </div>
+          {result.payment_method === "Split" ? (
+            <>
+              <div className="flex justify-between">
+                <span>Method</span>
+                <span>Split (Cash + E-Wal)</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-100 pt-1 mt-1">
+                <span>Cash</span>
+                <span>{fmt(result.cash_given || result.cash_received)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>E-Wallet</span>
+                <span>{fmt(result.ewallet_amount || (result.total_amount - (result.cash_given || 0)))}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span>Method</span>
+                <span>{result.payment_method || "Cash"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Paid</span>
+                <span>{fmt(result.cash_given || result.cash_received)}</span>
+              </div>
+            </>
+          )}
+
           <div className="flex justify-between font-bold pt-1 border-t border-gray-100">
             <span>CHANGE</span>
-            <span>{fmt(result.change)}</span>
+            <span>{fmt(result.change || result.change_amount || 0)}</span>
           </div>
         </div>
       </div>
@@ -191,6 +216,7 @@ function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
 
 export function POS() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const session = getSession();
   const currentRole = (session?.role ?? "").trim().toLowerCase();
   const currentUser = {
@@ -222,6 +248,7 @@ export function POS() {
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [cashInput, setCashInput] = useState("");
+  const [numpadTarget, setNumpadTarget] = useState<"cash" | "partialCash" | "partialEWallet">("cash");
 
   const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [partialCash, setPartialCash] = useState("");
@@ -241,6 +268,7 @@ export function POS() {
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "success" | "failed" | "expired">("pending");
   const [paymongoSessionId, setPaymongoSessionId] = useState<string | null>(null);
   const [paymongoCheckoutUrl, setPaymongoCheckoutUrl] = useState<string | null>(null);
+  const hasProcessedPayment = useRef(false);
 
   const subtotal = cartItems.reduce((sum, i) => sum + (getPosPrice(i?.product) || 0) * (i?.quantity || 0), 0);
   const taxAmount = subtotal * TAX_RATE;
@@ -372,18 +400,31 @@ export function POS() {
 
   const handleNumpad = (val: string) => {
     if (val === "DELETE") {
-      setCashInput(prev => prev.slice(0, -1));
+      if (numpadTarget === "cash") setCashInput(prev => prev.slice(0, -1));
+      else if (numpadTarget === "partialCash") handlePartialCashChange(partialCash.slice(0, -1));
+      else if (numpadTarget === "partialEWallet") handlePartialEWalletChange(partialEWallet.slice(0, -1));
     } else if (val === "CANCEL") {
-      setCashInput("");
-      setPaymentMethod("Cash");
+      if (numpadTarget === "cash") { setCashInput(""); setPaymentMethod("Cash"); }
+      else if (numpadTarget === "partialCash") handlePartialCashChange("");
+      else if (numpadTarget === "partialEWallet") handlePartialEWalletChange("");
     } else if (val === "ENTER") {
-      if (!processing && cartItems.length > 0 && (paymentMethod !== "Cash" || sufficient)) {
+      if (!processing && cartItems.length > 0) {
         handleConfirmSale();
       }
     } else {
-      if (val === "." && cashInput.includes(".")) return;
-      if (val === "00" && (!cashInput || cashInput === "0")) return;
-      setCashInput(prev => prev + val);
+      if (numpadTarget === "cash") {
+        if (val === "." && cashInput.includes(".")) return;
+        if (val === "00" && (!cashInput || cashInput === "0")) return;
+        setCashInput(prev => prev + val);
+      } else if (numpadTarget === "partialCash") {
+        if (val === "." && partialCash.includes(".")) return;
+        if (val === "00" && (!partialCash || partialCash === "0")) return;
+        handlePartialCashChange(partialCash + val);
+      } else if (numpadTarget === "partialEWallet") {
+        if (val === "." && partialEWallet.includes(".")) return;
+        if (val === "00" && (!partialEWallet || partialEWallet === "0")) return;
+        handlePartialEWalletChange(partialEWallet + val);
+      }
     }
   };
 
@@ -426,18 +467,32 @@ export function POS() {
         setProcessing(true);
         const ewalletAmountToSend = finalMethod === "Split" ? ewalletVal : grandTotal;
 
-        // For partial payments, we send a single summarized item to ensure PayMongo UI matches the amount
+        const eWalletCentavos = Math.round(ewalletAmountToSend * 100);
+        const lineItems = cartItems.map(item => ({
+          name: item.product.product_name,
+          amount: Math.round(getPosPrice(item.product) * 100),
+          quantity: item.quantity
+        }));
+        
+        const sumOfLineItems = lineItems.reduce((acc, i) => acc + (i.amount * i.quantity), 0);
+        const taxCentavos = eWalletCentavos - sumOfLineItems;
+
+        // For partial payments, we send a single summarized item to ensure PayMongo UI matches the amount.
+        // For full payments, PayMongo expects the sum of line items to precisely match the total checkout amount, so we append the tax difference as its own line item.
         const paymongoItems = finalMethod === "Split"
           ? [{
             name: `POS Sale - Remaining Balance`,
-            amount: Math.round(ewalletAmountToSend * 100),
+            amount: eWalletCentavos,
             quantity: 1
           }]
-          : cartItems.map(item => ({
-            name: item.product.product_name,
-            amount: Math.round(getPosPrice(item.product) * 100),
-            quantity: item.quantity
-          }));
+          : [
+              ...lineItems,
+              ...(taxCentavos > 0 ? [{
+                name: "VAT (3%)",
+                amount: taxCentavos,
+                quantity: 1
+              }] : [])
+            ];
 
         const sessionRes = await api.createPayMongoCheckoutSession({
           amount: Math.round(ewalletAmountToSend * 100),
@@ -543,14 +598,44 @@ export function POS() {
       setContactNumber(storedCData?.contact || "");
       setAddress(storedCData?.address || "");
 
-      if (storedCData?.method === "Split") {
-        setIsPartialPayment(true);
-        setTimeout(() => {
-          setPartialCash(storedCData?.cashAmount?.toString() || "0.00");
-          setPartialEWallet(storedCData?.ewalletAmount?.toString() || "0.00");
-        }, 100);
+      if (!storedCData || !storedCartItems) {
+        localStorage.removeItem("invensight_pending_sale");
+        return;
+      }
+
+      setCartItems(storedCartItems);
+      setCustomerNameData(storedCData);
+      
+      if (storedCData && storedCData.method === "Split") {
+        setPaymentMethod("Split");
       } else {
         setPaymentMethod(storedCData?.method || "Cash");
+      }
+
+      try {
+        await api.createSale({
+          pos_terminal_id: terminal?.terminal_id ?? 1,
+          user_id: currentUser.user_id,
+          customer_info: storedCData.name || "Walk-in Customer",
+          customer_name: storedCData.name,
+          contact_number: storedCData.contact,
+          address: storedCData.address,
+          payment_method: storedCData.method,
+          cash_received: storedCData.cashReceived || 0,
+          cash_amount: storedCData.cashAmount || 0,
+          ewallet_amount: storedCData.ewalletAmount || 0,
+          service_charge: 0,
+          items: (storedCartItems || []).map((i: any) => ({
+            product_id: i.product?.product_id || 0,
+            quantity: i.quantity || 0,
+            unit_price: getPosPrice(i.product),
+          })),
+          paymongo_source_id: sessionId,
+          payment_status: "Failed",
+          failure_reason: "PayMongo session cancelled or failed"
+        });
+      } catch (err) {
+        console.error("Failed to record failed sale attempt", err);
       }
 
       localStorage.removeItem("invensight_pending_sale");
@@ -625,18 +710,22 @@ export function POS() {
 
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("payment") === "success") {
-        handlePayMongoSuccess();
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (params.get("payment") === "failed") {
-        handlePayMongoFailure();
-        window.history.replaceState({}, document.title, window.location.pathname);
+      const paymentStatus = searchParams.get("payment");
+      if (paymentStatus && !hasProcessedPayment.current) {
+        hasProcessedPayment.current = true;
+        if (paymentStatus === "success") {
+          handlePayMongoSuccess();
+        } else if (paymentStatus === "failed") {
+          handlePayMongoFailure();
+        }
+        searchParams.delete("payment");
+        setSearchParams(searchParams, { replace: true });
       }
     } catch (e) {
       console.error("Critical error in payment param handler:", e);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, setSearchParams]);
 
   if (saleResult) {
     return <Receipt result={saleResult} cartItems={cartItems} terminal={terminal} onNewSale={clearCart} />;
@@ -644,46 +733,114 @@ export function POS() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 flex-col sm:flex-row font-sans">
-      {/* ====== LEFT: Checkout Panel ====== */}
-      <div className="w-full sm:w-[450px] shadow-lg z-10 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
+      {/* ====== LEFT: Products Panel ====== */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white z-0">
+        <div className="p-4 border-b border-gray-100 bg-white flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input type="text" placeholder="SEARCH PRODUCT..." value={searchName} onChange={e => setSearchName(e.target.value)} className="w-full bg-gray-50 border-none rounded-xl py-3 pl-10 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-gray-300" />
+          </div>
+          <select value={searchCategory} onChange={e => setSearchCategory(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
+            <option value="">ALL CATEGORIES</option>
+            {categories.map(cat => <option key={cat.category_id} value={cat.category_name}>{cat.category_name}</option>)}
+          </select>
+          <select value={searchSupplier} onChange={e => setSearchSupplier(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
+            <option value="">ALL SUPPLIERS</option>
+            {suppliers.map(sup => <option key={sup.supplier_id} value={sup.supplier_name}>{sup.supplier_name}</option>)}
+          </select>
+        </div>
+        <div className="px-6 py-4 bg-gray-50 grid grid-cols-12 gap-4 text-xs font-black text-gray-500 uppercase tracking-wider border-b border-gray-100">
+          <div className="col-span-4">Product Details</div>
+          <div className="col-span-2">Category</div>
+          <div className="col-span-2">Supplier</div>
+          <div className="col-span-1 text-center">Stock</div>
+          <div className="col-span-2 text-right">Price</div>
+          <div className="col-span-1"></div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto bg-white px-2">
+          {loading ? (
+             <div className="flex items-center justify-center h-40 text-gray-400 text-sm font-bold animate-pulse uppercase">Syncing Catalog...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+              <ShoppingCart className="w-24 h-24 mb-4 opacity-20" />
+              <p className="font-black text-sm uppercase tracking-wide">No items found</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {filteredProducts.map(product => (
+                <div key={product.product_id} className="grid grid-cols-12 gap-4 items-center px-4 py-5 hover:bg-blue-50/80 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
+                  <div className="col-span-4">
+                    <div className="text-sm sm:text-base font-black text-gray-800 uppercase group-hover:text-blue-600 transition-colors truncate">{product.product_name}</div>
+                    <div className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">{product.sku}</div>
+                  </div>
+                  <div className="col-span-2 text-xs sm:text-sm font-bold text-gray-500 uppercase truncate">{product.category_name}</div>
+                  <div className="col-span-2 text-xs sm:text-sm font-bold text-gray-500 uppercase truncate">{product.supplier_name}</div>
+                  <div className="col-span-1 text-sm font-black text-center">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full",
+                      (product.quantity || 0) <= 5 ? "bg-red-100 text-red-600" : (product.quantity || 0) <= 10 ? "bg-orange-100 text-orange-600" : "text-gray-900 bg-gray-100"
+                    )}>
+                      {product.quantity ?? 0}
+                    </span>
+                  </div>
+                  <div className="col-span-2 text-right text-base font-black text-gray-900 pr-2">₱ {fmt(getPosPrice(product))}</div>
+                  <div className="col-span-1 text-right">
+                    <button className="w-10 h-10 flex items-center justify-center bg-gray-100 group-hover:bg-blue-600 group-hover:text-white rounded-full transition-all shadow-sm">
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+    
+      {/* ====== RIGHT: Checkout Panel ====== */}
+      <div className="w-full sm:w-[450px] shadow-lg z-10 bg-white flex flex-col border-l border-gray-200 flex-shrink-0">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-blue-600 tracking-tight">CheckOut</h1>
+          </div>
           <div className="flex items-center gap-2">
             {currentRole === "cashier" ? (
               <button onClick={handleLogout} className="text-red-500 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50 flex items-center gap-1 font-bold text-[10px] uppercase group">
-                <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Logout
+                <LogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" /> Logout
               </button>
             ) : (
               <button onClick={() => navigate("/sales")} className="text-gray-500 hover:text-gray-800 transition-colors p-1 rounded hover:bg-gray-100 flex items-center gap-1 font-bold text-[10px] uppercase">
                 <ArrowLeft className="w-5 h-5" /> Back
               </button>
             )}
-            <h1 className="text-2xl font-black text-blue-600 tracking-tight">CheckOut</h1>
           </div>
-          {cartItems.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 mr-4">
-                <input type="checkbox" id="partial-toggle" checked={isPartialPayment} onChange={(e) => setIsPartialPayment(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
-                <label htmlFor="partial-toggle" className="text-xs font-bold text-gray-700 cursor-pointer">PARTIAL</label>
-              </div>
-              <button onClick={clearCart} className="text-xs text-red-500 font-bold hover:bg-red-50 px-2 py-1 rounded uppercase">CLEAR</button>
-            </div>
-          )}
         </div>
+        
+        {cartItems.length > 0 && (
+          <div className="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center group">
+            <div className="flex items-center gap-1 ml-2">
+              <input type="checkbox" id="partial-toggle" checked={isPartialPayment} onChange={(e) => setIsPartialPayment(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+              <label htmlFor="partial-toggle" className="text-xs font-bold text-gray-700 cursor-pointer">PARTIAL SECURE</label>
+            </div>
+            <button onClick={clearCart} className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1.5 rounded uppercase mr-2">CLEAR CART</button>
+          </div>
+        )}
 
-        <div className="p-4 gap-2 bg-white border-b border-gray-100 flex flex-col">
+        <div className="p-4 gap-3 bg-white border-b border-gray-100 flex flex-col">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Customer</label>
-              <input type="text" placeholder="Walk-in" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" />
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Customer</label>
+              <input type="text" placeholder="Walk-in" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Contact (Optional)</label>
-              <input type="text" placeholder="+639..." value={contactNumber} onChange={e => setContactNumber(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" />
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contact (Optional)</label>
+              <input type="text" placeholder="+639..." value={contactNumber} onChange={e => setContactNumber(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Address (Optional)</label>
-            <input type="text" placeholder="Complete Address" value={address} onChange={e => setAddress(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" />
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Address (Optional)</label>
+            <input type="text" placeholder="Complete Address" value={address} onChange={e => setAddress(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
           </div>
         </div>
 
@@ -696,24 +853,24 @@ export function POS() {
           ) : (
             <div className="space-y-1">
               {cartItems.map(item => (
-                <div key={item.product?.product_id} className="bg-white p-3 border border-gray-100 flex items-center justify-between group">
-                  <div className="flex-1 min-w-0 pr-4">
+                <div key={item.product?.product_id} className="bg-white p-2 border border-gray-100 flex items-center justify-between group">
+                  <div className="flex-1 min-w-0 pr-2">
                     <div className="font-bold text-gray-800 text-xs uppercase truncate">{item.product.product_name}</div>
-                    <div className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-tighter">{item.product.sku}</div>
+                    <div className="text-[9px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">{item.product.sku}</div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                       <button onClick={() => updateQty(item.product?.product_id, -1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black font-black">-</button>
                       <input
                         type="number"
                         value={item.quantity}
                         onChange={(e) => setQty(item.product?.product_id, e.target.value)}
-                        className="w-10 bg-transparent text-center text-[11px] font-black outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-8 bg-transparent text-center text-xs font-black outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button onClick={() => updateQty(item.product?.product_id, 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black font-black">+</button>
                     </div>
                     <div className="font-black text-gray-900 text-xs w-20 text-right">₱ {fmt(getPosPrice(item.product) * item.quantity)}</div>
-                    <button onClick={() => removeFromCart(item.product?.product_id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => removeFromCart(item.product?.product_id)} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}
@@ -739,14 +896,14 @@ export function POS() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Cash Amount</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="number" value={partialCash} onChange={(e) => handlePartialCashChange(e.target.value)} placeholder="0.00" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="number" value={partialCash} onChange={(e) => handlePartialCashChange(e.target.value)} onFocus={() => setNumpadTarget("partialCash")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialCash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase">E-Wallet Amount</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="number" value={partialEWallet} onChange={(e) => handlePartialEWalletChange(e.target.value)} placeholder="0.00" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="number" value={partialEWallet} onChange={(e) => handlePartialEWalletChange(e.target.value)} onFocus={() => setNumpadTarget("partialEWallet")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialEWallet" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
             </div>
@@ -756,7 +913,7 @@ export function POS() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Cash Received</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-black">₱</span>
-                  <input type="number" value={cashInput} onChange={(e) => setCashInput(e.target.value)} placeholder="0.00" className="w-full bg-gray-100 border-none rounded-xl py-3 pl-8 text-2xl font-black text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="number" value={cashInput} onChange={(e) => setCashInput(e.target.value)} onFocus={() => setNumpadTarget("cash")} placeholder="0.00" className={`w-full bg-gray-100 border-2 rounded-xl py-3 pl-8 text-2xl font-black text-gray-900 outline-none transition-colors ${numpadTarget === "cash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="w-32">
@@ -778,77 +935,32 @@ export function POS() {
             </div>
           )}
 
-          <button onClick={handleConfirmSale} disabled={processing || cartItems.length === 0 || (paymentMethod === "Cash" && !isPartialPayment && !sufficient)} className="w-full py-4 bg-[#38b75e] hover:bg-[#2fa050] text-white font-black text-xl rounded-2xl shadow-xl shadow-green-200 transition-all active:scale-[0.98] disabled:opacity-50 pulse-button">
+          
+          <div className="grid grid-cols-4 gap-1 mb-3">
+            {['7', '8', '9', 'CLR', '4', '5', '6', 'DEL', '1', '2', '3', '.', '0', '00'].map((btn) => (
+              <button
+                key={btn}
+                onClick={() => {
+                  if (btn === 'CLR') handleNumpad('CANCEL');
+                  else if (btn === 'DEL') handleNumpad('DELETE');
+                  else handleNumpad(btn);
+                }}
+                className={`py-2 rounded border-b-2 active:border-b-0 active:translate-y-0.5 transition-all font-black text-lg ${
+                  btn === 'CLR' || btn === 'DEL' 
+                    ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' 
+                    : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50 shadow-sm'
+                } ${btn === '0' ? 'col-span-2' : ''}`}
+              >
+                {btn}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleConfirmSale} disabled={processing || cartItems.length === 0 || (paymentMethod === "Cash" && !isPartialPayment && !sufficient)} className="w-full py-3 bg-[#38b75e] hover:bg-[#2fa050] text-white font-black text-lg rounded-xl shadow border-b-4 border-[#2fa050] active:border-b-0 active:translate-y-1 disabled:opacity-50 pulse-button">
             {processing ? "PROCESSING..." : "FINALIZE SALE"}
           </button>
         </div>
       </div>
 
-      {/* ====== RIGHT: Products Panel ====== */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white z-0">
-        <div className="p-4 border-b border-gray-100 bg-white grid grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="SEARCH PRODUCT..." value={searchName} onChange={e => setSearchName(e.target.value)} className="w-full bg-gray-50 border-none rounded-xl py-3 pl-10 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-gray-300" />
-          </div>
-          <select value={searchCategory} onChange={e => setSearchCategory(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
-            <option value="">ALL CATEGORIES</option>
-            {categories.map(cat => <option key={cat.category_id} value={cat.category_name}>{cat.category_name}</option>)}
-          </select>
-          <select value={searchSupplier} onChange={e => setSearchSupplier(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
-            <option value="">ALL SUPPLIERS</option>
-            {suppliers.map(sup => <option key={sup.supplier_id} value={sup.supplier_name}>{sup.supplier_name}</option>)}
-          </select>
-        </div>
-
-        <div className="px-6 py-3 bg-gray-50 grid grid-cols-12 gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
-          <div className="col-span-4">Product Details</div>
-          <div className="col-span-2">Category</div>
-          <div className="col-span-2">Supplier</div>
-          <div className="col-span-1">Stock</div>
-          <div className="col-span-2 text-right">Price</div>
-          <div className="col-span-1"></div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto bg-white px-2">
-          {loading ? (
-            <div className="flex items-center justify-center h-40 text-gray-400 text-xs font-bold animate-pulse uppercase">Syncing Catalog...</div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-200">
-              <ShoppingCart className="w-20 h-20 mb-4 opacity-10" />
-              <p className="font-black text-xs uppercase tracking-tighter">No items found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {filteredProducts.map(product => (
-                <div key={product.product_id} className="grid grid-cols-12 gap-4 items-center px-4 py-4 hover:bg-blue-50/50 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
-                  <div className="col-span-4">
-                    <div className="text-[11px] font-black text-gray-800 uppercase group-hover:text-blue-600 transition-colors uppercase truncate">{product.product_name}</div>
-                    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">{product.sku}</div>
-                  </div>
-                  <div className="col-span-2 text-[10px] font-bold text-gray-400 uppercase truncate">{product.category_name}</div>
-                  <div className="col-span-2 text-[10px] font-bold text-gray-400 uppercase truncate">{product.supplier_name}</div>
-                  <div className="col-span-1 text-[10px] font-black">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-full",
-                      (product.quantity || 0) <= 5 ? "bg-red-100 text-red-600" : (product.quantity || 0) <= 10 ? "bg-orange-100 text-orange-600" : "text-gray-900"
-                    )}>
-                      {product.quantity ?? 0}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-right text-xs font-black text-gray-900 pr-2">₱ {fmt(getPosPrice(product))}</div>
-                  <div className="col-span-1 text-right">
-                    <button className="w-8 h-8 flex items-center justify-center bg-gray-100 group-hover:bg-blue-600 group-hover:text-white rounded-full transition-all">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-
-    </div>
   );
 }

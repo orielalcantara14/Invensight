@@ -24,6 +24,9 @@ from routers.analytics import router as analytics_router
 from routers.purchase_orders import router as purchase_orders_router
 from routers.product_returns import router as product_returns_router
 from routers.archive import router as archive_router
+from routers.notifications import router as notifications_router
+from routers.settings import router as settings_router
+from routers.reports import router as reports_router
 from database import get_connection, verify_database_connection
 
 logging.basicConfig(
@@ -347,6 +350,40 @@ def init_database_schema():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_analytics_model_runs_key_time ON analytics_model_runs(model_key, started_at DESC)")
             
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    notification_id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+                    type VARCHAR(50) NOT NULL,
+                    title VARCHAR(150) NOT NULL,
+                    message TEXT NOT NULL,
+                    link VARCHAR(255),
+                    is_read BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                    setting_key VARCHAR(50) NOT NULL,
+                    setting_value BOOLEAN NOT NULL DEFAULT true,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, setting_key)
+                );
+            """)
+            
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS generated_reports (
+                    report_id SERIAL PRIMARY KEY,
+                    report_type VARCHAR(100) NOT NULL,
+                    start_date DATE,
+                    end_date DATE,
+                    generated_by VARCHAR(255) NOT NULL,
+                    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS system_settings (
                     setting_key VARCHAR(100) PRIMARY KEY,
                     setting_value TEXT NOT NULL,
@@ -473,6 +510,9 @@ app.include_router(product_returns_router, prefix="/api/product-returns", tags=[
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api/analytics")
 app.include_router(archive_router, prefix="/api/archive", tags=["Archive"])
+app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
+app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = "uploads"
@@ -648,3 +688,5 @@ def seed_default_roles():
 @app.get("/")
 def root():
     return {"status": "InvenSight API is running"}
+
+# Trigger reload

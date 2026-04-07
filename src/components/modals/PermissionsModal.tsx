@@ -29,7 +29,7 @@ const defaultModules: Permission[] = [
   { module: 'Stock Prediction', actions: ['View', 'Run Prediction'] },
   { module: 'Audit Log', actions: ['View', 'Export'] },
   { module: 'Purchase Order', actions: ['View', 'Create Order', 'Edit', 'Delete'] },
-  { module: 'Product Return', actions: ['View', 'Process Return', 'Edit'] }
+  { module: 'Supplier Return', actions: ['View', 'Process Return', 'Edit'] }
 ];
 
 export function PermissionsModal({ 

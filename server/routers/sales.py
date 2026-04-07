@@ -10,6 +10,7 @@ import os
 from dotenv import load_dotenv
 
 from utils.audit import add_audit_log
+from routers.notifications import dispatch_notification
 load_dotenv()
 router = APIRouter()
 
@@ -86,6 +87,17 @@ def verify_paymongo_source(source_id: str) -> dict:
     except urllib.error.HTTPError as e:
         error_msg = e.read().decode()
         raise HTTPException(status_code=e.code, detail=f"PayMongo verification failed: {error_msg}")
+
+def verify_paymongo_checkout_session(session_id: str) -> dict:
+    url = f"https://api.paymongo.com/v1/checkout_sessions/{session_id}"
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", get_auth_header())
+    try:
+        with urllib.request.urlopen(req) as response:
+             return json.loads(response.read().decode())
+    except urllib.error.HTTPError as e:
+        error_msg = e.read().decode()
+        raise HTTPException(status_code=e.code, detail=f"PayMongo checkout session verification failed: {error_msg}")
 
 def verify_paymongo_payment_intent(payment_intent_id: str) -> dict:
     """Verify PayMongo PaymentIntent payment status."""
@@ -287,6 +299,8 @@ def create_sale(
                 # Check if it's a PaymentIntent ID (starts with "pi_") or Source ID (starts with "src_")
                 if sale.paymongo_source_id.startswith("pi_"):
                     verify_paymongo_payment_intent(sale.paymongo_source_id)
+                elif sale.paymongo_source_id.startswith("cs_"):
+                    verify_paymongo_checkout_session(sale.paymongo_source_id)
                 else:
                     verify_paymongo_source(sale.paymongo_source_id)
 
@@ -334,7 +348,7 @@ def create_sale(
                 item_subtotal = round(item.unit_price * item.quantity, 2)
 
                 cur.execute(
-                    "SELECT quantity, actual FROM inventory WHERE product_id = %s",
+                    "SELECT inventory_id, quantity, actual FROM inventory WHERE product_id = %s",
                     (item.product_id,)
                 )
                 inv_row = cur.fetchone()
@@ -345,6 +359,7 @@ def create_sale(
                     )
                 physical_stock = inv_row["quantity"]
                 sellable_stock = inv_row["actual"]
+                inv_id = inv_row["inventory_id"]
 
                 cur.execute(
                     "SELECT product_name, status FROM products WHERE product_id = %s",
@@ -405,9 +420,19 @@ def create_sale(
                             actual = actual - %s,
                             last_updated = %s
                         WHERE product_id = %s
+                        RETURNING actual
                         """,
                         (item.quantity, item.quantity, item.quantity, item.quantity, today, item.product_id)
                     )
+                    updated_actual = cur.fetchone()["actual"]
+                    if updated_actual <= 0:
+                        dispatch_notification(
+                            type="out_of_stock",
+                            title="Out of Stock Alert",
+                            message=f"Product ID {item.product_id} has reached 0 or less stock.",
+                            link=f"/inventory?id={inv_id}",
+                            target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                        )
 
             # --- Insert payment ---
             if sale.payment_method == "Split":

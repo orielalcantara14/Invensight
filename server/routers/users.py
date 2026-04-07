@@ -20,6 +20,7 @@ import json
 from datetime import date
 from pydantic import BaseModel
 from utils.audit import add_audit_log
+from routers.notifications import dispatch_notification
 
 router = APIRouter()
 
@@ -402,6 +403,15 @@ def create_user(
                 "user",
                 row["user_id"],
                 f"Created user account: {body.username.strip()} (ID: {row['user_id']})"
+            )
+            
+            # --- Notification ---
+            dispatch_notification(
+                type="new_user",
+                title="New User Added",
+                message=f"User {body.username.strip()} has been added to the system.",
+                link="/users",
+                target_roles=["Administrator"]
             )
             
             conn.commit()

@@ -3,6 +3,7 @@ from database import get_connection
 from models import CreatePurchaseOrderRequest, PurchaseOrderResponse, PurchaseOrderItemResponse
 import psycopg2.extras
 from utils.audit import add_audit_log
+from routers.notifications import dispatch_notification
 from datetime import date, datetime, timedelta
 import random
 import string
@@ -429,6 +430,15 @@ def mark_order_as_received(
                 SET completed_orders = completed_orders + 1
                 WHERE supplier_id = %s
             """, (order_row["supplier_id"],))
+
+            # --- Notification ---
+            dispatch_notification(
+                type="order_completed",
+                title="Purchase Order Received",
+                message=f"Purchase order {order_id} has been received and stock updated.",
+                link=f"/orders?id={order_id}",
+                target_roles=["Administrator", "Manager", "Warehouse Staff"]
+            )
 
             conn.commit()
             return {"ok": True}

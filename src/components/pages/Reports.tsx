@@ -1,19 +1,97 @@
-import { FileText, Download, TrendingUp, Package, DollarSign } from "lucide-react";
-import { useState } from "react";
-import type { GeneratedReport } from "@/types";
+import { FileText, Download, TrendingUp, Package, DollarSign, Loader2, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { api } from "@/services/api";
+import { toast } from "sonner";
+import { exportToExcel } from "@/utils/export";
+
+interface GeneratedReport {
+  id: number;
+  reportType: string;
+  dateRange: string;
+  generatedDate: string;
+  generatedBy: string;
+}
 
 const reportTypes = [
   { id: 1, name: "Sales Report", type: "sales", description: "Comprehensive sales analysis and trends", icon: DollarSign },
   { id: 2, name: "Inventory Report", type: "inventory", description: "Current stock levels and movements", icon: Package },
-  { id: 3, name: "Financial Profitability Reports", type: "forecast", description: "Sales trends and forward-looking revenue views", icon: TrendingUp },
   { id: 4, name: "Supplier Performance", type: "supplier", description: "Supplier delivery and quality metrics", icon: FileText },
 ];
 
 export function Reports() {
   const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
   const [selectedType, setSelectedType] = useState("");
-  const [startDate, setStartDate] = useState("2026-03-01");
-  const [endDate, setEndDate] = useState("2026-03-31");
+  const [startDate, setStartDate] = useState(format(new Date(new Date().setDate(new Date().getDate() - 30)), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<GeneratedReport[]>("/api/reports/history");
+      setGeneratedReports(data);
+    } catch (error) {
+      toast.error("Failed to load report history");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteReportRecord = async (id: number) => {
+    try {
+      await api.delete(`/api/reports/${id}`);
+      toast.success("Report record removed");
+      fetchHistory();
+    } catch (error) {
+      toast.error("Failed to remove record");
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedType) {
+      toast.error("Please select a report type");
+      return;
+    }
+    
+    // Inventory and Forecast do not actually need date boundaries technically in the backend, but we send them anyway
+    if (!startDate || !endDate) {
+      toast.error("Please specify a valid date range");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      toast.info("Compiling data...", { id: "generate_toast" });
+      
+      const payload = {
+        report_type: selectedType,
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      const data = await api.post<any[]>("/api/reports/generate", payload);
+      
+      if (!data || data.length === 0) {
+        toast.dismiss("generate_toast");
+        toast.warning("No data found for the selected criteria.");
+      } else {
+        exportToExcel(data, `${reportTypes.find(t => t.type === selectedType)?.name}_${format(new Date(), "yyyyMMdd")}`);
+        toast.success("Report successfully generated and downloaded!", { id: "generate_toast" });
+      }
+      
+      fetchHistory();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to generate report", { id: "generate_toast" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -60,30 +138,17 @@ export function Reports() {
           </div>
 
           <div className="flex items-end">
-            <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              Generate Report
+            <button 
+              onClick={handleGenerate}
+              disabled={isGenerating || !selectedType}
+              className="w-full bg-blue-600 text-white px-4 py-2 flex justify-center items-center gap-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+            >
+              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin"/> : "Generate Report"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Report Types */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {reportTypes.map((report) => {
-          const Icon = report.icon;
-          return (
-            <div key={report.id} className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-blue-500 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <Icon className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900">{report.name}</h3>
-              </div>
-              <p className="text-sm text-gray-600">{report.description}</p>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Generated Reports */}
       <div className="bg-white rounded-lg shadow border border-gray-200">
@@ -112,7 +177,11 @@ export function Reports() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {generatedReports.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">Loading history...</td>
+                </tr>
+              ) : generatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -123,13 +192,13 @@ export function Reports() {
               ) : (
                 generatedReports.map((report) => (
                   <tr key={report.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.reportType}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{report.reportType}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.dateRange}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.generatedDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.generatedBy}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button className="flex items-center gap-1 text-blue-600 hover:text-blue-900">
-                        <Download className="w-4 h-4" /> Download
+                      <button onClick={() => deleteReportRecord(report.id)} className="flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors" title="Delete record from history">
+                        <Trash2 className="w-4 h-4" /> Clear
                       </button>
                     </td>
                   </tr>

@@ -1,7 +1,76 @@
 import { Settings as SettingsIcon, Bell, Lock, LayoutGrid, Database } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/ThemeProvider";
+import { api } from "@/services/api";
+import { toast } from "sonner";
+
+function NotificationSettings() {
+  const [settings, setSettings] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get<Record<string, boolean>>("/api/settings/user");
+      setSettings(res);
+    } catch (e) {
+      toast.error("Failed to load settings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = async (key: string, value: boolean) => {
+    const prevSettings = { ...settings };
+    try {
+      const newSettings = { ...settings, [key]: value };
+      setSettings(newSettings);
+      await api.put("/api/settings/user", newSettings);
+      toast.success("Settings updated");
+    } catch (e) {
+      toast.error("Failed to update settings");
+      setSettings(prevSettings);
+    }
+  };
+
+  const toggles = [
+    { key: "out_of_stock", label: "Out of Stock Alerts" },
+    { key: "order_completed", label: "Order Completed" },
+    { key: "stock_movement", label: "Stock Movements" },
+    { key: "sales_forecast", label: "Sales Forecast Update" },
+    { key: "new_user", label: "New User Added" }
+  ];
+
+  if (loading) return <div className="p-12 text-center text-gray-500">Loading settings...</div>;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+        <Bell className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
+        <h2 className="text-xl font-bold text-gray-900">Notification Settings</h2>
+      </div>
+      <div className="p-6 space-y-4">
+        {toggles.map((t) => (
+          <div key={t.key} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md">
+            <div className="space-y-1">
+              <p className="font-bold text-gray-900 text-sm">{t.label}</p>
+              <p className="text-xs text-gray-500">Receive notifications for {t.label.toLowerCase()}</p>
+            </div>
+            <Switch
+              checked={settings[t.key] ?? true}
+              onCheckedChange={(val) => updateSetting(t.key, val)}
+              className="data-[state=checked]:bg-cyan-500"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("Display Theme");
@@ -76,6 +145,8 @@ export function Settings() {
                 </div>
               </div>
             </div>
+          ) : activeTab === "Notifications" ? (
+            <NotificationSettings />
           ) : (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 text-gray-300 mb-4">

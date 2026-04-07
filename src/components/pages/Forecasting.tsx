@@ -518,7 +518,7 @@ export function Forecasting() {
         </div>
       )}
 
-      {!loading && !error && showCharts && (
+      {!loading && !error && !showCharts && (
         <div className="mb-8 rounded-3xl border border-gray-200 bg-gray-50 p-12 text-center flex flex-col items-center">
           <ForecastIcon className="w-16 h-16 text-gray-300 mb-4" />
           <h3 className="text-lg font-bold text-gray-900">Not Enough Data</h3>

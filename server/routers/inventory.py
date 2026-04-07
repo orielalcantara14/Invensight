@@ -7,6 +7,7 @@ import logging
 import re
 from utils.sku import build_sku
 from utils.audit import add_audit_log
+from routers.notifications import dispatch_notification
 
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
@@ -551,6 +552,24 @@ def add_inventory_discrepancy(
                     "inventory",
                     inventory_id,
                     f"Manual discrepancy adjustment: {qty_delta:+d} units. Reason: {payload.reason.strip()}"
+                )
+
+            # --- Notifications ---
+            dispatch_notification(
+                type="stock_movement",
+                title="Stock Adjusted",
+                message=f"Manual discrepancy adjustment of {qty_delta:+d} units. Reason: {payload.reason.strip()}",
+                link=f"/inventory?id={inventory_id}",
+                target_roles=["Administrator", "Manager", "Warehouse Staff"]
+            )
+            
+            if actual_after <= 0:
+                dispatch_notification(
+                    type="out_of_stock",
+                    title="Out of Stock Alert",
+                    message=f"Inventory item ID {inventory_id} has reached 0 or less stock.",
+                    link=f"/inventory?id={inventory_id}",
+                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
                 )
 
             conn.commit()
