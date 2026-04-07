@@ -19,6 +19,7 @@ import bcrypt
 import json
 from datetime import date
 from pydantic import BaseModel
+from utils.audit import add_audit_log
 
 router = APIRouter()
 
@@ -393,21 +394,15 @@ def create_user(
             )
             row = cur.fetchone()
             
-            # --- Audit log (skip if actor is root admin) ---
-            if not actor.get("is_root_admin"):
-                cur.execute(
-                    """
-                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                    VALUES (%s, %s, %s, %s, NOW(), %s)
-                    """,
-                    (
-                        actor_user_id,
-                        "ADD_USER",
-                        "user",
-                        row["user_id"],
-                        f"Created user account: {body.username.strip()} (ID: {row['user_id']})",
-                    ),
-                )
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                actor_user_id,
+                "CREATE_USER",
+                "user",
+                row["user_id"],
+                f"Created user account: {body.username.strip()} (ID: {row['user_id']})"
+            )
             
             conn.commit()
     except HTTPException:
@@ -676,21 +671,15 @@ def deactivate_user(
             if not deleted_row:
                 raise HTTPException(status_code=404, detail="User not found")
             
-            # --- Audit log (skip if actor is root admin) ---
-            if not actor.get("is_root_admin"):
-                cur.execute(
-                    """
-                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                    VALUES (%s, %s, %s, %s, NOW(), %s)
-                    """,
-                    (
-                        actor_user_id,
-                        "DELETE_USER",
-                        "user",
-                        user_id,
-                        f"Deleted (archived) user: {deleted_row.get('username', '')} (ID: {user_id})",
-                    ),
-                )
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                actor_user_id,
+                "DELETE_USER",
+                "user",
+                user_id,
+                f"Deleted (archived) user: {deleted_row.get('username', '')} (ID: {user_id})"
+            )
             
             conn.commit()
     except HTTPException:
@@ -771,12 +760,13 @@ def restore_user(
             if not row:
                 raise HTTPException(status_code=404, detail="Archived user not found")
             if not actor.get("is_root_admin"):
-                cur.execute(
-                    """
-                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                    VALUES (%s, 'RESTORE_USER', 'user', %s, NOW(), %s)
-                    """,
-                    (actor_user_id, user_id, f"Restored user: {row.get('username', '')} (ID: {user_id})"),
+                add_audit_log(
+                    cur,
+                    actor_user_id,
+                    "RESTORE_USER",
+                    "user",
+                    user_id,
+                    f"Restored user: {row.get('username', '')} (ID: {user_id})"
                 )
             conn.commit()
     except HTTPException:
@@ -815,9 +805,23 @@ def permanent_delete_user(
                 raise HTTPException(status_code=400, detail="User must be archived before permanent deletion")
             if _is_root_admin_username(row.get("username")):
                 raise HTTPException(status_code=403, detail="Cannot delete root admin account")
-            # Nullify audit log references before deleting
+            # Nullify references before deleting to avoid ForeignKeyViolation
             cur.execute("UPDATE auditlog SET user_id = NULL WHERE user_id = %s", (user_id,))
+            cur.execute("UPDATE sales SET user_id = NULL WHERE user_id = %s", (user_id,))
+            cur.execute("UPDATE purchase_orders SET user_id = NULL WHERE user_id = %s", (user_id,))
+            
             cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                actor_user_id,
+                "PERMANENT_DELETE",
+                "user",
+                user_id,
+                f"Permanently deleted user: {row.get('username')} (ID: {user_id})"
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -974,6 +978,17 @@ def create_role(
                 (next_rid, name, perms_json),
             )
             row = cur.fetchone()
+            
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                _parse_actor_user_id_or_401(x_actor_user_id),
+                "CREATE_ROLE",
+                "role",
+                row["role_id"],
+                f"Created role: {name} (ID: {row['role_id']})"
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -1059,6 +1074,17 @@ def update_role(
                 (new_name,),
             )
             user_count = cur.fetchone()["c"]
+            
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                _parse_actor_user_id_or_401(x_actor_user_id),
+                "UPDATE_ROLE",
+                "role",
+                role_id,
+                f"Updated role: {new_name} (ID: {role_id})"
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -1124,6 +1150,17 @@ def delete_role(
             )
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Role not found")
+            
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                _parse_actor_user_id_or_401(x_actor_user_id),
+                "DELETE_ROLE",
+                "role",
+                role_id,
+                f"Deleted role: {role_row['role_name']} (ID: {role_id})"
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()

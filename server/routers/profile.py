@@ -11,6 +11,7 @@ from models import (
 )
 import psycopg2.extras
 import bcrypt
+from utils.audit import add_audit_log
 
 router = APIRouter()
 
@@ -69,6 +70,7 @@ def get_profile(user_id: int = Depends(get_request_user_id)):
 def update_profile(
     body: ProfileUpdateRequest,
     user_id: int = Depends(get_request_user_id),
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
 ):
     conn = get_connection()
     try:
@@ -121,6 +123,18 @@ def update_profile(
                 tuple(params),
             )
             row = cur.fetchone()
+            
+            # --- Audit log ---
+            actor_id = int(x_actor_user_id) if x_actor_user_id else user_id
+            add_audit_log(
+                cur,
+                actor_id,
+                "UPDATE_PROFILE",
+                "user",
+                user_id,
+                f"User Profile updated (Self-update: {body.full_name or 'No name change'})"
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -138,6 +152,7 @@ def update_profile(
 def change_password(
     body: ChangePasswordRequest,
     user_id: int = Depends(get_request_user_id),
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
 ):
     if len(body.new_password) < 8:
         raise HTTPException(
@@ -177,6 +192,18 @@ def change_password(
                 """,
                 (new_hash, date.today(), user_id),
             )
+            
+            # --- Audit log ---
+            actor_id = int(x_actor_user_id) if x_actor_user_id else user_id
+            add_audit_log(
+                cur,
+                actor_id,
+                "CHANGE_PASSWORD",
+                "user",
+                user_id,
+                "User password changed."
+            )
+            
             conn.commit()
     except HTTPException:
         conn.rollback()

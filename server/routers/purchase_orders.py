@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import CreatePurchaseOrderRequest, PurchaseOrderResponse, PurchaseOrderItemResponse
 import psycopg2.extras
+from utils.audit import add_audit_log
 from datetime import date, datetime, timedelta
 import random
 import string
@@ -144,7 +145,10 @@ def get_purchase_order(order_id: str):
 
 
 @router.post("/")
-def create_purchase_order(payload: CreatePurchaseOrderRequest):
+def create_purchase_order(
+    payload: CreatePurchaseOrderRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -291,6 +295,17 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
                 WHERE supplier_id = %s
             """, (payload.supplier_id,))
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "CREATE_ORDER",
+                    "order",
+                    0,
+                    f"Created purchase order: {order_id} (Supplier ID: {payload.supplier_id})"
+                )
+
             conn.commit()
             return {"ok": True, "order_id": order_id}
     except HTTPException:
@@ -304,7 +319,10 @@ def create_purchase_order(payload: CreatePurchaseOrderRequest):
 
 
 @router.put("/{order_id}/receive")
-def mark_order_as_received(order_id: str):
+def mark_order_as_received(
+    order_id: str,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -425,7 +443,10 @@ def mark_order_as_received(order_id: str):
 
 
 @router.delete("/{order_id}")
-def delete_purchase_order(order_id: str):
+def delete_purchase_order(
+    order_id: str,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -544,7 +565,10 @@ def delete_purchase_order(order_id: str):
 
 
 @router.put("/{order_id}/archive")
-def archive_purchase_order(order_id: str):
+def archive_purchase_order(
+    order_id: str,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Archive a received or cancelled purchase order (soft archive)."""
     conn = get_connection()
     try:
@@ -560,10 +584,22 @@ def archive_purchase_order(order_id: str):
                 raise HTTPException(status_code=400, detail="Cannot archive a pending order. Delete it instead.")
             if order_row["status"] == "Archived":
                 raise HTTPException(status_code=400, detail="Order is already archived")
+            
             cur.execute(
                 "UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s",
                 (order_id,),
             )
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ARCHIVE_ORDER",
+                    "order",
+                    0,
+                    f"Archived purchase order: {order_id}"
+                )
+                
             conn.commit()
             return {"ok": True}
     except HTTPException:

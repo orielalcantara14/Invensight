@@ -65,6 +65,10 @@ def run_prophet_daily_forecast(
         future = m.make_future_dataframe(periods=30, include_history=False)
         fc_out = m.predict(future)
         next_30d_sum = float(fc_out["yhat"].sum())
+        fyhat = fc_out["yhat"].to_numpy(dtype=float)
+        flo = fc_out["yhat_lower"].to_numpy(dtype=float)
+        fhi = fc_out["yhat_upper"].to_numpy(dtype=float)
+        ftrend = fc_out["trend"].to_numpy(dtype=float)
         
         # Calculate Trend based on FUTURE forecast slope
         f_mid = 15
@@ -77,8 +81,10 @@ def run_prophet_daily_forecast(
         else:
             direction = "flat"
     except Exception as e:
-        log.warning("Prophet future predict failed: %s", e)
-        next_30d_sum = float(np.sum(yhat[-7:])) if len(yhat) >= 7 else float(np.sum(yhat))
         direction = "flat"
+        fyhat = np.zeros(0)
+        flo = np.zeros(0)
+        fhi = np.zeros(0)
+        ftrend = np.zeros(0)
 
-    return yhat, yhat_lower, yhat_upper, trend, weekly, next_30d_sum, accuracy, direction
+    return yhat, yhat_lower, yhat_upper, trend, weekly, next_30d_sum, accuracy, direction, fyhat, flo, fhi, ftrend

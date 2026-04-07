@@ -1,6 +1,5 @@
 import re
 
-
 def build_sku(cur, raw_sku: str, product_name: str = "", category_name: str = "") -> str:
     cat_code = ""
     if category_name and category_name != "Uncategorized":

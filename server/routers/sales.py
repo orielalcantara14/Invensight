@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import CreateSaleRequest
 import psycopg2.extras
@@ -9,8 +9,8 @@ import urllib.request
 import os
 from dotenv import load_dotenv
 
+from utils.audit import add_audit_log
 load_dotenv()
-
 router = APIRouter()
 
 TAX_RATE = 0.03
@@ -238,7 +238,10 @@ def get_sale(invoice_id: int):
 
 
 @router.post("/sales")
-def create_sale(sale: CreateSaleRequest):
+def create_sale(
+    sale: CreateSaleRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     if not sale.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
@@ -433,24 +436,16 @@ def create_sale(sale: CreateSaleRequest):
                     (invoice_id, sale.payment_method, cash_received, now, sale.paymongo_source_id),
                 )
 
-            # --- Audit log (skip if user is root admin) ---
-            cur.execute("SELECT username FROM users WHERE user_id = %s", (sale.user_id,))
-            user_row = cur.fetchone()
-            is_root = user_row and user_row["username"] and user_row["username"].strip().lower() == "rootadminnginamo"
-            if not is_root:
-                cur.execute(
-                    """
-                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        sale.user_id,
-                        "CREATE_SALE",
-                        "sales",
-                        invoice_id,
-                        now,
-                        f"POS sale completed. Invoice: {invoice_number}. Method: {sale.payment_method}. Total: ₱{total_amount:.2f}",
-                    ),
+            # --- Audit log ---
+            actor_id = int(x_actor_user_id) if x_actor_user_id else sale.user_id
+            if actor_id:
+                add_audit_log(
+                    cur,
+                    actor_id,
+                    "CREATE_SALE",
+                    "sales",
+                    invoice_id,
+                    f"POS sale completed. Invoice: {invoice_number}. Method: {sale.payment_method}. Total: ₱{total_amount:.2f}"
                 )
 
             conn.commit()

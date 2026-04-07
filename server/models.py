@@ -611,10 +611,10 @@ class AnalyticsOverviewResponse(BaseModel):
 
 class ForecastSeriesPoint(BaseModel):
     date: str
-    actual_sales: float
-    forecast_sales: float
-    lower_bound: float
-    upper_bound: float
+    actual_sales: Optional[float] = None
+    forecast_sales: Optional[float] = None
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
     trend_component: Optional[float] = None
     weekly_component: Optional[float] = None
     smoothed_sales: Optional[float] = None
@@ -667,6 +667,8 @@ class StockRiskAnalysisPoint(BaseModel):
 class StockHorizonPrediction(BaseModel):
     product_id: int
     product_name: str
+    supplier_id: Optional[int] = None
+    supplier_name: Optional[str] = None
     current_stock: int
     stock_30d: float
     stock_60d: float

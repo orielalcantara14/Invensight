@@ -1,4 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+/// <reference types="vite/client" />
+import { getSession } from "@/auth/session";
+
+const _env_api_url = (import.meta as any).env?.VITE_API_URL;
+const API_URL = _env_api_url !== undefined ? _env_api_url : "http://localhost:8000";
 
 export interface Product {
   product_id: number;
@@ -159,9 +163,33 @@ function formatApiError(detail: unknown): string {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = options?.method?.toUpperCase() || "GET";
+  const mutagenic = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string> | undefined),
+  };
+
+  // Automatically attach actor ID for audit logging if session exists
+  if (mutagenic && !headers["X-Actor-User-Id"]) {
+    const session = getSession();
+    if (session?.user_id) {
+      headers["X-Actor-User-Id"] = String(session.user_id);
+    }
+  }
+
+  // Handle X-User-Id for specific routes like logout
+  if (!headers["X-User-Id"] && path === "/api/logout") {
+    const session = getSession();
+    if (session?.user_id) {
+      headers["X-User-Id"] = String(session.user_id);
+    }
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Request failed" }));
@@ -535,6 +563,8 @@ export interface StockHorizonPrediction {
   product_id: number;
   product_name: string;
   current_stock: number;
+  supplier_id?: number;
+  supplier_name?: string;
   stock_30d: number;
   stock_60d: number;
   stock_90d: number;
@@ -600,6 +630,7 @@ export const api = {
     request<{ message: string }>(`/api/categories/${categoryId}`, {
       method: "DELETE",
     }),
+  logout: (userId: number) => requestWithUser<{ ok: boolean }>(userId, "/api/logout", { method: "POST" }),
   getTerminals: () => request<Terminal[]>("/api/pos-terminals"),
   getPosProducts: () => request<PosProduct[]>("/api/pos-products"),
   createPosProduct: (payload: PosProductPayload) =>

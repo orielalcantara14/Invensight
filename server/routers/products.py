@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Header
 import shutil
 import os
 import re
@@ -6,7 +6,8 @@ from database import get_connection
 from models import CreatePosProductRequest, UpdatePosProductRequest, CategoryResponse, CreateCategoryRequest, UpdateCategoryRequest
 import psycopg2.extras
 from datetime import date
-from utils import build_sku
+from utils.sku import build_sku
+from utils.audit import add_audit_log
 
 
 router = APIRouter()
@@ -51,7 +52,10 @@ def get_categories():
 
 
 @router.post("/categories")
-def create_category(payload: CreateCategoryRequest):
+def create_category(
+    payload: CreateCategoryRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -62,6 +66,18 @@ def create_category(payload: CreateCategoryRequest):
                 (category_id, payload.category_name, payload.is_active),
             )
             row = cur.fetchone()
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "CREATE_CATEGORY",
+                    "category",
+                    row["category_id"],
+                    f"Created category: {payload.category_name}"
+                )
+            
             conn.commit()
             return dict(row)
     except Exception as e:
@@ -72,7 +88,11 @@ def create_category(payload: CreateCategoryRequest):
 
 
 @router.put("/categories/{category_id}")
-def update_category(category_id: int, payload: UpdateCategoryRequest):
+def update_category(
+    category_id: int, 
+    payload: UpdateCategoryRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -83,6 +103,18 @@ def update_category(category_id: int, payload: UpdateCategoryRequest):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Category not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "UPDATE_CATEGORY",
+                    "category",
+                    category_id,
+                    f"Updated category: {payload.category_name}"
+                )
+                
             conn.commit()
             return dict(row)
     except Exception as e:
@@ -93,7 +125,10 @@ def update_category(category_id: int, payload: UpdateCategoryRequest):
 
 
 @router.delete("/categories/{category_id}")
-def delete_category(category_id: int):
+def delete_category(
+    category_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -105,6 +140,18 @@ def delete_category(category_id: int):
             cur.execute("DELETE FROM categories WHERE category_id = %s", (category_id,))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Category not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "DELETE_CATEGORY",
+                    "category",
+                    category_id,
+                    f"Deleted category ID: {category_id}"
+                )
+                
             conn.commit()
             return {"message": "Category deleted"}
     except HTTPException:
@@ -190,7 +237,10 @@ def get_pos_products():
 
 
 @router.post("/pos-products")
-def create_pos_product(payload: CreatePosProductRequest):
+def create_pos_product(
+    payload: CreatePosProductRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -323,6 +373,18 @@ def create_pos_product(payload: CreatePosProductRequest):
                     (inventory_id, product_id, payload.stock, payload.stock, payload.stock, 5, date.today(), "Initial stock"),
                 )
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                action = "UPDATE_PRODUCT" if existing_product else "CREATE_PRODUCT"
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    action,
+                    "product",
+                    product_id,
+                    f"{'Updated' if existing_product else 'Created'} product: {payload.product_name} (SKU: {sku})"
+                )
+            
             conn.commit()
             return {"pos_id": product_id}
     except HTTPException:
@@ -336,7 +398,11 @@ def create_pos_product(payload: CreatePosProductRequest):
 
 
 @router.put("/pos-products/{pos_id}")
-def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
+def update_pos_product(
+    pos_id: int, 
+    payload: UpdatePosProductRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -431,6 +497,18 @@ def update_pos_product(pos_id: int, payload: UpdatePosProductRequest):
                 )
 
             conn.commit()
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "UPDATE_PRODUCT",
+                    "product",
+                    product_id,
+                    f"Updated product: {payload.product_name} (SKU: {sku})"
+                )
+                
             return {"ok": True}
     except HTTPException:
         conn.rollback()
@@ -448,7 +526,10 @@ def update_pos_product_status(pos_id: int, status: str):
 
 
 @router.delete("/pos-products/{pos_id}")
-def delete_pos_product(pos_id: int):
+def delete_pos_product(
+    pos_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -500,6 +581,18 @@ def delete_pos_product(pos_id: int):
                     (product_id,),
                 )
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                action = "ARCHIVE_PRODUCT" if has_sales else "DELETE_PRODUCT"
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    action,
+                    "product",
+                    product_id,
+                    f"{'Archived' if has_sales else 'Permanently deleted'} product ID: {product_id}"
+                )
+            
             conn.commit()
             return {"ok": True}
     except HTTPException:

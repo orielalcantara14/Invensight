@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import InventoryResponse, CreateInventoryRequest, UpdateInventoryRequest, InventoryDiscrepancyRequest
 import psycopg2.extras
 from datetime import date
 import logging
 import re
-from utils import build_sku
+from utils.sku import build_sku
+from utils.audit import add_audit_log
 
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
@@ -100,7 +101,10 @@ def get_inventory():
         conn.close()
 
 @router.post("/")
-def add_inventory_item(payload: CreateInventoryRequest):
+def add_inventory_item(
+    payload: CreateInventoryRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -186,6 +190,17 @@ def add_inventory_item(payload: CreateInventoryRequest):
             
             # Inventory reference removed from pos_management as table is dropped
             
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ADD_INVENTORY",
+                    "inventory",
+                    inventory_id,
+                    f"Added new inventory item: {payload.product_name} (Initial Qty: {payload.quantity})"
+                )
+
             conn.commit()
             return _get_inventory_item(cur, inventory_id)
     except HTTPException:
@@ -198,7 +213,11 @@ def add_inventory_item(payload: CreateInventoryRequest):
         conn.close()
 
 @router.put("/{inventory_id}/")
-def update_inventory_item(inventory_id: int, payload: UpdateInventoryRequest):
+def update_inventory_item(
+    inventory_id: int, 
+    payload: UpdateInventoryRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -291,6 +310,17 @@ def update_inventory_item(inventory_id: int, payload: UpdateInventoryRequest):
             
             # Inventory reference removed from pos_management as table is dropped
             
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "UPDATE_INVENTORY",
+                    "inventory",
+                    inventory_id,
+                    f"Updated inventory item: {payload.product_name} (Current Qty: {new_quantity})"
+                )
+
             conn.commit()
             return _get_inventory_item(cur, inventory_id)
     except Exception as e:
@@ -300,7 +330,10 @@ def update_inventory_item(inventory_id: int, payload: UpdateInventoryRequest):
         conn.close()
 
 @router.delete("/{inventory_id}/")
-def delete_inventory_item(inventory_id: int):
+def delete_inventory_item(
+    inventory_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -308,6 +341,17 @@ def delete_inventory_item(inventory_id: int):
             cur.execute("DELETE FROM inventory WHERE inventory_id = %s", (inventory_id,))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Inventory item not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "DELETE_INVENTORY",
+                    "inventory",
+                    inventory_id,
+                    f"Deleted inventory item ID: {inventory_id}"
+                )
             
             conn.commit()
             return {"message": "Inventory item deleted"}
@@ -388,7 +432,11 @@ def get_inventory_trace(inventory_id: int):
 
 
 @router.post("/{inventory_id}/discrepancy/")
-def add_inventory_discrepancy(inventory_id: int, payload: InventoryDiscrepancyRequest):
+def add_inventory_discrepancy(
+    inventory_id: int, 
+    payload: InventoryDiscrepancyRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """
     Manual discrepancy entry from inventory trace modal.
     Applies quantity_change to both quantity and actual, logs an audit event.
@@ -493,6 +541,17 @@ def add_inventory_discrepancy(inventory_id: int, payload: InventoryDiscrepancyRe
                     payload.reason.strip(),
                 ),
             )
+
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ADJUST_INVENTORY",
+                    "inventory",
+                    inventory_id,
+                    f"Manual discrepancy adjustment: {qty_delta:+d} units. Reason: {payload.reason.strip()}"
+                )
 
             conn.commit()
             return {"ok": True}

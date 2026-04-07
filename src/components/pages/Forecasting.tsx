@@ -5,8 +5,6 @@ import {
   Loader2,
   TrendingDown,
   Activity as ForecastIcon,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -18,6 +16,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
+  Label,
 } from "recharts";
 import { useState, useEffect, useMemo } from "react";
 import { api, type SalesForecastResponse } from "@/services/api";
@@ -43,7 +43,6 @@ export function Forecasting() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SalesForecastResponse | null>(null);
-  const [clearView, setClearView] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,31 +106,18 @@ export function Forecasting() {
             </p>
           )}
         </div>
-
-        {showCharts && (
-          <button
-            onClick={() => setClearView(!clearView)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all ${clearView
-                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm"
-              }`}
-          >
-            {clearView ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-            {clearView ? "Clear View Active" : "Enable Clear View"}
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-white to-sky-50 p-6 rounded-3xl shadow-sm border border-sky-100 flex flex-col justify-center">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sky-800 font-medium tracking-wide text-sm uppercase">Market Trend</span>
-            {trendIcon}
+            <span className="text-sky-800 font-medium tracking-wide text-sm uppercase">Current AI Predicted</span>
+            <Activity className="w-8 h-8 text-emerald-500" />
           </div>
           <div className="text-3xl font-extrabold text-gray-900">
-            {loading ? "…" : data ? trendLabel(data.trend_direction) : "N/A"}
+            {loading ? "…" : data?.series?.length ? formatPhp(data.series[data.series.length - 31]?.forecast_sales) : "N/A"}
           </div>
-          <div className="text-sm text-sky-600 mt-2 font-medium">AI-calculated trend for next 30 days</div>
+          <div className="text-sm text-sky-600 mt-2 font-medium">Today's AI projected baseline</div>
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -176,24 +162,18 @@ export function Forecasting() {
 
       {!loading && !error && showCharts && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
-          {clearView && (
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500"></div>
-          )}
-
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-1">
-              {clearView ? "Smooth Trend Line" : "Sales Performance Forecast"}
+              Sales Performance Forecast
             </h2>
             <p className="text-sm text-gray-500 max-w-2xl">
-              {clearView
-                ? "Noise removed. Showing the underlying rhythm and path of your business."
-                : "Actual daily sales data compared against AI projections and historical patterns."}
+              Actual daily sales data compared against AI projections and historical patterns.
             </p>
           </div>
 
-          <div className="h-[400px] w-full">
+          <div className="h-[430px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+              <ComposedChart data={chartData} margin={{ top: 60, right: 30, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis
                   dataKey="label"
@@ -212,43 +192,80 @@ export function Forecasting() {
                   formatter={(v: number, name: string) => [formatPhp(v), name]}
                   contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Legend 
+                  iconType="circle" 
+                  wrapperStyle={{ paddingTop: '20px' }} 
+                  payload={[
+                    { value: 'AI Prediction', type: 'line', color: '#f97316' },
+                    { value: 'Actual Sales', type: 'circle', color: '#3b82f6' },
+                    { value: 'Confidence Interval', type: 'rect', color: '#f97316' }
+                  ]}
+                />
 
-                {/* Confidence Interval removed as per request */}
+                {/* Confidence Interval (Base Layer) */}
+                <Area
+                  type="monotone"
+                  dataKey="interval"
+                  stroke="none"
+                  fill="#f97316"
+                  fillOpacity={0.15}
+                  name="Confidence Interval"
+                  tooltipType="none"
+                />
 
-                {/* Raw vs Smoothed selection */}
-                {clearView ? (
-                  <Line
-                    type="monotone"
-                    dataKey="smoothed_sales"
-                    name="Smoothed Path"
-                    stroke="#8b5cf6"
-                    strokeWidth={4}
-                    dot={false}
-                    activeDot={{ r: 6, strokeWidth: 0, fill: '#8b5cf6' }}
-                  />
-                ) : (
-                  <>
-                    <Line
-                      type="monotone"
-                      dataKey="forecast_sales"
-                      name="AI Prediction"
-                      stroke="#f97316"
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="actual_sales"
-                      name="Actual Sales"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </>
-                )}
+                <Line
+                  type="monotone"
+                  dataKey="actual_sales"
+                  name="Actual Sales"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="forecast_sales"
+                  name="AI Prediction"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={(props: any) => {
+                    const { cx, cy, index } = props;
+                    if (index === chartData.length - 1) {
+                      return (
+                        <circle key="last-dot" cx={cx} cy={cy} r={6} fill="#f97316" stroke="white" strokeWidth={2} />
+                      );
+                    }
+                    return <g key={`dot-${index}`} />;
+                  }}
+                  activeDot={{ r: 6 }}
+                />
+
+                {/* Annotations matching reference image */}
+                <>
+                  {/* Last AI Predicted Point */}
+                  {chartData.length > 0 && (
+                    <ReferenceLine 
+                      x={chartData[chartData.length - 1]?.label} 
+                      stroke="#f97316" 
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                    >
+                      <Label 
+                        value="AI PREDICTED SALES" 
+                        position="insideTopRight" 
+                        dx={-10}
+                        dy={-30}
+                        style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 700, 
+                          fill: '#f97316',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                    </ReferenceLine>
+                  )}
+                </>
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -276,7 +293,7 @@ export function Forecasting() {
                 {data.product_forecasts.slice(0, 5).map(p => (
                   <tr key={p.product_id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 font-medium text-gray-900">{p.product_name}</td>
-                    <td className="py-4 px-6 text-right font-bold text-indigo-600">{p.predicted_demand_30d.toFixed(1)} units</td>
+                    <td className="py-4 px-6 text-right font-bold text-indigo-600">{p.predicted_demand_30d.toFixed(0)} units</td>
                   </tr>
                 ))}
               </tbody>

@@ -6,6 +6,7 @@ import { getSession, clearSession } from "@/auth/session";
 import type { Product, Category, Terminal, Supplier } from "@/services/api";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface CartItem {
   product: Product;
@@ -801,9 +802,10 @@ export function POS() {
         </div>
 
         <div className="px-6 py-3 bg-gray-50 grid grid-cols-12 gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
-          <div className="col-span-5">Product Details</div>
+          <div className="col-span-4">Product Details</div>
           <div className="col-span-2">Category</div>
           <div className="col-span-2">Supplier</div>
+          <div className="col-span-1">Stock</div>
           <div className="col-span-2 text-right">Price</div>
           <div className="col-span-1"></div>
         </div>
@@ -820,12 +822,20 @@ export function POS() {
             <div className="divide-y divide-gray-50">
               {filteredProducts.map(product => (
                 <div key={product.product_id} className="grid grid-cols-12 gap-4 items-center px-4 py-4 hover:bg-blue-50/50 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
-                  <div className="col-span-5">
-                    <div className="text-[11px] font-black text-gray-800 uppercase group-hover:text-blue-600 transition-colors uppercase">{product.product_name}</div>
+                  <div className="col-span-4">
+                    <div className="text-[11px] font-black text-gray-800 uppercase group-hover:text-blue-600 transition-colors uppercase truncate">{product.product_name}</div>
                     <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">{product.sku}</div>
                   </div>
                   <div className="col-span-2 text-[10px] font-bold text-gray-400 uppercase truncate">{product.category_name}</div>
                   <div className="col-span-2 text-[10px] font-bold text-gray-400 uppercase truncate">{product.supplier_name}</div>
+                  <div className="col-span-1 text-[10px] font-black">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full",
+                      (product.quantity || 0) <= 5 ? "bg-red-100 text-red-600" : (product.quantity || 0) <= 10 ? "bg-orange-100 text-orange-600" : "text-gray-900"
+                    )}>
+                      {product.quantity ?? 0}
+                    </span>
+                  </div>
                   <div className="col-span-2 text-right text-xs font-black text-gray-900 pr-2">₱ {fmt(getPosPrice(product))}</div>
                   <div className="col-span-1 text-right">
                     <button className="w-8 h-8 flex items-center justify-center bg-gray-100 group-hover:bg-blue-600 group-hover:text-white rounded-full transition-all">

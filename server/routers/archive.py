@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 import psycopg2.extras
+from utils.audit import add_audit_log
 
 router = APIRouter()
 
@@ -38,7 +39,10 @@ def get_archived_products():
 
 
 @router.put("/products/{product_id}/restore")
-def restore_product(product_id: int):
+def restore_product(
+    product_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Restore an archived product by setting status = 'Active'."""
     conn = get_connection()
     try:
@@ -50,6 +54,18 @@ def restore_product(product_id: int):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Archived product not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "RESTORE_PRODUCT",
+                    "product",
+                    product_id,
+                    f"Restored product ID: {product_id}"
+                )
+            
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -62,7 +78,10 @@ def restore_product(product_id: int):
 
 
 @router.delete("/products/{product_id}/permanent")
-def permanent_delete_product(product_id: int):
+def permanent_delete_product(
+    product_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Permanently delete an archived product from the database."""
     conn = get_connection()
     try:
@@ -77,6 +96,18 @@ def permanent_delete_product(product_id: int):
             # Remove sold_items references (keep null)
             cur.execute("DELETE FROM inventory WHERE product_id = %s", (product_id,))
             cur.execute("DELETE FROM products WHERE product_id = %s", (product_id,))
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "PERMANENT_DELETE",
+                    "product",
+                    product_id,
+                    f"Permanently deleted product ID: {product_id}"
+                )
+                
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -108,7 +139,10 @@ def get_archived_suppliers():
 
 
 @router.put("/suppliers/{supplier_id}/restore")
-def restore_supplier(supplier_id: int):
+def restore_supplier(
+    supplier_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Restore an archived supplier by setting status = 'Active'."""
     conn = get_connection()
     try:
@@ -120,6 +154,18 @@ def restore_supplier(supplier_id: int):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Archived supplier not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "RESTORE_SUPPLIER",
+                    "supplier",
+                    supplier_id,
+                    f"Restored supplier ID: {supplier_id}"
+                )
+                
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -163,7 +209,10 @@ def get_archived_orders():
 
 
 @router.put("/orders/{order_id}/restore")
-def restore_order(order_id: str):
+def restore_order(
+    order_id: str,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Restore an archived order by setting status = 'Received'."""
     conn = get_connection()
     try:
@@ -175,6 +224,19 @@ def restore_order(order_id: str):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Archived order not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "RESTORE_ORDER",
+                    "order",
+                    0, # order table has string IDs, utility expects int. Using 0 for now as entity_id is int.
+                    f"Restored order ID: {order_id}",
+                    order_id # Using dynamic details if needed, but entity_id is int.
+                )
+            
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -222,7 +284,10 @@ def get_archived_product_returns():
 
 
 @router.put("/product-returns/{return_id}/restore")
-def restore_product_return(return_id: int):
+def restore_product_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Restore an archived product return by setting status = 'Resolved'."""
     conn = get_connection()
     try:
@@ -234,6 +299,18 @@ def restore_product_return(return_id: int):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Archived return not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "RESTORE_RETURN",
+                    "return",
+                    return_id,
+                    f"Restored return ID: {return_id}"
+                )
+                
             conn.commit()
             return {"ok": True}
     except HTTPException:

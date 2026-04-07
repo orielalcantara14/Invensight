@@ -37,8 +37,12 @@ export function AuditLog() {
       (log.details?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       log.entity_type.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesAction = filterAction === "All" || log.action === filterAction;
-    const matchesEntity = filterEntity === "All" || log.entity_type === filterEntity;
+    const matchesAction = filterAction === "All" || 
+      log.action.toLowerCase().includes(filterAction.toLowerCase());
+    
+    // Entity type can be 'user', 'User', 'product', 'Product', etc.
+    const matchesEntity = filterEntity === "All" || 
+      log.entity_type.toLowerCase() === filterEntity.toLowerCase();
     
     return matchesSearch && matchesAction && matchesEntity;
   });
@@ -50,8 +54,7 @@ export function AuditLog() {
       "Action": log.action,
       "Entity Type": log.entity_type,
       "Entity ID": log.entity_id,
-      "Details": log.details || "",
-      "IP Address": log.ip_address || "N/A"
+      "Details": log.details || ""
     }));
     exportToExcel(data, "AuditLog_Export");
   };
@@ -63,7 +66,7 @@ export function AuditLog() {
   );
 
   const criticalActions = auditLogs.filter(log => 
-    ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE'].includes(log.action)
+    ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE', 'PERMANENT_DELETE', 'ARCHIVE_PRODUCT', 'ARCHIVE_SUPPLIER', 'DELETE_ORDER'].includes(log.action)
   ).length;
 
   const today = new Date().toISOString().split('T')[0];
@@ -120,6 +123,11 @@ export function AuditLog() {
                 <option value="CREATE">Create</option>
                 <option value="UPDATE">Update</option>
                 <option value="DELETE">Delete</option>
+                <option value="ARCHIVE">Archive</option>
+                <option value="RESTORE">Restore</option>
+                <option value="APPROVE">Approve</option>
+                <option value="REJECT">Reject</option>
+                <option value="RECEIVE">Receive</option>
               </select>
               <select
                 value={filterEntity}
@@ -132,6 +140,10 @@ export function AuditLog() {
                 <option value="User">User</option>
                 <option value="Inventory">Inventory</option>
                 <option value="Order">Order</option>
+                <option value="Supplier">Supplier</option>
+                <option value="Return">Return</option>
+                <option value="Role">Role</option>
+                <option value="Category">Category</option>
               </select>
               <button 
                 onClick={handleExport}
@@ -195,18 +207,32 @@ export function AuditLog() {
               ) : (
                 paginatedLogs.map((log) => (
                   <tr key={log.log_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.timestamp}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        log.action.includes('CREATE') ? 'bg-green-100 text-green-800' :
-                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') ? 'bg-red-100 text-red-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>{log.action}</span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                      {new Date(log.timestamp).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entity_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.entity_id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={log.details || ""}>{log.details}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username || 'System'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                        log.action.includes('CREATE') ? 'bg-green-50 text-green-700 border-green-200' :
+                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') || log.action.includes('REJECT') ? 'bg-red-50 text-red-700 border-red-200' :
+                        log.action.includes('UPDATE') || log.action.includes('RESTORE') || log.action.includes('APPROVE') ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        log.action.includes('ARCHIVE') ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-gray-50 text-gray-700 border-gray-200'
+                      }`}>{log.action.replace(/_/g, ' ')}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{log.entity_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{log.entity_id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 max-w-xs" title={log.details || ""}>
+                      <div className="line-clamp-2 md:line-clamp-none whitespace-pre-wrap break-words">
+                        {log.details || "No details provided"}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}

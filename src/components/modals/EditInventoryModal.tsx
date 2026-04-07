@@ -32,9 +32,12 @@ export function EditInventoryModal({
   item,
 }: EditInventoryModalProps) {
   const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const supplierRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     product_name: "",
@@ -55,21 +58,28 @@ export function EditInventoryModal({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (supplierRef.current && !supplierRef.current.contains(event.target as Node)) {
+        setIsSupplierDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchData = async () => {
       try {
-        const cats = await api.getCategories();
+        const [cats, sups] = await Promise.all([
+          api.getCategories(),
+          api.getSuppliers()
+        ]);
         setCategories(cats);
+        setSuppliers(sups);
       } catch (error) {
-        toast.error("Failed to load categories");
+        toast.error("Failed to load dependency data");
       }
     };
-    fetchCategories();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -123,6 +133,10 @@ export function EditInventoryModal({
     cat.toLowerCase().includes(formData.specific_category.toLowerCase())
   );
 
+  const filteredSuppliers = suppliers.filter(sup =>
+    sup.supplier_name.toLowerCase().includes(formData.supplier_name.toLowerCase())
+  );
+
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="Edit Item">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -151,16 +165,54 @@ export function EditInventoryModal({
           </div>
         </div>
 
-        <div>
+        <div className="relative" ref={supplierRef}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Supplier Name
           </label>
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            value={formData.supplier_name}
-            onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Search supplier..."
+              value={formData.supplier_name}
+              onFocus={() => setIsSupplierDropdownOpen(true)}
+              onChange={(e) => {
+                setFormData({ ...formData, supplier_name: e.target.value });
+                setIsSupplierDropdownOpen(true);
+              }}
+            />
+            <div
+              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+              onClick={() => setIsSupplierDropdownOpen(!isSupplierDropdownOpen)}
+            >
+              <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isSupplierDropdownOpen && "rotate-180")} />
+            </div>
+          </div>
+
+          {isSupplierDropdownOpen && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+              {filteredSuppliers.length > 0 ? (
+                filteredSuppliers.map((sup) => (
+                  <div
+                    key={sup.supplier_id}
+                    className={cn(
+                      "px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 flex items-center justify-between",
+                      formData.supplier_name === sup.supplier_name && "bg-blue-50 text-blue-600 font-medium"
+                    )}
+                    onClick={() => {
+                      setFormData({ ...formData, supplier_name: sup.supplier_name });
+                      setIsSupplierDropdownOpen(false);
+                    }}
+                  >
+                    {sup.supplier_name}
+                    {formData.supplier_name === sup.supplier_name && <Check className="w-4 h-4" />}
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-2 text-sm text-gray-500">No suppliers found</div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4">

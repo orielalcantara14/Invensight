@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import SupplierResponse, CreateSupplierRequest, UpdateSupplierRequest
 import psycopg2.extras
+from utils.audit import add_audit_log
 
 router = APIRouter()
 
@@ -33,7 +34,10 @@ def get_suppliers():
         conn.close()
 
 @router.post("/")
-def create_supplier(payload: CreateSupplierRequest):
+def create_supplier(
+    payload: CreateSupplierRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         normalized_contact = _normalize_ph_mobile(payload.contact_number)
@@ -65,6 +69,18 @@ def create_supplier(payload: CreateSupplierRequest):
                 ),
             )
             row = cur.fetchone()
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "CREATE_SUPPLIER",
+                    "supplier",
+                    row["supplier_id"],
+                    f"Created supplier: {payload.supplier_name}"
+                )
+            
             conn.commit()
             return dict(row)
     except Exception as e:
@@ -74,7 +90,11 @@ def create_supplier(payload: CreateSupplierRequest):
         conn.close()
 
 @router.put("/{supplier_id}")
-def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
+def update_supplier(
+    supplier_id: int, 
+    payload: UpdateSupplierRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         normalized_contact = _normalize_ph_mobile(payload.contact_number)
@@ -110,6 +130,18 @@ def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Supplier not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "UPDATE_SUPPLIER",
+                    "supplier",
+                    supplier_id,
+                    f"Updated supplier: {payload.supplier_name}"
+                )
+            
             conn.commit()
             return dict(row)
     except Exception as e:
@@ -119,7 +151,10 @@ def update_supplier(supplier_id: int, payload: UpdateSupplierRequest):
         conn.close()
 
 @router.put("/{supplier_id}/archive")
-def archive_supplier(supplier_id: int):
+def archive_supplier(
+    supplier_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Soft-archive a supplier (set status = 'Archived')."""
     conn = get_connection()
     try:
@@ -131,6 +166,18 @@ def archive_supplier(supplier_id: int):
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Supplier not found or already archived")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ARCHIVE_SUPPLIER",
+                    "supplier",
+                    supplier_id,
+                    f"Archived supplier ID: {supplier_id}"
+                )
+            
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -143,7 +190,10 @@ def archive_supplier(supplier_id: int):
 
 
 @router.delete("/{supplier_id}")
-def delete_supplier(supplier_id: int):
+def delete_supplier(
+    supplier_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -155,6 +205,18 @@ def delete_supplier(supplier_id: int):
             cur.execute("DELETE FROM supplier WHERE supplier_id = %s", (supplier_id,))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Supplier not found")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "DELETE_SUPPLIER",
+                    "supplier",
+                    supplier_id,
+                    f"Permanently deleted supplier ID: {supplier_id}"
+                )
+                
             conn.commit()
             return {"message": "Supplier deleted"}
     except Exception as e:

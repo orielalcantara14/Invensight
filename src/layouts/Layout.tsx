@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { clearSession, getSession } from "@/auth/session";
+import { api } from "@/services/api";
 
 export function Layout() {
   const location = useLocation();
@@ -144,7 +145,12 @@ export function Layout() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout(session?.user_id || 0);
+    } catch (err) {
+      console.error("Logout log failed:", err);
+    }
     clearSession();
     navigate("/login", { replace: true });
   };

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import CreateProductReturnRequest
 import psycopg2.extras
@@ -6,6 +6,7 @@ from datetime import date, datetime
 import logging
 
 logger = logging.getLogger("invensight.product_returns")
+from utils.audit import add_audit_log
 router = APIRouter()
 
 
@@ -116,7 +117,10 @@ def get_product_return(return_id: int):
 
 
 @router.post("/")
-def create_product_return(payload: CreateProductReturnRequest):
+def create_product_return(
+    payload: CreateProductReturnRequest,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     if not payload.items:
         raise HTTPException(status_code=400, detail="Return items are required")
 
@@ -263,6 +267,17 @@ def create_product_return(payload: CreateProductReturnRequest):
                     ),
                 )
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "CREATE_RETURN",
+                    "return",
+                    return_id,
+                    f"Created product return #{return_id} (Supplier ID: {payload.supplier_id})"
+                )
+
             conn.commit()
             return {"ok": True, "return_id": return_id}
     except HTTPException:
@@ -276,7 +291,10 @@ def create_product_return(payload: CreateProductReturnRequest):
 
 
 @router.put("/{return_id}/approve")
-def approve_product_return(return_id: int):
+def approve_product_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -408,6 +426,17 @@ def approve_product_return(return_id: int):
                 (return_id,),
             )
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "APPROVE_RETURN",
+                    "return",
+                    return_id,
+                    f"Approved product return #{return_id}"
+                )
+
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -421,7 +450,10 @@ def approve_product_return(return_id: int):
 
 
 @router.put("/{return_id}/reject")
-def reject_product_return(return_id: int):
+def reject_product_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         conn.autocommit = False
@@ -546,6 +578,17 @@ def reject_product_return(return_id: int):
                 (return_id,),
             )
 
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "REJECT_RETURN",
+                    "return",
+                    return_id,
+                    f"Rejected product return #{return_id}"
+                )
+
             conn.commit()
             return {"ok": True}
     except HTTPException:
@@ -559,7 +602,10 @@ def reject_product_return(return_id: int):
 
 
 @router.put("/{return_id}/archive")
-def archive_product_return(return_id: int):
+def archive_product_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     """Archive an approved or rejected product return."""
     conn = get_connection()
     try:
@@ -575,10 +621,22 @@ def archive_product_return(return_id: int):
                 raise HTTPException(status_code=400, detail="Cannot archive a pending return.")
             if row["status"] == "Archived":
                 raise HTTPException(status_code=400, detail="Return is already archived")
+            
             cur.execute(
                 "UPDATE product_returns SET status = 'Archived' WHERE return_id = %s",
                 (return_id,),
             )
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ARCHIVE_RETURN",
+                    "return",
+                    return_id,
+                    f"Archived product return #{return_id}"
+                )
+                
             conn.commit()
             return {"ok": True}
     except HTTPException:

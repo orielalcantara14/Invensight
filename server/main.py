@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
+import bcrypt
 from datetime import date
 from routers.products import router as products_router
 from routers.sales import router as sales_router
@@ -95,6 +96,351 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 @app.on_event("startup")
+def init_database_schema():
+    """Create all base tables and sequences (Deterministic schema for new environments)."""
+    conn = get_connection()
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            # 1. Sequences
+            cur.execute("CREATE SEQUENCE IF NOT EXISTS sales_invoice_id_seq")
+            cur.execute("CREATE SEQUENCE IF NOT EXISTS sold_items_sold_item_id_seq")
+            cur.execute("CREATE SEQUENCE IF NOT EXISTS payments_payment_id_seq")
+
+            # 2. Base Tables (Order matters for FKs)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    role_id SERIAL PRIMARY KEY,
+                    role_name VARCHAR(100) NOT NULL UNIQUE,
+                    permissions_text TEXT,
+                    user_id INTEGER
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) UNIQUE,
+                    full_name VARCHAR(255) NOT NULL,
+                    employee_id SERIAL,
+                    password_hash VARCHAR(255),
+                    role VARCHAR(100),
+                    is_active BOOLEAN DEFAULT TRUE,
+                    last_login DATE,
+                    permissions_json JSONB,
+                    email VARCHAR(255),
+                    address TEXT,
+                    password_changed_at DATE
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS supplier (
+                    supplier_id SERIAL PRIMARY KEY,
+                    supplier_name VARCHAR(255) NOT NULL,
+                    address TEXT,
+                    email VARCHAR(255),
+                    contact_number VARCHAR(100),
+                    product_supplied TEXT,
+                    total_orders INTEGER DEFAULT 0,
+                    completed_orders INTEGER DEFAULT 0,
+                    status VARCHAR(50) DEFAULT 'Active'
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    category_id SERIAL PRIMARY KEY,
+                    category_name VARCHAR(100) NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS products (
+                    product_id SERIAL PRIMARY KEY,
+                    sku VARCHAR(100) UNIQUE,
+                    product_name VARCHAR(255) NOT NULL,
+                    category_id INTEGER REFERENCES categories(category_id),
+                    supplier_id INTEGER REFERENCES supplier(supplier_id),
+                    unit_price DECIMAL(10, 2) NOT NULL,
+                    pos_price DECIMAL(10, 2),
+                    unit_of_measurement VARCHAR(50),
+                    specific_category VARCHAR(150),
+                    status VARCHAR(50) DEFAULT 'Active',
+                    date_added DATE DEFAULT CURRENT_DATE
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS inventory (
+                    inventory_id SERIAL PRIMARY KEY,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL DEFAULT 0,
+                    expected INTEGER NOT NULL DEFAULT 0,
+                    actual INTEGER NOT NULL DEFAULT 0,
+                    reorder_level INTEGER NOT NULL DEFAULT 10,
+                    last_updated DATE NOT NULL DEFAULT CURRENT_DATE,
+                    reason_adjustment TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pos_terminals (
+                    terminal_id SERIAL PRIMARY KEY,
+                    terminal_name VARCHAR(100) NOT NULL,
+                    location VARCHAR(255),
+                    status VARCHAR(50) DEFAULT 'Active',
+                    pos_id INTEGER
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS sales (
+                    invoice_id INTEGER PRIMARY KEY DEFAULT nextval('sales_invoice_id_seq'),
+                    invoice_date DATE DEFAULT CURRENT_DATE,
+                    total_amount DECIMAL(10, 2),
+                    tax_amount DECIMAL(10, 2),
+                    service_charge DECIMAL(10, 2),
+                    customer_info TEXT,
+                    customer_name VARCHAR(255),
+                    contact_number VARCHAR(100),
+                    address TEXT,
+                    payment_method VARCHAR(50),
+                    cash_received DECIMAL(10, 2),
+                    cash_given DECIMAL(10, 2),
+                    change_amount DECIMAL(10, 2),
+                    payment_status VARCHAR(50) DEFAULT 'Paid',
+                    failure_reason TEXT,
+                    user_id INTEGER REFERENCES users(user_id),
+                    pos_terminal_id INTEGER,
+                    transaction_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    paymongo_source_id VARCHAR(255),
+                    invoice_id_old INTEGER
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS sold_items (
+                    sold_item_id INTEGER PRIMARY KEY DEFAULT nextval('sold_items_sold_item_id_seq'),
+                    invoice_id INTEGER REFERENCES sales(invoice_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL,
+                    unit_price DECIMAL(10, 2) NOT NULL,
+                    subtotal DECIMAL(10, 2),
+                    total_amount DECIMAL(10, 2)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS payments (
+                    payment_id INTEGER PRIMARY KEY DEFAULT nextval('payments_payment_id_seq'),
+                    invoice_id INTEGER REFERENCES sales(invoice_id),
+                    amount_paid DECIMAL(10, 2) NOT NULL,
+                    payment_method VARCHAR(50),
+                    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    transaction_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    paymongo_source_id VARCHAR(255)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS auditlog (
+                    log_id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(user_id),
+                    action VARCHAR(100) NOT NULL,
+                    entity_type VARCHAR(100),
+                    entity_id INTEGER,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    details TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS purchase_orders (
+                    order_id VARCHAR(50) PRIMARY KEY,
+                    supplier_id INTEGER REFERENCES supplier(supplier_id),
+                    user_id INTEGER REFERENCES users(user_id),
+                    status VARCHAR(50) DEFAULT 'Pending',
+                    expected_delivery DATE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    received_at TIMESTAMP,
+                    notes TEXT,
+                    total_items INTEGER DEFAULT 0
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS purchase_order_items (
+                    item_id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(50) REFERENCES purchase_orders(order_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL,
+                    unit_price DECIMAL(10, 2)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_returns (
+                    return_id SERIAL PRIMARY KEY,
+                    supplier_id INTEGER REFERENCES supplier(supplier_id),
+                    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                    reason TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    approved_at TIMESTAMP,
+                    rejected_at TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_return_items (
+                    item_id SERIAL PRIMARY KEY,
+                    return_id INTEGER REFERENCES product_returns(return_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id),
+                    quantity INTEGER NOT NULL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS inventory_stock_events (
+                    event_id SERIAL PRIMARY KEY,
+                    inventory_id INTEGER REFERENCES inventory(inventory_id) ON DELETE CASCADE,
+                    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
+                    event_type VARCHAR(50) NOT NULL,
+                    quantity_before INTEGER NOT NULL,
+                    quantity_after INTEGER NOT NULL,
+                    expected_before INTEGER NOT NULL,
+                    expected_after INTEGER NOT NULL,
+                    actual_before INTEGER NOT NULL,
+                    actual_after INTEGER NOT NULL,
+                    quantity_delta INTEGER NOT NULL,
+                    expected_delta INTEGER NOT NULL,
+                    actual_delta INTEGER NOT NULL,
+                    difference_before INTEGER NOT NULL,
+                    difference_after INTEGER NOT NULL,
+                    reference_type VARCHAR(50) NOT NULL DEFAULT '',
+                    reference_id VARCHAR(50) NOT NULL DEFAULT '',
+                    reason TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_price_history (
+                    history_id SERIAL PRIMARY KEY,
+                    product_id INTEGER REFERENCES products(product_id),
+                    old_price DECIMAL(10, 2),
+                    new_price DECIMAL(10, 2),
+                    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    changed_by INTEGER
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analytics_model_cache (
+                    model_key VARCHAR(100) PRIMARY KEY,
+                    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    status VARCHAR(30) NOT NULL DEFAULT 'not_trained',
+                    message TEXT NOT NULL DEFAULT '',
+                    last_trained_at TIMESTAMP,
+                    last_requested_at TIMESTAMP,
+                    training_duration_ms INTEGER,
+                    next_scheduled_run TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analytics_model_runs (
+                    run_id SERIAL PRIMARY KEY,
+                    model_key VARCHAR(100) NOT NULL,
+                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    status VARCHAR(30) NOT NULL DEFAULT 'unknown',
+                    message TEXT NOT NULL DEFAULT '',
+                    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    finished_at TIMESTAMP,
+                    duration_ms INTEGER
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_analytics_model_runs_key_time ON analytics_model_runs(model_key, started_at DESC)")
+            
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    setting_key VARCHAR(100) PRIMARY KEY,
+                    setting_value TEXT NOT NULL,
+                    description TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 3. Default Data
+            cur.execute("""
+                INSERT INTO system_settings (setting_key, setting_value, description)
+                VALUES ('tax_rate', '0.03', 'Current sales tax rate (3%)')
+                ON CONFLICT (setting_key) DO NOTHING
+            """)
+            
+            # Ensure column exists before seeding
+            cur.execute("ALTER TABLE pos_terminals ADD COLUMN IF NOT EXISTS pos_id INTEGER")
+            
+            cur.execute("""
+                INSERT INTO pos_terminals (terminal_id, terminal_name, location, status, pos_id)
+                VALUES (1, 'POS Terminal #01', 'Main', 'Active', 1)
+                ON CONFLICT (terminal_id) DO NOTHING
+            """)
+
+            # 4. Seed or Update Root Admin
+            username = os.getenv("ROOT_ADMIN_USERNAME", "rootadminnginamo")
+            password = os.getenv("ROOT_ADMIN_KEY")
+            
+            if password:
+                hash_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                
+                # Check if root admin exists
+                cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+                existing = cur.fetchone()
+                
+                if not existing:
+                    cur.execute("""
+                        INSERT INTO users (username, full_name, password_hash, role, is_active)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (username, "Root Administrator", hash_pw, "administrator", True))
+                    log.info("Seeded initial root admin account: %s", username)
+                else:
+                    cur.execute("""
+                        UPDATE users SET password_hash = %s, is_active = TRUE, role = 'administrator'
+                        WHERE username = %s
+                    """, (hash_pw, username))
+                    log.info("Synchronized root admin credentials for: %s", username)
+
+            # 5. Seed Demo Data (If empty)
+            cur.execute("SELECT COUNT(*) FROM products")
+            if cur.fetchone()[0] == 0:
+                log.info("Products empty. Seeding demo data...")
+                    
+                # Supplier
+                cur.execute("""
+                    INSERT INTO supplier (supplier_id, supplier_name, status)
+                    VALUES (1, 'Main Supplier Corp', 'Active')
+                    ON CONFLICT (supplier_id) DO NOTHING
+                """)
+                
+                # Categories
+                cur.execute("""
+                    INSERT INTO categories (category_id, category_name)
+                    VALUES (1, 'Engine Parts'), (2, 'Accessories')
+                    ON CONFLICT (category_id) DO NOTHING
+                """)
+                
+                # Products
+                cur.execute("""
+                    INSERT INTO products (product_id, category_id, supplier_id, product_name, sku, unit_price, pos_price, status)
+                    VALUES 
+                        (1, 1, 1, 'Spark Plug X-01', 'SPK-001', 150.00, 250.00, 'Active'),
+                        (2, 2, 1, 'Premium Moto Helmet', 'HLM-001', 1200.00, 1800.00, 'Active')
+                    ON CONFLICT (product_id) DO NOTHING
+                """)
+                
+                # Inventory
+                cur.execute("""
+                    INSERT INTO inventory (inventory_id, product_id, quantity, expected, actual, reorder_level, last_updated)
+                    VALUES 
+                        (1, 1, 50, 50, 50, 10, CURRENT_DATE),
+                        (2, 2, 15, 15, 15, 5, CURRENT_DATE)
+                    ON CONFLICT (inventory_id) DO NOTHING
+                """)
+                log.info("Demo data seeded successfully.")
+
+        log.info("Base database schema initialized.")
+    except Exception as e:
+        log.error("Failed to initialize base schema: %s", e)
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
 async def widen_anyio_thread_limit():
     """Heavy sync routes (Prophet/STAN, bcrypt) run in AnyIO's thread pool; raise cap to avoid starving login."""
     try:
@@ -147,582 +493,76 @@ DEFAULT_ROLE_TEMPLATES = [
 
 @app.on_event("startup")
 def connect_database_on_startup():
-    """Verify PostgreSQL is up as soon as the API starts (auto-connect)."""
+    """Verify PostgreSQL is up and initialize schema."""
     verify_database_connection()
+    init_database_schema()
 
 
 @app.on_event("startup")
-def ensure_products_and_categories_tables():
+def run_migrations():
+    """Run data migrations and legacy fixes after the base schema is guaranteed to exist."""
     conn = get_connection()
     try:
+        conn.autocommit = True
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS supplier (
-                    supplier_id INTEGER PRIMARY KEY,
-                    supplier_name VARCHAR(255) NOT NULL,
-                    address TEXT,
-                    email VARCHAR(255),
-                    contact_number VARCHAR(50),
-                    product_supplied VARCHAR(255),
-                    status VARCHAR(50) DEFAULT 'Active'
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS categories (
-                    category_id INTEGER PRIMARY KEY,
-                    category_name VARCHAR(100) NOT NULL,
-                    is_active BOOLEAN DEFAULT true
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS products (
-                    product_id INTEGER PRIMARY KEY,
-                    category_id INTEGER REFERENCES categories(category_id),
-                    supplier_id INTEGER,
-                    product_name VARCHAR(255) NOT NULL,
-                    specific_category VARCHAR(150),
-                    unit_price DECIMAL(10, 2),
-                    pos_price DECIMAL(10, 2),
-                    sku VARCHAR(100) UNIQUE,
-                    date_added DATE,
-                    unit_of_measurement VARCHAR(50)
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS pos_terminals (
-                    terminal_id INTEGER PRIMARY KEY,
-                    terminal_name VARCHAR(100) NOT NULL,
-                    location VARCHAR(255),
-                    status VARCHAR(50) DEFAULT 'Active'
-                )
-            """)
-            conn.commit()
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_products_and_pos_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            # Ensure products has supplier_id
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id INTEGER")
-            
-            # Remove description column from products
+            # 1. Product Schema Fixes
             cur.execute("ALTER TABLE products DROP COLUMN IF EXISTS description")
-            
-            # Fix column lengths for existing tables
             cur.execute("ALTER TABLE products ALTER COLUMN sku TYPE VARCHAR(100)")
-            cur.execute("ALTER TABLE supplier ALTER COLUMN status TYPE VARCHAR(50)")
-            
-            # Ensure supplier_id in products is a foreign key
-            try:
-                cur.execute("""
-                    SELECT 1 FROM information_schema.table_constraints 
-                    WHERE constraint_name = 'fk_products_supplier' 
-                    AND table_name = 'products'
-                """)
-                if not cur.fetchone():
-                    cur.execute("ALTER TABLE products ADD CONSTRAINT fk_products_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(supplier_id)")
-            except:
-                pass
-
-            conn.commit()
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_products_extra_columns():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_of_measurement VARCHAR(50)")
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS specific_category VARCHAR(150)")
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_price DECIMAL(10, 2)")
-            cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'")
             cur.execute("UPDATE products SET status = 'Active' WHERE status IS NULL OR status = ''")
-            conn.commit()
-    finally:
-        conn.close()
 
-
-@app.on_event("startup")
-def ensure_inventory_schema():
-    conn = get_connection()
-    try:
-        # Step 1: Basic table creation
-        with conn.cursor() as cur:
+            # 2. Inventory Migration (Legacy quantity_on_hand support)
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS inventory (
-                    inventory_id INTEGER PRIMARY KEY,
-                    product_id INTEGER REFERENCES products(product_id),
-                    quantity INTEGER NOT NULL DEFAULT 0,
-                    expected INTEGER NOT NULL DEFAULT 0,
-                    actual INTEGER NOT NULL DEFAULT 0,
-                    reorder_level INTEGER NOT NULL DEFAULT 10,
-                    last_updated DATE NOT NULL,
-                    reason_adjustment TEXT NOT NULL DEFAULT ''
-                )
-            """)
-        conn.commit()
-
-        # Step 2: Add missing columns
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 0")
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS expected INTEGER NOT NULL DEFAULT 0")
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS actual INTEGER NOT NULL DEFAULT 0")
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS reorder_level INTEGER NOT NULL DEFAULT 10")
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS last_updated DATE")
-            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS reason_adjustment TEXT NOT NULL DEFAULT ''")
-        conn.commit()
-
-        # Step 3: Data fixes and migrations
-        with conn.cursor() as cur:
-            cur.execute("UPDATE inventory SET last_updated = %s WHERE last_updated IS NULL", (date.today(),))
-            cur.execute("UPDATE inventory SET reason_adjustment = '' WHERE reason_adjustment IS NULL")
-            
-            cur.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
+                SELECT column_name FROM information_schema.columns 
                 WHERE table_name = 'inventory' AND column_name = 'quantity_on_hand'
             """)
             if cur.fetchone():
-                cur.execute("UPDATE inventory SET quantity = quantity_on_hand WHERE (quantity = 0 OR quantity IS NULL) AND quantity_on_hand IS NOT NULL")
-        conn.commit()
+                cur.execute("UPDATE inventory SET quantity = quantity_on_hand WHERE quantity = 0 AND quantity_on_hand IS NOT NULL")
+                cur.execute("ALTER TABLE inventory DROP COLUMN IF EXISTS quantity_on_hand")
 
-        # Step 4: Set NOT NULL constraints
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE inventory ALTER COLUMN quantity SET NOT NULL")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN expected SET NOT NULL")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN actual SET NOT NULL")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN reorder_level SET NOT NULL")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN last_updated SET NOT NULL")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN reason_adjustment SET NOT NULL")
-        conn.commit()
+            # 3. Sales & Sold Items Schema Fixes
+            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS pos_terminal_id INTEGER")
+            cur.execute("ALTER TABLE sold_items ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10, 2)")
+            cur.execute("UPDATE sold_items SET total_amount = subtotal WHERE total_amount IS NULL")
 
-        # Step 5: Cleanup
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE inventory DROP COLUMN IF EXISTS quantity_on_hand")
-            cur.execute("ALTER TABLE inventory DROP COLUMN IF EXISTS supplier_id")
-            cur.execute("ALTER TABLE inventory DROP COLUMN IF EXISTS location_shelf")
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_users_roles_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
+            # 4. Payments Schema Fixes
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS auditlog (
-                    log_id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(user_id),
-                    action VARCHAR(100) NOT NULL,
-                    entity_type VARCHAR(100),
-                    entity_id INTEGER,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    details TEXT
-                )
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'payments' AND column_name = 'amount'
             """)
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100)"
-            )
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions_json JSONB DEFAULT '{}'::jsonb"
-            )
-            cur.execute(
-                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS permissions_text TEXT"
-            )
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)"
-            )
-            cur.execute(
-                """
-                CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique
-                ON users (LOWER(username))
-                WHERE username IS NOT NULL AND TRIM(username) <> ''
-                """
-            )
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active'"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ALTER COLUMN product_supplied TYPE VARCHAR(255)"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ALTER COLUMN address DROP NOT NULL"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ALTER COLUMN email DROP NOT NULL"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ALTER COLUMN contact_number DROP NOT NULL"
-            )
-            cur.execute(
-                "ALTER TABLE supplier ALTER COLUMN product_supplied DROP NOT NULL"
-            )
-            conn.commit()
+            if cur.fetchone():
+                cur.execute("ALTER TABLE payments RENAME COLUMN amount TO amount_paid")
+            else:
+                cur.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10, 2) DEFAULT 0")
+            
+            cur.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            
+            # Sync legacy date column if it exists
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'payments' AND column_name = 'payment_date'
+            """)
+            if cur.fetchone():
+                cur.execute("UPDATE payments SET transaction_timestamp = payment_date WHERE transaction_timestamp IS NULL")
+            else:
+                cur.execute("UPDATE payments SET transaction_timestamp = CURRENT_TIMESTAMP WHERE transaction_timestamp IS NULL")
+
+            # 5. User Schema Fixes
             cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS phone")
             cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS bio")
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at DATE"
-            )
-            cur.execute("ALTER TABLE inventory ALTER COLUMN inventory_id TYPE INTEGER")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN product_id TYPE INTEGER")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN quantity TYPE INTEGER")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN expected TYPE INTEGER")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN actual TYPE INTEGER")
-            cur.execute("ALTER TABLE inventory ALTER COLUMN reorder_level TYPE INTEGER")
-            cur.execute("ALTER TABLE products ALTER COLUMN product_id TYPE INTEGER")
-            cur.execute("ALTER TABLE products ALTER COLUMN category_id TYPE INTEGER")
-            cur.execute("ALTER TABLE products ALTER COLUMN supplier_id TYPE INTEGER")
             
-            # Drop pos_management table as requested
+            # 6. Supplier Schema Fixes
+            cur.execute("ALTER TABLE supplier ALTER COLUMN status TYPE VARCHAR(50)")
+            cur.execute("ALTER TABLE supplier ALTER COLUMN product_supplied TYPE TEXT")
+
+            # 5. POS Terminals Fixes (Critical for seeding)
+            cur.execute("ALTER TABLE pos_terminals ADD COLUMN IF NOT EXISTS pos_id INTEGER")
+
+            # 6. Clean up obsolete tables
             cur.execute("DROP TABLE IF EXISTS pos_management CASCADE")
-            conn.commit()
-    finally:
-        conn.close()
 
-
-@app.on_event("startup")
-def ensure_purchase_orders_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS purchase_orders (
-                    order_id VARCHAR(50) PRIMARY KEY,
-                    supplier_id INTEGER REFERENCES supplier(supplier_id),
-                    user_id INTEGER REFERENCES users(user_id),
-                    status VARCHAR(50) DEFAULT 'Pending',
-                    expected_delivery DATE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    received_at TIMESTAMP,
-                    total_items INTEGER DEFAULT 0,
-                    notes TEXT
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS purchase_order_items (
-                    item_id SERIAL PRIMARY KEY,
-                    order_id VARCHAR(50) REFERENCES purchase_orders(order_id) ON DELETE CASCADE,
-                    product_id INTEGER REFERENCES products(product_id),
-                    quantity INTEGER NOT NULL,
-                    unit_price DECIMAL(10, 2)
-                )
-            """)
-            cur.execute("ALTER TABLE supplier ADD COLUMN IF NOT EXISTS total_orders INTEGER DEFAULT 0")
-            cur.execute("ALTER TABLE supplier ADD COLUMN IF NOT EXISTS completed_orders INTEGER DEFAULT 0")
-            conn.commit()
+        log.info("Schema migrations completed successfully.")
     except Exception as e:
-        conn.rollback()
-        print(f"Purchase orders schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_product_returns_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS product_returns (
-                    return_id SERIAL PRIMARY KEY,
-                    supplier_id INTEGER REFERENCES supplier(supplier_id),
-                    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
-                    reason TEXT NOT NULL DEFAULT '',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    approved_at TIMESTAMP,
-                    rejected_at TIMESTAMP
-                )
-            """)
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS product_return_items (
-                    item_id SERIAL PRIMARY KEY,
-                    return_id INTEGER REFERENCES product_returns(return_id) ON DELETE CASCADE,
-                    product_id INTEGER REFERENCES products(product_id),
-                    quantity INTEGER NOT NULL
-                )
-            """)
-
-            # Ensure newer columns exist on older databases
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES supplier(supplier_id)")
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'Pending'")
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT ''")
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP")
-            cur.execute("ALTER TABLE product_returns ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP")
-
-            # Clean up legacy columns from older schema where product_returns stored a single product/quantity
-            cur.execute("ALTER TABLE product_returns DROP COLUMN IF EXISTS quantity")
-            cur.execute("ALTER TABLE product_returns DROP COLUMN IF EXISTS product_id")
-
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Product returns schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_inventory_stock_events_schema():
-    """
-    Traceability ledger for inventory mutations (PO pending/received, returns, manual adjustments).
-    """
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS inventory_stock_events (
-                    event_id SERIAL PRIMARY KEY,
-                    inventory_id INTEGER REFERENCES inventory(inventory_id) ON DELETE CASCADE,
-                    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
-                    event_type VARCHAR(50) NOT NULL,
-                    quantity_before INTEGER NOT NULL,
-                    quantity_after INTEGER NOT NULL,
-                    expected_before INTEGER NOT NULL,
-                    expected_after INTEGER NOT NULL,
-                    actual_before INTEGER NOT NULL,
-                    actual_after INTEGER NOT NULL,
-                    quantity_delta INTEGER NOT NULL,
-                    expected_delta INTEGER NOT NULL,
-                    actual_delta INTEGER NOT NULL,
-                    difference_before INTEGER NOT NULL,
-                    difference_after INTEGER NOT NULL,
-                    reference_type VARCHAR(50) NOT NULL DEFAULT '',
-                    reference_id VARCHAR(50) NOT NULL DEFAULT '',
-                    reason TEXT NOT NULL DEFAULT '',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            cur.execute("""
-                SELECT 1 FROM information_schema.table_constraints 
-                WHERE constraint_name = 'inventory_stock_events_inventory_id_fkey' 
-                AND table_name = 'inventory_stock_events'
-            """)
-            if cur.fetchone():
-                cur.execute("""
-                    ALTER TABLE inventory_stock_events 
-                    DROP CONSTRAINT inventory_stock_events_inventory_id_fkey,
-                    ADD CONSTRAINT inventory_stock_events_inventory_id_fkey 
-                    FOREIGN KEY (inventory_id) REFERENCES inventory(inventory_id) ON DELETE CASCADE
-                """)
-            
-            cur.execute("""
-                SELECT 1 FROM information_schema.table_constraints 
-                WHERE constraint_name = 'inventory_stock_events_product_id_fkey' 
-                AND table_name = 'inventory_stock_events'
-            """)
-            if cur.fetchone():
-                cur.execute("""
-                    ALTER TABLE inventory_stock_events 
-                    DROP CONSTRAINT inventory_stock_events_product_id_fkey,
-                    ADD CONSTRAINT inventory_stock_events_product_id_fkey 
-                    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
-                """)
-            
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Inventory stock events schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_product_price_history_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS product_price_history (
-                    history_id SERIAL PRIMARY KEY,
-                    product_id INTEGER REFERENCES products(product_id),
-                    old_price DECIMAL(10, 2),
-                    new_price DECIMAL(10, 2),
-                    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    changed_by INTEGER
-                )
-            """)
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Product price history schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_analytics_cache_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS analytics_model_cache (
-                    model_key VARCHAR(100) PRIMARY KEY,
-                    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
-                    status VARCHAR(30) NOT NULL DEFAULT 'not_trained',
-                    message TEXT NOT NULL DEFAULT '',
-                    last_trained_at TIMESTAMP,
-                    last_requested_at TIMESTAMP,
-                    training_duration_ms INTEGER,
-                    next_scheduled_run TIMESTAMP
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS analytics_model_runs (
-                    run_id SERIAL PRIMARY KEY,
-                    model_key VARCHAR(100) NOT NULL,
-                    model_engine VARCHAR(30) NOT NULL DEFAULT 'unknown',
-                    status VARCHAR(30) NOT NULL DEFAULT 'unknown',
-                    message TEXT NOT NULL DEFAULT '',
-                    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    finished_at TIMESTAMP,
-                    duration_ms INTEGER
-                )
-                """
-            )
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_analytics_model_runs_key_time ON analytics_model_runs(model_key, started_at DESC)"
-            )
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Analytics schema migration error: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def start_analytics_scheduler():
-    from analytics_cache_jobs import start_scheduler
-
-    start_scheduler()
-
-
-@app.on_event("startup")
-def ensure_payments_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paymongo_source_id VARCHAR(255)")
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Schema migration error for payments table: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_sales_invoice_id_sequence():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT column_default
-                FROM information_schema.columns
-                WHERE table_name = 'sales' AND column_name = 'invoice_id'
-            """)
-            result = cur.fetchone()
-            if not result or not result[0]:
-                cur.execute("CREATE SEQUENCE IF NOT EXISTS sales_invoice_id_seq")
-                cur.execute("""
-                    ALTER TABLE sales
-                    ALTER COLUMN invoice_id SET DEFAULT nextval('sales_invoice_id_seq')
-                """)
-                cur.execute("""
-                    SELECT setval('sales_invoice_id_seq', COALESCE((SELECT MAX(invoice_id) FROM sales), 0) + 1)
-                """)
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS cash_received DECIMAL(10, 2)")
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS change_amount DECIMAL(10, 2)")
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS cash_given DECIMAL(10, 2)")
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS contact_number VARCHAR(50)")
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Paid'")
-            cur.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS failure_reason TEXT")
-            cur.execute("""
-                INSERT INTO pos_terminals (terminal_id, terminal_name, location, status, pos_id)
-                SELECT 1, 'POS Terminal #01', 'Main', 'Active', 1
-                WHERE NOT EXISTS (SELECT 1 FROM pos_terminals WHERE terminal_id = 1)
-            """)
-            cur.execute("""
-                SELECT column_default
-                FROM information_schema.columns
-                WHERE table_name = 'sold_items' AND column_name = 'sold_item_id'
-            """)
-            result = cur.fetchone()
-            if not result or not result[0]:
-                cur.execute("CREATE SEQUENCE IF NOT EXISTS sold_items_sold_item_id_seq")
-                cur.execute("""
-                    ALTER TABLE sold_items
-                    ALTER COLUMN sold_item_id SET DEFAULT nextval('sold_items_sold_item_id_seq')
-                """)
-                cur.execute("""
-                    SELECT setval('sold_items_sold_item_id_seq', COALESCE((SELECT MAX(sold_item_id) FROM sold_items), 0) + 1)
-                """)
-            cur.execute("""
-                SELECT column_default
-                FROM information_schema.columns
-                WHERE table_name = 'payments' AND column_name = 'payment_id'
-            """)
-            result = cur.fetchone()
-            if not result or not result[0]:
-                cur.execute("CREATE SEQUENCE IF NOT EXISTS payments_payment_id_seq")
-                cur.execute("""
-                    ALTER TABLE payments
-                    ALTER COLUMN payment_id SET DEFAULT nextval('payments_payment_id_seq')
-                """)
-                cur.execute("""
-                    SELECT setval('payments_payment_id_seq', COALESCE((SELECT MAX(payment_id) FROM payments), 0) + 1)
-                """)
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Schema migration error for sales invoice_id: {e}")
-    finally:
-        conn.close()
-
-
-@app.on_event("startup")
-def ensure_settings_schema():
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS system_settings (
-                    setting_key VARCHAR(100) PRIMARY KEY,
-                    setting_value TEXT NOT NULL,
-                    description TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            cur.execute("""
-                INSERT INTO system_settings (setting_key, setting_value, description)
-                VALUES ('tax_rate', '0.03', 'Current sales tax rate (3%)')
-                ON CONFLICT (setting_key) DO UPDATE SET setting_value = '0.03', updated_at = CURRENT_TIMESTAMP
-            """)
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Settings schema migration error: {e}")
+        log.error("Migration error: %s", e)
     finally:
         conn.close()
 

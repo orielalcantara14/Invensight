@@ -5,6 +5,7 @@ from models import LoginRequest, LoginResponse
 import psycopg2.extras
 import bcrypt
 import json
+from utils.audit import add_audit_log
 
 router = APIRouter()
 
@@ -86,22 +87,15 @@ def login(body: LoginRequest):
                 "UPDATE users SET last_login = CURRENT_DATE WHERE user_id = %s",
                 (row["user_id"],),
             )
-            # Skip audit log for root admin
-            is_root = row.get("username") and row["username"].strip().lower() == "rootadminnginamo"
-            if not is_root:
-                cur.execute(
-                    """
-                    INSERT INTO auditlog (user_id, action, entity_type, entity_id, timestamp, details)
-                    VALUES (%s, %s, %s, %s, NOW(), %s)
-                    """,
-                    (
-                        row["user_id"],
-                        "LOGIN",
-                        "user",
-                        row["user_id"],
-                        f"User signed in: {row.get('username') or row['user_id']}",
-                    ),
-                )
+            # --- Audit log ---
+            add_audit_log(
+                cur, 
+                row["user_id"], 
+                "LOGIN", 
+                "user", 
+                row["user_id"], 
+                f"User signed in: {row.get('username') or row['user_id']}"
+            )
             conn.commit()
 
             perms = None
@@ -154,3 +148,28 @@ def verify_session(x_user_id: str | None = Header(default=None, alias="X-User-Id
         raise HTTPException(status_code=400, detail="Invalid user ID")
     finally:
         conn.close()
+
+
+@router.post("/logout")
+def logout(x_user_id: str | None = Header(default=None, alias="X-User-Id")):
+    if not x_user_id:
+        return {"ok": True}
+        
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            uid = int(x_user_id)
+            add_audit_log(
+                cur,
+                uid,
+                "LOGOUT",
+                "user",
+                uid,
+                "User signed out"
+            )
+            conn.commit()
+    except:
+        pass
+    finally:
+        conn.close()
+    return {"ok": True}
