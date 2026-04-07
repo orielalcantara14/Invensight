@@ -41,6 +41,7 @@ export function Orders() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [customerReturnsCount, setCustomerReturnsCount] = useState(0);
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; displayId: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
@@ -59,10 +60,11 @@ export function Orders() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ordersRes, suppliersRes, productsRes] = await Promise.all([
+      const [ordersRes, suppliersRes, productsRes, returnsRes] = await Promise.all([
         api.getPurchaseOrders(),
         api.getSuppliers(),
         api.getProducts(),
+        api.getCustomerReturns(),
       ]);
       setOrders(ordersRes);
       setSuppliers(suppliersRes);
@@ -73,6 +75,7 @@ export function Orders() {
         unit_price: p.unit_price ?? undefined,
         supplier_id: p.supplier_id ?? undefined
       })));
+      setCustomerReturnsCount(returnsRes.length);
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -290,7 +293,7 @@ export function Orders() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Orders</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{orders.length}</div>
@@ -302,6 +305,10 @@ export function Orders() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Received Orders</div>
           <div className="text-2xl font-bold text-green-600">{receivedCount}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Customer Returns</div>
+          <div className="text-2xl font-bold text-purple-600">{customerReturnsCount}</div>
         </div>
       </div>
 
