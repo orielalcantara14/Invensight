@@ -128,7 +128,7 @@ export function Analytics() {
         <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-100 flex flex-col">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-indigo-600" />
-            Top Sellers (30 Days)
+            Top Products (30 Days)
           </h2>
 
           <div className="flex-1 flex flex-col justify-center space-y-4">

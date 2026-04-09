@@ -17,6 +17,8 @@ def _validate_non_negative_product_values(unit_price, pos_price, stock):
         raise HTTPException(status_code=400, detail="Unit cost cannot be negative.")
     if pos_price is not None and pos_price < 0:
         raise HTTPException(status_code=400, detail="SRP cannot be negative.")
+    if pos_price is not None and pos_price < unit_price:
+        raise HTTPException(status_code=400, detail="SRP cannot be lower than the Unit Cost.")
     if stock is None or stock < 0:
         raise HTTPException(status_code=400, detail="Stock cannot be negative.")
 
@@ -550,47 +552,24 @@ def delete_pos_product(
 
             cur.execute(
                 """
-                SELECT 1 FROM sold_items si WHERE si.product_id = %s LIMIT 1
+                UPDATE products SET status = 'Archived'
+                WHERE product_id = %s AND status = 'Active'
+                RETURNING product_id
                 """,
                 (product_id,),
             )
-            has_sales = cur.fetchone() is not None
-
-            if has_sales:
-                cur.execute(
-                    """
-                    UPDATE products SET status = 'Archived'
-                    WHERE product_id = %s
-                    """,
-                    (product_id,),
-                )
-            else:
-                cur.execute(
-                    """
-                    DELETE FROM inventory
-                    WHERE product_id = %s
-                    """,
-                    (product_id,),
-                )
-
-                cur.execute(
-                    """
-                    DELETE FROM products
-                    WHERE product_id = %s
-                    """,
-                    (product_id,),
-                )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Active product not found")
 
             # --- Audit log ---
             if x_actor_user_id:
-                action = "ARCHIVE_PRODUCT" if has_sales else "DELETE_PRODUCT"
                 add_audit_log(
                     cur,
                     int(x_actor_user_id),
-                    action,
+                    "ARCHIVE_PRODUCT",
                     "product",
                     product_id,
-                    f"{'Archived' if has_sales else 'Permanently deleted'} product ID: {product_id}"
+                    f"Archived product ID: {product_id}"
                 )
             
             conn.commit()

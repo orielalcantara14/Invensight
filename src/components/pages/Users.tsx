@@ -105,6 +105,7 @@ export function Users() {
     password: string;
     role: string;
     status: "Active" | "Inactive";
+    permissions?: Record<string, string[]>;
   }) => {
     if (!canManageAccounts) {
       setUserFormError("Only Root Admin and Administrators can create accounts.");
@@ -123,7 +124,7 @@ export function Users() {
         email: user.email.trim() || null,
         password: user.password,
         role: user.role,
-        permissions: {},
+        permissions: user.permissions || {},
         is_active: user.status === "Active",
       }, session.user_id);
       setIsAddUserModalOpen(false);
@@ -452,15 +453,17 @@ export function Users() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1 text-red-600 hover:text-red-900 font-medium text-sm"
-                                onClick={() => handleDeleteUser(user.id)}
-                                title="Delete user (moves to Archive)"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                              </button>
+                              {user.id !== session?.user_id && (
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-900 font-medium text-sm"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  title="Delete user (moves to Archive)"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </button>
+                              )}
                             </>
                           ) : (
                             <span className="text-xs text-gray-400">No access</span>

@@ -202,23 +202,23 @@ def delete_supplier(
             if cur.fetchone()[0] > 0:
                 raise HTTPException(status_code=400, detail="Supplier has orders and cannot be deleted")
             
-            cur.execute("DELETE FROM supplier WHERE supplier_id = %s", (supplier_id,))
+            cur.execute("UPDATE supplier SET status = 'Archived' WHERE supplier_id = %s AND status = 'Active' RETURNING supplier_id", (supplier_id,))
             if cur.rowcount == 0:
-                raise HTTPException(status_code=404, detail="Supplier not found")
+                raise HTTPException(status_code=404, detail="Active supplier not found")
             
             # --- Audit log ---
             if x_actor_user_id:
                 add_audit_log(
                     cur,
                     int(x_actor_user_id),
-                    "DELETE_SUPPLIER",
+                    "ARCHIVE_SUPPLIER",
                     "supplier",
                     supplier_id,
-                    f"Permanently deleted supplier ID: {supplier_id}"
+                    f"Archived supplier ID: {supplier_id}"
                 )
                 
             conn.commit()
-            return {"message": "Supplier deleted"}
+            return {"message": "Supplier archived"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

@@ -11,6 +11,7 @@ import {
   Filter,
   ChevronDown
 } from "lucide-react";
+import { ProtectedAction } from "@/components/ProtectedAction";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import {
   RadialBarChart,
@@ -275,20 +276,22 @@ export function StockPrediction() {
                             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Recommendation</p>
                             <p className="font-black text-gray-900 text-lg">Order {item.recommended_order}</p>
                           </div>
-                          <button
-                            onClick={() => {
-                              const finalSupplierId = item.supplier_id || suppliers.find(s => s.supplier_name === item.supplier_name)?.supplier_id || suppliers[0]?.supplier_id || 0;
-                              setDraftOrder({
-                                supplierId: finalSupplierId,
-                                expectedDelivery: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-                                items: [{ id: item.product_id, name: item.product_name, quantity: item.recommended_order }]
-                              });
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white p-3.5 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-110 active:scale-95 flex items-center gap-2 font-bold text-xs"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            Order
-                          </button>
+                          <ProtectedAction module="Orders" action="Add">
+                            <button
+                              onClick={() => {
+                                const finalSupplierId = item.supplier_id || suppliers.find(s => s.supplier_name === item.supplier_name)?.supplier_id || suppliers[0]?.supplier_id || 0;
+                                setDraftOrder({
+                                  supplierId: finalSupplierId,
+                                  expectedDelivery: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+                                  items: [{ id: item.product_id, name: item.product_name, quantity: item.recommended_order }]
+                                });
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white p-3.5 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-110 active:scale-95 flex items-center gap-2 font-bold text-xs"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              Order
+                            </button>
+                          </ProtectedAction>
                         </div>
                       </div>
                     );

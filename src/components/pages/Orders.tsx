@@ -1,11 +1,13 @@
-import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archive } from "lucide-react";
+import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archive, Download } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { api } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { toast } from "sonner";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/types";
 import { ProductReturns } from "./ProductReturns";
 import { CustomerReturns } from "./CustomerReturns";
+import { ProtectedAction } from "@/components/ProtectedAction";
 
 interface OrderItemInput {
   product_id: number;
@@ -229,13 +231,13 @@ export function Orders() {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm("Are you sure you want to delete this order?")) return;
+    if (!confirm("Are you sure you want to move this pending order to the Archive?")) return;
     try {
       await api.deletePurchaseOrder(orderId);
-      toast.success("Order deleted successfully");
+      toast.success("Order moved to Archive successfully");
       loadData();
     } catch (error: any) {
-      toast.error(error.message || "Failed to delete order");
+      toast.error(error.message || "Failed to move order to Archive");
     }
   };
 
@@ -283,13 +285,35 @@ export function Orders() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Purchase Orders</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage supplier purchase orders</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Order
-          </button>
+          <div className="flex items-center gap-3">
+            <ProtectedAction module="Archive" action="View">
+              <Link
+                to="/archive?stage=Archived&tab=orders"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+              >
+                <Archive className="w-4 h-4" />
+                Archive
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Archive" action="Delete">
+              <Link
+                to="/archive?stage=Deleted&tab=orders"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Trash
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Orders" action="Add">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                New Order
+              </button>
+            </ProtectedAction>
+          </div>
         </div>
       </div>
 
@@ -459,10 +483,10 @@ export function Orders() {
                         {order.status === "Pending" && (
                           <button
                             onClick={() => handleDeleteOrder(order.order_id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete Order"
+                            className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+                            title="Archive Order"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Archive className="w-4 h-4" />
                           </button>
                         )}
                         {(order.status === "Received" || order.status === "Cancelled") && (

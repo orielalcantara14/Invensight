@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./layouts/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { getSession, clearSession } from "./auth/session";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { Login } from "./components/pages/Login";
 import { Dashboard } from "./components/pages/Dashboard";
 import { Sales } from "./components/pages/Sales";
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     Component: Login,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/pos",
@@ -51,10 +53,12 @@ export const router = createBrowserRouter([
         <POS />
       </RequireAuth>
     ),
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/",
     Component: RootLayout,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", Component: Dashboard },

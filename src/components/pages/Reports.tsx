@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { api } from "@/services/api";
 import { toast } from "sonner";
 import { exportToExcel } from "@/utils/export";
+import { ProtectedAction } from "../ProtectedAction";
 
 interface GeneratedReport {
   id: number;
@@ -138,13 +139,15 @@ export function Reports() {
           </div>
 
           <div className="flex items-end">
-            <button 
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedType}
-              className="w-full bg-blue-600 text-white px-4 py-2 flex justify-center items-center gap-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-            >
-              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin"/> : "Generate Report"}
-            </button>
+            <ProtectedAction module="Reports" action="Export">
+              <button 
+                onClick={handleGenerate}
+                disabled={isGenerating || !selectedType}
+                className="w-full bg-blue-600 text-white px-4 py-2 flex justify-center items-center gap-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin"/> : "Generate Report"}
+              </button>
+            </ProtectedAction>
           </div>
         </div>
       </div>
@@ -197,9 +200,11 @@ export function Reports() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.generatedDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.generatedBy}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button onClick={() => deleteReportRecord(report.id)} className="flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors" title="Delete record from history">
-                        <Trash2 className="w-4 h-4" /> Clear
-                      </button>
+                      <ProtectedAction module="Reports" action="Delete">
+                        <button onClick={() => deleteReportRecord(report.id)} className="flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors" title="Delete record from history">
+                          <Trash2 className="w-4 h-4" /> Clear
+                        </button>
+                      </ProtectedAction>
                     </td>
                   </tr>
                 ))

@@ -180,7 +180,8 @@ def init_database_schema():
                     actual INTEGER NOT NULL DEFAULT 0,
                     reorder_level INTEGER NOT NULL DEFAULT 10,
                     last_updated DATE NOT NULL DEFAULT CURRENT_DATE,
-                    reason_adjustment TEXT NOT NULL DEFAULT ''
+                    reason_adjustment TEXT NOT NULL DEFAULT '',
+                    status VARCHAR(50) DEFAULT 'Active'
                 )
             """)
             cur.execute("""
@@ -437,7 +438,7 @@ def init_database_schema():
 
             # 4. Seed or Update Root Admin
             username = os.getenv("ROOT_ADMIN_USERNAME", "rootadminnginamo")
-            password = os.getenv("ROOT_ADMIN_KEY")
+            password = os.getenv("ROOT_ADMIN_KEY", "changeit_now_123")
             
             if password:
                 hash_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -447,10 +448,11 @@ def init_database_schema():
                 existing = cur.fetchone()
                 
                 if not existing:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO users (username, full_name, password_hash, role, is_active)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (username, "Root Administrator", hash_pw, "administrator", True))
+                    """, (username, "Root Admin", hash_pw, "administrator", True))
                     log.info("Seeded initial root admin account: %s", username)
                 else:
                     cur.execute("""
@@ -551,11 +553,10 @@ if not os.path.exists(UPLOAD_DIR):
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 DEFAULT_ROLE_TEMPLATES = [
-    ("Administrator", "Full system access, user management, reports"),
-    ("Manager", "Sales, inventory, forecasting, reports"),
-    ("Sales Staff", "Sales transactions, customer info"),
-    ("Cashier", "Point of Sale transactions only"),
-    ("Warehouse Staff", "Inventory, stock movements"),
+    ("Administrator", "Full system access, user management, and advanced reporting."),
+    ("Manager", "Complete operational control, inventory management, and reporting."),
+    ("Sales Staff", "Handles front-line sales, inventory viewing, and customer returns."),
+    ("Cashier", "Restricted access for high-speed POS transactions only."),
 ]
 
 
@@ -622,7 +623,11 @@ def run_migrations():
             cur.execute("ALTER TABLE supplier ALTER COLUMN status TYPE VARCHAR(50)")
             cur.execute("ALTER TABLE supplier ALTER COLUMN product_supplied TYPE TEXT")
 
-            # 5. POS Terminals Fixes (Critical for seeding)
+            # 6. Inventory Schema Fixes
+            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'")
+            cur.execute("UPDATE inventory SET status = 'Active' WHERE status IS NULL OR status = ''")
+
+            # 7. POS Terminals Fixes (Critical for seeding)
             cur.execute("ALTER TABLE pos_terminals ADD COLUMN IF NOT EXISTS pos_id INTEGER")
 
             # 6. Clean up obsolete tables
@@ -643,44 +648,43 @@ def seed_default_roles():
         with conn.cursor() as cur:
             import json
             # Default permissions for each role
+            _ALL_ACTIONS = ["View", "Add", "Edit", "Delete", "Export"]
             _DEFAULT_PERMS = {
                 "administrator": {
-                    "Sales": ["View", "Add", "Edit", "Delete"],
-                    "Inventory": ["View", "Add Item", "Edit", "Delete"],
-                    "Products": ["View", "Add Product", "Edit", "Delete"],
-                    "Suppliers": ["View", "Add Supplier", "Edit", "Delete"],
-                    "Reports": ["View", "Generate Report"],
-                    "User Management": ["View", "Add User", "Edit User", "Delete User"],
-                    "Role Permissions": ["View", "Create", "Edit", "Delete"],
-                    "Forecasting": ["View", "Generate Forecast"],
-                    "Stock Prediction": ["View", "Run Prediction"],
-                    "Audit Log": ["View", "Export"],
-                    "Purchase Order": ["View", "Create Order", "Edit", "Delete"],
-                    "Product Return": ["View", "Process Return", "Edit"]
+                    "Dashboard": _ALL_ACTIONS,
+                    "Sales": _ALL_ACTIONS,
+                    "Inventory": _ALL_ACTIONS,
+                    "Products": _ALL_ACTIONS,
+                    "Suppliers": _ALL_ACTIONS,
+                    "Orders": _ALL_ACTIONS,
+                    "Reports": _ALL_ACTIONS,
+                    "User Management": _ALL_ACTIONS,
+                    "Role Permissions": _ALL_ACTIONS,
+                    "Forecasting": _ALL_ACTIONS,
+                    "Stock Prediction": _ALL_ACTIONS,
+                    "Audit Log": _ALL_ACTIONS,
+                    "Archive": _ALL_ACTIONS,
+                    "Supplier Return": _ALL_ACTIONS
                 },
                 "manager": {
-                    "Sales": ["View", "Add", "Edit"],
-                    "Inventory": ["View", "Add Item", "Edit"],
-                    "Products": ["View", "Add Product", "Edit"],
-                    "Suppliers": ["View", "Add Supplier", "Edit"],
-                    "Reports": ["View", "Generate Report"],
-                    "Forecasting": ["View", "Generate Forecast"],
-                    "Stock Prediction": ["View", "Run Prediction"],
-                    "Purchase Order": ["View", "Create Order", "Edit"],
-                    "Product Return": ["View", "Process Return", "Edit"]
+                    "Dashboard": ["View", "Export"],
+                    "Sales": ["View", "Add", "Edit", "Export"],
+                    "Inventory": ["View", "Add", "Edit", "Export"],
+                    "Products": ["View", "Add", "Edit", "Export"],
+                    "Suppliers": ["View", "Add", "Edit", "Export"],
+                    "Orders": ["View", "Add", "Edit", "Export"],
+                    "Reports": ["View", "Export"],
+                    "Forecasting": ["View", "Export"],
+                    "Stock Prediction": ["View", "Export"],
+                    "Archive": ["View"],
+                    "Supplier Return": ["View", "Add", "Edit", "Export"]
                 },
                 "sales staff": {
+                    "Dashboard": ["View"],
                     "Sales": ["View", "Add"],
                     "Inventory": ["View"],
                     "Products": ["View"],
-                    "Product Return": ["View", "Process Return"]
-                },
-                "warehouse staff": {
-                    "Inventory": ["View", "Add Item", "Edit"],
-                    "Products": ["View"],
-                    "Suppliers": ["View"],
-                    "Purchase Order": ["View"],
-                    "Product Return": ["View", "Process Return"]
+                    "Supplier Return": ["View", "Add"]
                 },
                 "cashier": {
                     "Sales": ["View", "Add"]

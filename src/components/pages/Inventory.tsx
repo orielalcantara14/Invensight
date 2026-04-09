@@ -1,7 +1,8 @@
-import { Search, Download, Package, Edit2, Trash2, Eye, AlertTriangle } from "lucide-react";
+import { Search, Download, Package, Edit2, Trash2, Eye, AlertTriangle, Archive, ChevronLeft } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { api, type InventoryItem } from "@/services/api";
+import { ProtectedAction } from "../ProtectedAction";
 import { EditInventoryModal } from "../modals/EditInventoryModal";
 import { InventoryTraceModal } from "../modals/InventoryTraceModal";
 import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
@@ -23,6 +24,7 @@ export function Inventory() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmationMode, setConfirmationMode] = useState<"archive" | "trash">("archive");
   
   const [searchParams] = useSearchParams();
 
@@ -60,6 +62,13 @@ export function Inventory() {
 
   const handleDelete = async (id: number, productName: string) => {
     setItemToDelete({ id, name: productName });
+    setConfirmationMode("archive");
+    setDeleteModalOpen(true);
+  };
+
+  const handleMoveToTrash = async (id: number, productName: string) => {
+    setItemToDelete({ id, name: productName });
+    setConfirmationMode("trash");
     setDeleteModalOpen(true);
   };
 
@@ -67,11 +76,16 @@ export function Inventory() {
     if (!itemToDelete) return;
     setIsDeleting(true);
     try {
-      await api.deleteInventoryItem(itemToDelete.id);
-      toast.success("Inventory item deleted successfully");
+      if (confirmationMode === "archive") {
+        await api.deleteInventoryItem(itemToDelete.id);
+        toast.success("Inventory item moved to Archive");
+      } else {
+        await api.moveInventoryToTrash(itemToDelete.id);
+        toast.success("Inventory item moved to Trash folder");
+      }
       fetchInventory();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete inventory item");
+      toast.error(error instanceof Error ? error.message : "Action failed");
     } finally {
       setIsDeleting(false);
       setDeleteModalOpen(false);
@@ -140,9 +154,41 @@ export function Inventory() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage stock levels</p>
+          <div className="flex items-center gap-4">
+            {(searchParams.get("from") === "products" || sessionStorage.getItem("fromProducts") === "true") && (
+              <Link
+                to="/products"
+                onClick={() => sessionStorage.removeItem("fromProducts")}
+                className="flex items-center justify-center p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-xl transition-all shadow-sm group"
+                title="Back to Products"
+              >
+                <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
+              </Link>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">Inventory Management</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage stock levels</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <ProtectedAction module="Archive" action="View">
+              <Link
+                to="/archive?stage=Archived&tab=inventory"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+              >
+                <Archive className="w-4 h-4" />
+                Archive
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Archive" action="Delete">
+              <Link
+                to="/archive?stage=Deleted&tab=inventory"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Trash
+              </Link>
+            </ProtectedAction>
           </div>
         </div>
       </div>
@@ -207,13 +253,15 @@ export function Inventory() {
                 <option value="Out of Stock">Out of Stock</option>
                 <option value="Archived">Archived</option>
               </select>
-              <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+              <ProtectedAction module="Inventory" action="Export">
+                <button 
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              </ProtectedAction>
             </div>
           </div>
           <div className="relative">
@@ -264,10 +312,10 @@ export function Inventory() {
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Difference
                 </th>
-                <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -350,31 +398,38 @@ export function Inventory() {
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
-                          {item.difference}
-                        </span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                      <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
+                        {item.difference}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setTraceItem(item)}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View stock trace"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setEditingItem(item)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(item.inventory_id, item.product_name)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                          className="p-1.5 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-full transition-colors"
+                          title="Archive"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveToTrash(item.inventory_id, item.product_name)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                          title="Move to Trash"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -420,8 +475,12 @@ export function Inventory() {
           setItemToDelete(null);
         }}
         onConfirm={confirmDelete}
-        title="Delete Inventory Item"
-        message="Are you sure you want to delete this inventory item? This will NOT delete the product itself."
+        title={confirmationMode === "archive" ? "Archive Inventory Item" : "Move to Trash"}
+        message={
+          confirmationMode === "archive" 
+            ? "Are you sure you want to move this inventory item to the Archive? This will NOT affect the Master Product List."
+            : "Are you sure you want to move this inventory item to the Deleted Folder? It will be preserved there before permanent removal."
+        }
         itemName={itemToDelete?.name}
         isDeleting={isDeleting}
       />

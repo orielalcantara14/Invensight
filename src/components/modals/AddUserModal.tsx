@@ -13,6 +13,7 @@ interface AddUserModalProps {
     password: string;
     role: string;
     status: 'Active' | 'Inactive';
+    permissions?: Record<string, string[]>;
   }) => void | Promise<void>;
   /** Role names for the dropdown; defaults to [] if omitted (e.g. legacy call sites). */
   roleNames?: string[];
@@ -41,6 +42,7 @@ export function AddUserModal({
     role: '',
     status: 'Active' as 'Active' | 'Inactive',
   });
+  const [overriddenPermissions, setOverriddenPermissions] = useState<Record<string, string[]> | null>(null);
 
   const initialFocusRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +58,7 @@ export function AddUserModal({
         role: '',
         status: 'Active',
       });
+      setOverriddenPermissions(null);
       setStep(1);
     }
   }, [isOpen]);
@@ -65,12 +68,13 @@ export function AddUserModal({
     setStep(2);
   };
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = async (permissions: Record<string, string[]>) => {
     const sanitized = {
       ...formData,
       username: formData.username.trim(),
       fullName: formData.fullName.trim(),
       email: formData.email.trim(),
+      permissions: permissions,
     };
     await onAddUser(sanitized);
   };
@@ -87,10 +91,11 @@ export function AddUserModal({
         isOpen={isOpen}
         onClose={() => setStep(1)}
         onSave={handleFinalSubmit}
-        initialPermissions={matchedPermissions}
-        isReadOnly={true}
+        initialPermissions={overriddenPermissions || matchedPermissions}
+        isReadOnly={false}
         primaryLabel={saving ? "Adding User…" : "Confirm & Add User"}
         saving={saving}
+        error={error}
       />
     );
   }

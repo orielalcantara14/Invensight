@@ -35,7 +35,7 @@ export function Notifications() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await api.get<Notification[]>("/api/notifications");
+      const res = await api.get<Notification[]>("/api/notifications/");
       setNotifications(res);
     } catch (e) {
       console.error(e);

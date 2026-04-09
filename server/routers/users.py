@@ -31,6 +31,7 @@ ROLE_MANAGER = "manager"
 ROLE_SALES_STAFF = "sales staff"
 ROLE_CASHIER = "cashier"
 MANAGEABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+# Only Root Admin account can assign the Root Admin role
 ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
 ASSIGNABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
 RESTRICTED_MODULES_FOR_NON_ADMIN_ROLES = {"user management", "role permissions"}
@@ -656,6 +657,10 @@ def deactivate_user(
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="User not found")
+            
+            if actor_user_id == user_id:
+                raise HTTPException(status_code=403, detail="You cannot deactivate your own account")
+
             if _is_root_admin_username(row.get("username")):
                 _require_root_admin_key(x_root_admin_key)
                 if not actor.get("is_root_admin"):
@@ -813,8 +818,14 @@ def permanent_delete_user(
                 raise HTTPException(status_code=404, detail="User not found")
             if row["is_active"]:
                 raise HTTPException(status_code=400, detail="User must be archived before permanent deletion")
+            
+            # Root admin check (hard ghost check)
             if _is_root_admin_username(row.get("username")):
-                raise HTTPException(status_code=403, detail="Cannot delete root admin account")
+                raise HTTPException(status_code=403, detail="The root admin account cannot be permanently deleted")
+            
+            # Prevent self-deletion if they somehow trigger this
+            if actor_user_id == user_id:
+                raise HTTPException(status_code=403, detail="You cannot permanently delete your own account")
             # Nullify references before deleting to avoid ForeignKeyViolation
             cur.execute("UPDATE auditlog SET user_id = NULL WHERE user_id = %s", (user_id,))
             cur.execute("UPDATE sales SET user_id = NULL WHERE user_id = %s", (user_id,))

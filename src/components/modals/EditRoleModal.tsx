@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import { BaseModal } from "./BaseModal";
 import { PermissionsModal } from "./PermissionsModal";
+import { Shield, Layout, Settings, RotateCcw } from 'lucide-react';
 import type { Role } from "@/types";
 
 interface EditRoleModalProps {
@@ -42,14 +43,24 @@ export function EditRoleModal({
     await onSave(role.id, { name: name.trim(), permissions });
   };
 
+  const selectedModuleCount = Object.keys(permissions).length;
+  const totalActionCount = Object.values(permissions).reduce((acc, curr) => acc + curr.length, 0);
+
   if (!role) return null;
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Edit Role" maxWidth="md">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Modify System Role" maxWidth="md">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30 flex gap-3">
+          <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-1" />
+          <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
+            Updating this role will immediately affect the permissions of all users currently assigned to it. Handle with caution.
+          </p>
+        </div>
+
         <div>
-          <label htmlFor="edit-role-name" className="mb-1 block text-sm font-medium text-gray-700">
-            Role Name
+           <label htmlFor="edit-role-name" className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">
+            Global Role Name
           </label>
           <input
             ref={initialFocusRef}
@@ -57,7 +68,7 @@ export function EditRoleModal({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-900 dark:text-white transition-all shadow-inner"
             placeholder="Role name"
             required
             maxLength={50}
@@ -66,23 +77,30 @@ export function EditRoleModal({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Permissions
+          <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">
+            Access Configuration
           </label>
-          <div className="flex gap-2">
+          <div className="bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between group hover:border-blue-200 dark:hover:border-blue-900/50 transition-all">
+            <div className="flex flex-col">
+              <span className="text-sm font-black text-gray-900 dark:text-white">Permission Matrix</span>
+              <div className="flex gap-3 mt-1">
+                 <div className="flex items-center gap-1.5">
+                   <Layout className="w-3.5 h-3.5 text-gray-400" />
+                   <span className="text-[10px] font-bold text-gray-500 uppercase">{selectedModuleCount} Modules</span>
+                 </div>
+                 <div className="flex items-center gap-1.5">
+                   <Settings className="w-3.5 h-3.5 text-gray-400" />
+                   <span className="text-[10px] font-bold text-gray-500 uppercase">{totalActionCount} Actions</span>
+                 </div>
+              </div>
+            </div>
             <button
               type="button"
-              disabled={saving}
               onClick={() => setShowPermissionsModal(true)}
-              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300 font-medium whitespace-nowrap disabled:opacity-50"
+              className="px-5 py-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-gray-200 dark:border-gray-700 shadow-sm"
             >
-              Configure Permissions
+              Configure
             </button>
-            <div className="text-sm text-gray-500 py-2">
-              {Object.keys(permissions).length > 0 
-                ? `${Object.keys(permissions).length} modules selected`
-                : "No permissions selected"}
-            </div>
           </div>
         </div>
 
@@ -91,32 +109,36 @@ export function EditRoleModal({
             isOpen={showPermissionsModal}
             onClose={() => setShowPermissionsModal(false)}
             initialPermissions={permissions}
-            onSave={(perms: Record<string, string[]>) => setPermissions(perms)}
-            primaryLabel="Done"
+            onSave={(perms: Record<string, string[]>) => {
+              setPermissions(perms);
+              setShowPermissionsModal(false);
+            }}
+            primaryLabel="Apply Changes"
           />
         )}
 
         {error ? (
-          <p className="text-sm text-red-600" role="alert">
+          <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs font-bold border border-red-100">
             {error}
-          </p>
+          </div>
         ) : null}
 
-        <div className="flex gap-3 border-t border-gray-200 pt-4">
+        <div className="flex gap-3 pt-4 border-t border-gray-50 dark:border-gray-800">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="flex-1 rounded-lg bg-gray-900 py-2 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-bold text-sm"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={saving}
-            className="flex-1 rounded-lg bg-blue-600 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={saving || !name.trim()}
+            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-black text-sm uppercase tracking-widest shadow-lg shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? <RotateCcw className="w-4 h-4 animate-spin"/> : null}
+            {saving ? "Updating..." : "Save Changes"}
           </button>
         </div>
       </form>

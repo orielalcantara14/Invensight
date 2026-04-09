@@ -126,6 +126,10 @@ export function AddProductModal({
       toast.error("SRP cannot be negative");
       return;
     }
+    if (srp !== undefined && srp < unitCost) {
+      toast.error("SRP cannot be lower than the Unit Cost");
+      return;
+    }
     if (!Number.isFinite(stock) || stock < 0) {
       toast.error("Stock cannot be negative");
       return;

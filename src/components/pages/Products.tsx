@@ -1,8 +1,9 @@
-import { Search, Download, Plus, Package, Trash2, Edit2, LayoutGrid, ArrowRight } from "lucide-react";
+import { Search, Download, Plus, Package, Trash2, Edit2, LayoutGrid, ArrowRight, Archive } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api, type Product, type Category, type PosProduct } from "@/services/api";
 import { toast } from "sonner";
+import { ProtectedAction } from "../ProtectedAction";
 import { AddCategoryModal } from "../modals/AddCategoryModal";
 import { AddProductModal } from "../modals/AddProductModal";
 import { EditProductModal } from "../modals/EditProductModal";
@@ -28,6 +29,7 @@ export function Products() {
   const [deleteProductModalOpen, setDeleteProductModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<{ id: number; name: string } | null>(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [confirmationMode, setConfirmationMode] = useState<"archive" | "trash">("archive");
   const [deleteCategoryModalOpen, setDeleteCategoryModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
@@ -78,8 +80,15 @@ export function Products() {
     setIsEditProductOpen(true);
   };
 
-  const handleDeleteProduct = async (posId: number, productName: string) => {
-    setProductToDelete({ id: posId, name: productName });
+  const handleDeleteProduct = (id: number, name: string) => {
+    setProductToDelete({ id, name });
+    setConfirmationMode("archive");
+    setDeleteProductModalOpen(true);
+  };
+
+  const handleMoveToTrashProduct = (id: number, name: string) => {
+    setProductToDelete({ id, name });
+    setConfirmationMode("trash");
     setDeleteProductModalOpen(true);
   };
 
@@ -87,11 +96,16 @@ export function Products() {
     if (!productToDelete) return;
     setIsDeletingProduct(true);
     try {
-      await api.deletePosProduct(productToDelete.id);
-      toast.success("Product deleted successfully");
+      if (confirmationMode === "archive") {
+        await api.deletePosProduct(productToDelete.id);
+        toast.success("Product moved to Archive");
+      } else {
+        await api.moveProductToTrash(productToDelete.id);
+        toast.success("Product moved to Trash folder");
+      }
       fetchData();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete product");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setIsDeletingProduct(false);
       setDeleteProductModalOpen(false);
@@ -159,20 +173,42 @@ export function Products() {
             <p className="text-gray-500 mt-1">Manage product catalog and categories</p>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={() => setIsAddCategoryOpen(true)}
-              className="flex items-center gap-2 bg-gray-600 text-white px-5 py-2.5 rounded-xl hover:bg-gray-700 transition-all shadow-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Add Category
-            </button>
-            <button 
-              onClick={() => setIsAddProductOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Add Product
-            </button>
+            <ProtectedAction module="Archive" action="View">
+              <Link
+                to="/archive?stage=Archived&tab=products"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+              >
+                <Archive className="w-4 h-4" />
+                Archive
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Archive" action="Delete">
+              <Link
+                to="/archive?stage=Deleted&tab=products"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Trash
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Products" action="Add">
+              <button 
+                onClick={() => setIsAddCategoryOpen(true)}
+                className="flex items-center gap-2 bg-gray-600 text-white px-5 py-2.5 rounded-xl hover:bg-gray-700 transition-all shadow-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Add Category
+              </button>
+            </ProtectedAction>
+            <ProtectedAction module="Products" action="Add">
+              <button 
+                onClick={() => setIsAddProductOpen(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+            </ProtectedAction>
           </div>
         </div>
       </div>
@@ -247,13 +283,15 @@ export function Products() {
                   <option key={cat.category_id} value={cat.category_name}>{cat.category_name}</option>
                 ))}
               </select>
-              <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all shadow-sm"
-              >
-                <Download className="w-4 h-4 text-gray-500" />
-                Export
-              </button>
+              <ProtectedAction module="Products" action="Export">
+                <button 
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all shadow-sm"
+                >
+                  <Download className="w-4 h-4 text-gray-500" />
+                  Export
+                </button>
+              </ProtectedAction>
             </div>
           </div>
           <div className="relative">
@@ -281,7 +319,7 @@ export function Products() {
                 <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Total Cost</th>
                 <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SRP</th>
                 <th className="w-[160px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Date Added</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                <th className="w-[140px] px-6 py-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -339,25 +377,33 @@ export function Products() {
                       {product.date_added ? new Date(product.date_added).toLocaleDateString() : "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-1.5">
                         <Link
-                          to={`/inventory?search=${product.sku}`}
-                          className="p-2 text-green-600 bg-green-50/50 hover:bg-green-50 rounded-full transition-colors shadow-sm"
+                          to={`/inventory?search=${product.sku}&from=products`}
+                          onClick={() => sessionStorage.setItem("fromProducts", "true")}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                           title="View in Inventory"
                         >
                           <ArrowRight className="w-4 h-4" />
                         </Link>
                         <button 
-                          className="p-2 text-blue-600 bg-blue-50/50 hover:bg-blue-50 rounded-full transition-colors shadow-sm" 
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors" 
                           title="Edit"
                           onClick={() => handleEditProduct(product)}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
-                          className="p-2 text-red-500 bg-red-50/50 hover:bg-red-50 rounded-full transition-colors shadow-sm" 
-                          title="Delete"
+                          className="p-1.5 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-full transition-colors" 
+                          title="Archive"
                           onClick={() => handleDeleteProduct(product.pos_id, product.product_name)}
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors" 
+                          title="Move to Trash"
+                          onClick={() => handleMoveToTrashProduct(product.pos_id, product.product_name)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -408,8 +454,12 @@ export function Products() {
           setProductToDelete(null);
         }}
         onConfirm={confirmDeleteProduct}
-        title="Delete Product"
-        message="Are you sure you want to delete this product? This action cannot be undone."
+        title={confirmationMode === "archive" ? "Archive Product" : "Move to Trash"}
+        message={
+          confirmationMode === "archive" 
+            ? "Are you sure you want to move this product to the Archive? You can restore it later."
+            : "Are you sure you want to move this product to the Deleted Folder? It will be preserved there before permanent removal."
+        }
         itemName={productToDelete?.name}
         isDeleting={isDeletingProduct}
       />

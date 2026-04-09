@@ -554,13 +554,20 @@ def delete_purchase_order(
                     ),
                 )
 
-            cur.execute("DELETE FROM purchase_orders WHERE order_id = %s", (order_id,))
+            cur.execute("UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s AND status != 'Archived' RETURNING order_id", (order_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Active order not found")
 
-            cur.execute("""
-                UPDATE supplier
-                SET total_orders = GREATEST(total_orders - 1, 0)
-                WHERE supplier_id = %s
-            """, (order_row["supplier_id"],))
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "ARCHIVE_ORDER",
+                    "order",
+                    0,
+                    f"Archived purchase order: {order_id}"
+                )
 
             conn.commit()
             return {"ok": True}

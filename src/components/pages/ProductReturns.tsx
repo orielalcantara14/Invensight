@@ -1,5 +1,6 @@
-import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive } from "lucide-react";
+import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
 import { toast } from "sonner";
 
@@ -189,7 +190,7 @@ export function ProductReturns() {
     setArchiving(true);
     try {
       await api.archiveProductReturn(archiveTarget.id);
-      toast.success("Return archived successfully");
+      toast.success("Return request moved to Archive successfully");
       setArchiveTarget(null);
       await fetchAll();
     } catch (error: any) {
@@ -206,13 +207,29 @@ export function ProductReturns() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Supplier Returns</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Allocate damaged/defective items for return to supplier</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Return
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/archive?stage=Archived&tab=product-returns"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+          >
+            <Archive className="w-4 h-4" />
+            Archive
+          </Link>
+          <Link
+            to="/archive?stage=Deleted&tab=product-returns"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Trash
+          </Link>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Return
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
@@ -607,7 +624,7 @@ export function ProductReturns() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Return Request</h3>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Moves items to Archive module</p>
                 </div>
               </div>
             </div>

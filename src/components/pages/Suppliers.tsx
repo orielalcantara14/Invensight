@@ -1,11 +1,15 @@
-import { Search, Plus, Users, Edit2, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle } from "lucide-react";
+import { Search, Plus, Users, Edit2, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle, Trash2, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
-import { api, type Supplier } from "@/services/api";
+import { Link } from "react-router-dom";
+import { api } from "@/services/api";
+import { ProtectedAction } from "../ProtectedAction";
+import type { Supplier } from "@/types";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { AddSupplierModal } from "@/components/modals/AddSupplierModal";
 import { EditSupplierModal } from "@/components/modals/EditSupplierModal";
 import { toast } from "sonner";
 import { exportToExcel } from "@/utils/export";
+import { SupplierDetailsModal } from "@/components/modals/SupplierDetailsModal";
 
 export function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -13,6 +17,7 @@ export function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
@@ -34,17 +39,6 @@ export function Suppliers() {
     fetchSuppliers();
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this supplier?")) return;
-
-    try {
-      await api.deleteSupplier(id);
-      toast.success("Supplier deleted successfully");
-      fetchSuppliers();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete supplier");
-    }
-  };
 
   const handleArchive = (id: number, name: string) => {
     setArchiveTarget({ id, name });
@@ -116,13 +110,35 @@ export function Suppliers() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Supplier Management</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Manage suppliers and vendor relationships</p>
           </div>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Supplier
-          </button>
+          <div className="flex items-center gap-3">
+            <ProtectedAction module="Archive" action="View">
+              <Link
+                to="/archive?stage=Archived&tab=suppliers"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+              >
+                <Archive className="w-4 h-4" />
+                Archive
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Archive" action="Delete">
+              <Link
+                to="/archive?stage=Deleted&tab=suppliers"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Trash
+              </Link>
+            </ProtectedAction>
+            <ProtectedAction module="Suppliers" action="Add">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Add Supplier
+              </button>
+            </ProtectedAction>
+          </div>
         </div>
       </div>
 
@@ -183,13 +199,15 @@ export function Suppliers() {
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
                 />
               </div>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+              <ProtectedAction module="Suppliers" action="Export">
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              </ProtectedAction>
             </div>
           </div>
         </div>
@@ -205,21 +223,9 @@ export function Suppliers() {
                   Address
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Contact Number
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Supplier Products
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Total Orders
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -227,7 +233,7 @@ export function Suppliers() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={4} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                     </div>
@@ -235,7 +241,7 @@ export function Suppliers() {
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={4} className="px-6 py-12 text-center">
                     <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 font-medium">No suppliers found</p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add your first supplier to get started</p>
@@ -255,34 +261,6 @@ export function Suppliers() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {supplier.email || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {supplier.contact_number || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-wrap gap-1">
-                        {supplier.product_supplied ? (
-                          supplier.product_supplied.split(',').map((p, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-medium">
-                              {p.trim()}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs italic">N/A</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        {supplier.total_orders || 0}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${supplier.status === 'Active'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
@@ -290,8 +268,15 @@ export function Suppliers() {
                         {supplier.status || 'Active'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setViewingSupplier(supplier)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => setEditingSupplier(supplier)}
                           className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
@@ -338,6 +323,12 @@ export function Suppliers() {
         onSuccess={fetchSuppliers}
         supplier={editingSupplier}
         existingSuppliers={suppliers}
+      />
+
+      <SupplierDetailsModal
+        isOpen={!!viewingSupplier}
+        onClose={() => setViewingSupplier(null)}
+        supplier={viewingSupplier}
       />
 
       {/* Archive Confirm Modal */}

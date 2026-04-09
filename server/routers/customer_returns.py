@@ -119,7 +119,7 @@ def create_customer_return(
                         quantity = %s, actual = %s, 
                         last_updated = %s, reason_adjustment = %s
                     WHERE inventory_id = %s
-                """, (qty_after, actual_after, date.today(), f"Customer Return {rma_number}", inv["inventory_id"]))
+                """, (qty_after, actual_after, date.today(), rma_number, inv["inventory_id"]))
 
                 # Log event
                 cur.execute("""
@@ -133,7 +133,7 @@ def create_customer_return(
                     inv["inventory_id"], item.product_id, event_type,
                     qty_before, qty_after, expected, expected,
                     actual_before, actual_after, qty_after - qty_before, 0, actual_after - actual_before,
-                    int(difference_before), int(difference_after), "customer_returns", str(return_id), f"RMA: {rma_number}"
+                    int(difference_before), int(difference_after), "customer_returns", str(return_id), rma_number
                 ))
 
             # Update Sale status if refund

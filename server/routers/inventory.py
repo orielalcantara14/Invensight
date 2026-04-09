@@ -45,7 +45,7 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
         JOIN products p ON i.product_id = p.product_id
         LEFT JOIN categories c ON p.category_id = c.category_id
         LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
-        WHERE i.inventory_id = %s
+        WHERE i.inventory_id = %s AND i.status = 'Active'
         """,
         (inventory_id,),
     )
@@ -91,6 +91,7 @@ def get_inventory():
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
+                WHERE i.status = 'Active'
                 ORDER BY p.product_name
                 """
             )
@@ -339,23 +340,23 @@ def delete_inventory_item(
     try:
         conn.autocommit = False
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM inventory WHERE inventory_id = %s", (inventory_id,))
+            cur.execute("UPDATE inventory SET status = 'Archived' WHERE inventory_id = %s AND status = 'Active' RETURNING inventory_id", (inventory_id,))
             if cur.rowcount == 0:
-                raise HTTPException(status_code=404, detail="Inventory item not found")
+                raise HTTPException(status_code=404, detail="Active inventory item not found")
             
             # --- Audit log ---
             if x_actor_user_id:
                 add_audit_log(
                     cur,
                     int(x_actor_user_id),
-                    "DELETE_INVENTORY",
+                    "ARCHIVE_INVENTORY",
                     "inventory",
                     inventory_id,
-                    f"Deleted inventory item ID: {inventory_id}"
+                    f"Archived inventory item ID: {inventory_id}"
                 )
             
             conn.commit()
-            return {"message": "Inventory item deleted"}
+            return {"message": "Inventory item archived"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

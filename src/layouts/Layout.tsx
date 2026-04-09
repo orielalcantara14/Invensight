@@ -19,6 +19,7 @@ import {
   Bell,
   User,
   Archive,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { clearSession, getSession } from "@/auth/session";
@@ -45,7 +46,7 @@ export function Layout() {
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await api.get<{is_read: boolean}[]>("/api/notifications");
+        const res = await api.get<{is_read: boolean}[]>("/api/notifications/");
         setUnreadCount(res.filter((n) => !n.is_read).length);
       } catch (e) {
         console.error(e);
@@ -73,6 +74,7 @@ export function Layout() {
       ]
     },
     { name: "Reports", path: "/reports", icon: BarChart3 },
+    { name: "Archive", path: "/archive", icon: Archive },
     { 
       name: "User Management", 
       path: "/user-management",
@@ -80,7 +82,6 @@ export function Layout() {
       submenu: [
         { name: "Users & Roles", path: "/users", icon: Users },
         { name: "Audit Log", path: "/audit-log", icon: Settings },
-        { name: "Archive", path: "/archive", icon: Archive },
       ]
     },
   ];
@@ -88,35 +89,33 @@ export function Layout() {
   const hasPermission = (menuName: string) => {
     if (session?.username?.toLowerCase() === "rootadminnginamo") return true;
     const currentRole = (session?.role ?? "").trim().toLowerCase();
-    if (currentRole === "cashier") return false;
-
-    if (menuName === "Dashboard" || menuName === "Analytics" || menuName === "User Management") return true; // Let submenu handle inner blocks
     
+    // Cashiers are restricted solely to POS terminal
+    if (currentRole === "cashier") {
+        return menuName === "Sales"; // Or just return false if handled by POS-only UI
+    }
+
+    // Dashboard and High-level categories are allowed if sub-actions or specific view exists
+    if (menuName === "Dashboard") {
+        const p = session?.permissions?.["Dashboard"];
+        return p?.some(a => a.toLowerCase() === "view");
+    }
+
+    // Direct module check using "View" action
     const nameMap: Record<string, string> = {
-      "Orders": "Purchase Order",
-      "Users & Roles": "Role Permissions" // or "User Management"
+      "Orders": "Orders",
+      "Users & Roles": "User Management",
+      "Audit Log": "Audit Log",
+      "Archive": "Archive",
+      "Analytics": "Forecasting", // Analytics header depends on sub-modules
+      "Forecasting": "Forecasting",
+      "Stock Prediction": "Stock Prediction"
     };
     
     const target = nameMap[menuName] || menuName;
-    
-    // If we have User Management, the submenus are "Users & Roles" and "Audit Log".
-    if (menuName === "Users & Roles") {
-        const p1 = session?.permissions?.["User Management"];
-        const p2 = session?.permissions?.["Role Permissions"];
-        const canView1 = p1?.some(a => a.toLowerCase() === "view");
-        const canView2 = p2?.some(a => a.toLowerCase() === "view");
-        return canView1 || canView2;
-    }
-
-    // Archive is accessible to Administrators and Root Admin
-    if (menuName === "Archive") {
-      return true;
-    }
-
     const actions = session?.permissions?.[target];
-    if (actions) return actions.some(a => a.toLowerCase() === "view");
-
-    return false;
+    
+    return actions?.some(a => a.toLowerCase() === "view") || false;
   };
 
   const filteredNavigation = navigation.map(item => {
@@ -126,7 +125,10 @@ export function Layout() {
     }
     return item;
   }).filter(item => {
+    // If it's a top-level menu with submenus, hide if all submenus are hidden
     if (item.submenu) return item.submenu.length > 0;
+    
+    // Check top-level permission
     return hasPermission(item.name);
   });
 
@@ -310,6 +312,7 @@ export function Layout() {
                 </Link>
               </div>
             </div>
+
 
             <Link
               to="/settings"

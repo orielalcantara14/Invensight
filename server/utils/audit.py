@@ -15,7 +15,13 @@ def add_audit_log(cur: Any, user_id: int, action: str, entity_type: str, entity_
     if not row:
         return
         
-    username = (row.get("username") or "").strip().lower()
+    # Handle both RealDictCursor (dict) and standard cursor (tuple)
+    if isinstance(row, dict):
+        username = (row.get("username") or "").strip().lower()
+    else:
+        # standard cursor returns a tuple/list
+        username = (row[0] or "").strip().lower()
+
     if username == _root_admin_username():
         return
         
