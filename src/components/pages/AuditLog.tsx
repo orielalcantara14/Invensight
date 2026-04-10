@@ -12,8 +12,10 @@ export function AuditLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterAction, setFilterAction] = useState("All");
   const [filterEntity, setFilterEntity] = useState("All");
+  const [filterRole, setFilterRole] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [isClearing, setIsClearing] = useState(false);
   const session = getSession();
 
   useEffect(() => {
@@ -44,13 +46,37 @@ export function AuditLog() {
     const matchesEntity = filterEntity === "All" || 
       log.entity_type.toLowerCase() === filterEntity.toLowerCase();
     
-    return matchesSearch && matchesAction && matchesEntity;
+    const matchesRole = filterRole === "All" || 
+      (log.role?.toLowerCase() === filterRole.toLowerCase());
+    
+    return matchesSearch && matchesAction && matchesEntity && matchesRole;
   });
+
+  const handleClearLogs = async () => {
+    if (!session?.user_id) return;
+    if (!window.confirm("Are you sure you want to clear all audit logs? Activity from the Root Admin will be preserved for security purposes.")) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      await api.deleteAuditLogs(session.user_id);
+      // Refresh logs
+      const logs = await api.getAuditLogs(session.user_id);
+      setAuditLogs(logs);
+      alert("Logs cleared successfully.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to clear logs");
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handleExport = () => {
     const data = filteredLogs.map(log => ({
       "Timestamp": log.timestamp,
       "User": log.username,
+      "Role": log.role || "System",
       "Action": log.action,
       "Entity Type": log.entity_type,
       "Entity ID": log.entity_id,
@@ -78,7 +104,9 @@ export function AuditLog() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterAction, filterEntity]);
+  }, [searchTerm, filterAction, filterEntity, filterRole]);
+
+  const canClearLogs = session?.role?.toLowerCase() === 'administrator' || session?.role?.toLowerCase() === 'root admin';
 
   return (
     <div className="p-8">
@@ -145,6 +173,17 @@ export function AuditLog() {
                 <option value="Role">Role</option>
                 <option value="Category">Category</option>
               </select>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="All">All Roles</option>
+                <option value="Administrator">Administrator</option>
+                <option value="Manager">Manager</option>
+                <option value="Sales Staff">Sales Staff</option>
+                <option value="Cashier">Cashier</option>
+              </select>
               <button 
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -152,6 +191,15 @@ export function AuditLog() {
                 <Download className="w-4 h-4" />
                 Export
               </button>
+              {canClearLogs && (
+                <button 
+                  onClick={handleClearLogs}
+                  disabled={isClearing}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {isClearing ? "Clearing..." : "Clear History"}
+                </button>
+              )}
             </div>
           </div>
           <div className="relative">
@@ -174,6 +222,9 @@ export function AuditLog() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Action
@@ -217,17 +268,28 @@ export function AuditLog() {
                       })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username || 'System'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${
+                        log.role?.toLowerCase() === 'administrator' ? 'bg-purple-50 text-purple-700' :
+                        log.role?.toLowerCase() === 'manager' ? 'bg-indigo-50 text-indigo-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {log.role || 'System'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
-                        log.action.includes('CREATE') ? 'bg-green-50 text-green-700 border-green-200' :
-                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') || log.action.includes('REJECT') ? 'bg-red-50 text-red-700 border-red-200' :
-                        log.action.includes('UPDATE') || log.action.includes('RESTORE') || log.action.includes('APPROVE') ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        log.action.includes('CREATE') || log.action.includes('ADD') ? 'bg-green-50 text-green-700 border-green-200' :
+                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') || log.action.includes('REJECT') || log.action.includes('CLEAR') ? 'bg-red-50 text-red-700 border-red-200' :
+                        log.action.includes('UPDATE') || log.action.includes('RESTORE') || log.action.includes('APPROVE') || log.action.includes('ADJUST') ? 'bg-blue-50 text-blue-700 border-blue-200' :
                         log.action.includes('ARCHIVE') ? 'bg-amber-50 text-amber-700 border-amber-200' :
                         'bg-gray-50 text-gray-700 border-gray-200'
                       }`}>{log.action.replace(/_/g, ' ')}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{log.entity_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{log.entity_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {log.entity_id ? `#${log.entity_id}` : '-'}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-600 max-w-xs" title={log.details || ""}>
                       <div className="line-clamp-2 md:line-clamp-none whitespace-pre-wrap break-words">
                         {log.details || "No details provided"}

@@ -48,6 +48,44 @@ def get_customer_returns():
     finally:
         conn.close()
 
+@router.get("/sale/{sale_id}")
+def get_customer_return_by_sale(sale_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    cr.return_id, cr.rma_number, cr.sale_id, cr.customer_name, 
+                    cr.contact_number, cr.return_date, cr.return_type, cr.status, cr.reason
+                FROM customer_returns cr
+                WHERE cr.sale_id = %s
+                ORDER BY cr.created_at DESC
+                LIMIT 1
+            """, (sale_id,))
+            ret = cur.fetchone()
+            
+            if not ret:
+                raise HTTPException(status_code=404, detail="Return not found for this sale")
+            
+            cur.execute("""
+                SELECT 
+                    cri.item_id, cri.product_id, p.product_name, 
+                    cri.quantity, cri.is_defective, cri.is_damaged
+                FROM customer_return_items cri
+                JOIN products p ON cri.product_id = p.product_id
+                WHERE cri.return_id = %s
+            """, (ret["return_id"],))
+            ret["items"] = cur.fetchall()
+            
+            return _serialize_date_fields(dict(ret))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching customer return by sale: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 @router.post("/")
 def create_customer_return(
     payload: CreateCustomerReturnRequest,
@@ -69,15 +107,24 @@ def create_customer_return(
             count = cur.fetchone()["count"] + 1
             rma_number = f"RET-{year}-{str(count).zfill(3)}"
 
-            # 3. Create Return Header
+            # 3. Calculate Refund Amount (only if type is Refund)
+            total_refund_amount = 0.0
+            if payload.return_type == "Refund":
+                for item in payload.items:
+                    cur.execute("SELECT unit_price FROM sold_items WHERE invoice_id = %s AND product_id = %s", (payload.sale_id, item.product_id))
+                    si = cur.fetchone()
+                    if si:
+                        total_refund_amount += float(si["unit_price"]) * item.quantity
+
+            # 4. Create Return Header
             cur.execute("""
-                INSERT INTO customer_returns (rma_number, sale_id, customer_name, contact_number, return_type, reason, status)
-                VALUES (%s, %s, %s, %s, %s, %s, 'Pending')
+                INSERT INTO customer_returns (rma_number, sale_id, customer_name, contact_number, return_type, reason, status, refund_amount)
+                VALUES (%s, %s, %s, %s, %s, %s, 'Pending', %s)
                 RETURNING return_id
-            """, (rma_number, payload.sale_id, sale["customer_name"] or "Walk-in", sale["contact_number"], payload.return_type, payload.reason))
+            """, (rma_number, payload.sale_id, sale["customer_name"] or "Walk-in", sale["contact_number"], payload.return_type, payload.reason, total_refund_amount))
             return_id = cur.fetchone()["return_id"]
 
-            # 4. Process Items and Inventory
+            # 5. Process Items and Inventory
             for item in payload.items:
                 cur.execute("""
                     INSERT INTO customer_return_items (return_id, product_id, quantity, is_defective, is_damaged)
@@ -136,9 +183,22 @@ def create_customer_return(
                     int(difference_before), int(difference_after), "customer_returns", str(return_id), rma_number
                 ))
 
-            # Update Sale status if refund
+            # Update Sale status
             if payload.return_type == "Refund":
                 cur.execute("UPDATE sales SET payment_status = 'Refunded' WHERE invoice_id = %s", (payload.sale_id,))
+            elif payload.return_type == "Exchange":
+                cur.execute("UPDATE sales SET payment_status = 'Exchanged' WHERE invoice_id = %s", (payload.sale_id,))
+
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    f"CREATE_CUSTOMER_RETURN",
+                    "customer_return",
+                    return_id,
+                    f"Created {payload.return_type} return: {rma_number} (Sale ID: {payload.sale_id})"
+                )
 
             conn.commit()
             return {"ok": True, "rma_number": rma_number}
@@ -203,6 +263,17 @@ def mark_as_returned_to_supplier(
                     ))
 
             cur.execute("UPDATE customer_returns SET status = 'Returned to Supplier' WHERE return_id = %s", (return_id,))
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "SUPPLIER_RETURN",
+                    "customer_return",
+                    return_id,
+                    f"Marked return {ret['rma_number']} as sent to supplier"
+                )
+
             conn.commit()
             return {"ok": True}
     except Exception as e:

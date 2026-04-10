@@ -75,17 +75,17 @@ export function Dashboard() {
 
   const kpis = [
     { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: DollarSign, color: "text-green-600" },
-    { label: "Total Transactions", value: stats ? stats.total_transactions.toLocaleString() : "N/A", icon: ShoppingCart, color: "text-blue-600" },
-    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-green-600" },
-    { label: "Failed Payments", value: stats ? stats.failed_payments.toLocaleString() : "N/A", icon: AlertTriangle, color: "text-red-600" },
+    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-blue-600" },
+    { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600" },
+    { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600" },
   ];
 
   return (
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Sales & Inventory Management System</p>
+        <h1 className="text-3xl font-bold text-gray-900">JonBrix</h1>
+        <p className="text-gray-600 mt-1">Motorcycle Parts & Accessories</p>
       </div>
 
       {/* Expected Delivery Reminder */}

@@ -873,6 +873,7 @@ def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-A
                         a.log_id, 
                         a.user_id, 
                         COALESCE(u.username, 'Deleted User') as username, 
+                        u.role as role,
                         a.action, 
                         a.entity_type, 
                         a.entity_id, 
@@ -881,7 +882,7 @@ def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-A
                     FROM auditlog a
                     LEFT JOIN users u ON a.user_id = u.user_id
                     ORDER BY a.timestamp DESC
-                    LIMIT 200
+                    LIMIT 400
                     """
                 )
             else:
@@ -892,6 +893,7 @@ def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-A
                         a.log_id, 
                         a.user_id, 
                         COALESCE(u.username, 'Deleted User') as username, 
+                        u.role as role,
                         a.action, 
                         a.entity_type, 
                         a.entity_id, 
@@ -901,12 +903,48 @@ def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-A
                     LEFT JOIN users u ON a.user_id = u.user_id
                     WHERE u.username IS NULL OR LOWER(TRIM(u.username)) <> %s
                     ORDER BY a.timestamp DESC
-                    LIMIT 200
+                    LIMIT 400
                     """,
                     (_root_admin_username(),)
                 )
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.delete("/audit-logs")
+def delete_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
+    conn = get_connection()
+    try:
+        conn.autocommit = False
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            
+            if not (actor.get("is_root_admin") or actor["role_key"] == ROLE_ADMINISTRATOR):
+                raise HTTPException(status_code=403, detail="Only Administrators can clear audit logs")
+            
+            # Clear logs EXCEPT root admin logs for security trail
+            cur.execute("""
+                DELETE FROM auditlog a
+                USING users u
+                WHERE a.user_id = u.user_id
+                AND LOWER(TRIM(u.username)) <> %s
+            """, (_root_admin_username(),))
+            
+            cur.execute("DELETE FROM auditlog WHERE user_id IS NULL")
+            
+            add_audit_log(cur, actor_user_id, "CLEAR_LOGS", "system", None, "Cleared system audit logs")
+            
+            conn.commit()
+            return {"ok": True}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

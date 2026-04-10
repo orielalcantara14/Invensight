@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1tBSBPYPbAntjqC4JwkWC59gmCIcDTaZgwg7yShwQqkT8fNOORkRLrIRuDS5JIX
+\restrict bDVwRS81JHC7ed53jUZIf3cNwZ7LNkrgUH32DPF5JKTxhdRLbaYy91Q61gBmtjz
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -183,7 +183,8 @@ CREATE TABLE public.customer_returns (
     return_type character varying(50) NOT NULL,
     status character varying(50) DEFAULT 'Pending'::character varying,
     reason text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    refund_amount numeric(15,2) DEFAULT 0.00
 );
 
 
@@ -221,7 +222,8 @@ CREATE TABLE public.generated_reports (
     start_date date,
     end_date date,
     generated_by character varying(255) NOT NULL,
-    generated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    generated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    report_data jsonb
 );
 
 
@@ -574,7 +576,8 @@ CREATE TABLE public.products (
     specific_category character varying(150),
     pos_price numeric(10,2),
     status character varying(50) DEFAULT 'Active'::character varying,
-    image_url text
+    image_url text,
+    unit_cost numeric(10,2) DEFAULT 0.00
 );
 
 
@@ -589,7 +592,9 @@ CREATE TABLE public.purchase_order_items (
     order_id character varying(50),
     product_id integer,
     quantity integer NOT NULL,
-    unit_price numeric(10,2)
+    unit_price numeric(10,2),
+    received_quantity integer DEFAULT 0,
+    received_at timestamp without time zone
 );
 
 
@@ -1708,14 +1713,6 @@ COPY public.analytics_model_runs (run_id, model_key, model_engine, status, messa
 --
 
 COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestamp", details) FROM stdin;
-17	5	LOGIN	user	5	2026-04-06 05:52:15.43674	User signed in: Cedie
-18	5	LOGIN	user	5	2026-04-06 16:12:05.593925	User signed in: Cedie
-25	6	LOGIN	user	6	2026-04-07 00:10:01.879325	User signed in: Totoyz
-26	6	LOGIN	user	6	2026-04-07 00:14:33.229071	User signed in: Totoyz
-27	6	LOGIN	user	6	2026-04-07 00:15:09.748804	User signed in: Totoyz
-28	6	LOGIN	user	6	2026-04-07 00:18:49.688105	User signed in: Totoyz
-29	6	LOGIN	user	6	2026-04-07 00:22:55.592331	User signed in: Totoyz
-30	6	LOGIN	user	6	2026-04-07 00:24:14.718498	User signed in: Totoyz
 13	\N	LOGIN	user	3	2026-04-06 02:33:21.680652	User signed in: rovhic
 14	\N	LOGIN	user	3	2026-04-06 02:34:52.766385	User signed in: rovhic
 15	\N	LOGIN	user	3	2026-04-06 02:36:01.476604	User signed in: rovhic
@@ -1736,10 +1733,18 @@ COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestam
 22	\N	CREATE_SALE	sales	280	2026-04-06 17:13:49.255234	POS sale completed. Invoice: INV-00280. Method: Cash. Total: ₱3570.72
 23	\N	CREATE_SALE	sales	281	2026-04-06 23:25:56.132229	POS sale completed. Invoice: INV-00281. Method: Cash. Total: ₱257.50
 24	\N	CREATE_SALE	sales	282	2026-04-06 23:44:21.556899	POS sale completed. Invoice: INV-00282. Method: Cash. Total: ₱51.50
-34	6	LOGIN	user	6	2026-04-08 04:33:34.311869	User signed in: Totoyz
-35	6	LOGIN	user	6	2026-04-08 05:10:27.365789	User signed in: Totoyz
-36	6	LOGIN	user	6	2026-04-08 05:12:06.362719	User signed in: Totoyz
 37	9	LOGIN	user	9	2026-04-10 03:56:08.634052	User signed in: Cashier
+17	\N	LOGIN	user	5	2026-04-06 05:52:15.43674	User signed in: Cedie
+18	\N	LOGIN	user	5	2026-04-06 16:12:05.593925	User signed in: Cedie
+25	\N	LOGIN	user	6	2026-04-07 00:10:01.879325	User signed in: Totoyz
+26	\N	LOGIN	user	6	2026-04-07 00:14:33.229071	User signed in: Totoyz
+27	\N	LOGIN	user	6	2026-04-07 00:15:09.748804	User signed in: Totoyz
+28	\N	LOGIN	user	6	2026-04-07 00:18:49.688105	User signed in: Totoyz
+29	\N	LOGIN	user	6	2026-04-07 00:22:55.592331	User signed in: Totoyz
+30	\N	LOGIN	user	6	2026-04-07 00:24:14.718498	User signed in: Totoyz
+34	\N	LOGIN	user	6	2026-04-08 04:33:34.311869	User signed in: Totoyz
+35	\N	LOGIN	user	6	2026-04-08 05:10:27.365789	User signed in: Totoyz
+36	\N	LOGIN	user	6	2026-04-08 05:12:06.362719	User signed in: Totoyz
 \.
 
 
@@ -1773,6 +1778,7 @@ COPY public.customer_return_items (item_id, return_id, product_id, quantity, is_
 11	7	46	2	t	f
 12	8	227	1	t	f
 13	9	324	1	t	f
+14	10	60	1	t	f
 \.
 
 
@@ -1780,16 +1786,17 @@ COPY public.customer_return_items (item_id, return_id, product_id, quantity, is_
 -- Data for Name: customer_returns; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_returns (return_id, rma_number, invoice_id, customer_info, contact_number, action_type, return_status, return_date, notes, sale_id, customer_name, return_type, status, reason, created_at) FROM stdin;
-1	RET-2026-001	\N	\N	\N	\N	Pending	2026-04-08 07:17:48.729483	\N	5823	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 07:17:48.729483
-2	RET-2026-002	\N	\N	\N	\N	Pending	2026-04-08 07:24:36.520877	\N	5822	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 07:24:36.520877
-3	RET-2026-003	\N	\N	\N	\N	Pending	2026-04-08 07:28:32.458359	\N	5820	Walk-in Customer	Refund	Returned to Supplier		2026-04-08 07:28:32.458359
-4	RET-2026-004	\N	\N	\N	\N	Pending	2026-04-08 11:00:25.297187	\N	5821	Walk-in Customer	Refund	Returned to Supplier		2026-04-08 11:00:25.297187
-5	RET-2026-005	\N	\N	\N	\N	Pending	2026-04-08 11:04:07.050914	\N	5822	Walk-in Customer	Exchange	Returned to Supplier	may butas	2026-04-08 11:04:07.050914
-6	RET-2026-006	\N	\N	\N	\N	Pending	2026-04-08 11:06:36.149775	\N	5818	Walk-in Customer	Exchange	Returned to Supplier	Test	2026-04-08 11:06:36.149775
-7	RET-2026-007	\N	\N	\N	\N	Pending	2026-04-08 11:09:57.363331	\N	5819	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 11:09:57.363331
-8	RET-2026-008	\N	\N	\N	\N	Pending	2026-04-08 11:15:20.676704	\N	5823	Walk-in Customer	Refund	Pending		2026-04-08 11:15:20.676704
-9	RET-2026-009	\N	\N	\N	\N	Pending	2026-04-08 13:12:09.290252	\N	5822	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 13:12:09.290252
+COPY public.customer_returns (return_id, rma_number, invoice_id, customer_info, contact_number, action_type, return_status, return_date, notes, sale_id, customer_name, return_type, status, reason, created_at, refund_amount) FROM stdin;
+1	RET-2026-001	\N	\N	\N	\N	Pending	2026-04-08 07:17:48.729483	\N	5823	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 07:17:48.729483	0.00
+2	RET-2026-002	\N	\N	\N	\N	Pending	2026-04-08 07:24:36.520877	\N	5822	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 07:24:36.520877	0.00
+5	RET-2026-005	\N	\N	\N	\N	Pending	2026-04-08 11:04:07.050914	\N	5822	Walk-in Customer	Exchange	Returned to Supplier	may butas	2026-04-08 11:04:07.050914	0.00
+6	RET-2026-006	\N	\N	\N	\N	Pending	2026-04-08 11:06:36.149775	\N	5818	Walk-in Customer	Exchange	Returned to Supplier	Test	2026-04-08 11:06:36.149775	0.00
+7	RET-2026-007	\N	\N	\N	\N	Pending	2026-04-08 11:09:57.363331	\N	5819	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 11:09:57.363331	0.00
+9	RET-2026-009	\N	\N	\N	\N	Pending	2026-04-08 13:12:09.290252	\N	5822	Walk-in Customer	Exchange	Returned to Supplier		2026-04-08 13:12:09.290252	0.00
+10	RET-2026-010	\N	\N	\N	\N	Pending	2026-04-10 23:11:48.998755	\N	5818	Walk-in Customer	Exchange	Pending		2026-04-10 23:11:48.998755	0.00
+3	RET-2026-003	\N	\N	\N	\N	Pending	2026-04-08 07:28:32.458359	\N	5820	Walk-in Customer	Refund	Returned to Supplier		2026-04-08 07:28:32.458359	1465.85
+4	RET-2026-004	\N	\N	\N	\N	Pending	2026-04-08 11:00:25.297187	\N	5821	Walk-in Customer	Refund	Returned to Supplier		2026-04-08 11:00:25.297187	769.78
+8	RET-2026-008	\N	\N	\N	\N	Pending	2026-04-08 11:15:20.676704	\N	5823	Walk-in Customer	Refund	Pending		2026-04-08 11:15:20.676704	286.00
 \.
 
 
@@ -1797,7 +1804,8 @@ COPY public.customer_returns (return_id, rma_number, invoice_id, customer_info, 
 -- Data for Name: generated_reports; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.generated_reports (report_id, report_type, start_date, end_date, generated_by, generated_at) FROM stdin;
+COPY public.generated_reports (report_id, report_type, start_date, end_date, generated_by, generated_at, report_data) FROM stdin;
+26	sales	2026-03-12	2026-04-11	ROBEK!	2026-04-11 02:33:11.122058	{"trends": {"annual": [{"month": "Jan", "sales": "0"}, {"month": "Feb", "sales": "0"}, {"month": "Mar", "sales": "94811.42"}, {"month": "Apr", "sales": "120939.08"}, {"month": "May", "sales": "0"}, {"month": "Jun", "sales": "0"}, {"month": "Jul", "sales": "0"}, {"month": "Aug", "sales": "0"}, {"month": "Sep", "sales": "0"}, {"month": "Oct", "sales": "0"}, {"month": "Nov", "sales": "0"}, {"month": "Dec", "sales": "0"}]}, "summary": {"refunded_total": "2597.28", "total_revenue_net": "213153.22", "total_revenue_gross": "215750.50"}, "top_products": [{"revenue": "3657.17", "units_sold": 11, "product_name": "BELT HONDA PCX/ADV 160"}, {"revenue": "15.00", "units_sold": 10, "product_name": "PEANUT BULB ORANGE"}, {"revenue": "1926.40", "units_sold": 10, "product_name": "HORN HELLA / BOSCH 190"}, {"revenue": "1800.00", "units_sold": 10, "product_name": "BRAKE MASTER MRP SKYDRIVE125"}, {"revenue": "3092.90", "units_sold": 10, "product_name": "FLARINGS SCREW / PASAK"}, {"revenue": "900.00", "units_sold": 9, "product_name": "BEE RUBBER TIRE USED"}, {"revenue": "90.00", "units_sold": 9, "product_name": "NUT STAINLESS"}, {"revenue": "12071.28", "units_sold": 8, "product_name": "PULLEY SET JVT MIO/FINO/NOUVO"}, {"revenue": "1412.72", "units_sold": 8, "product_name": "BALLRACE NMAX / M3 / SUNTAL"}, {"revenue": "480.00", "units_sold": 8, "product_name": "OIL SEAL AXLE DRIVE MIO"}], "lowest_products": [{"units_sold": null, "product_name": "HORN RELAY (4-PIN / 5-PIN)"}, {"units_sold": null, "product_name": "BEARING KOYO 6005"}, {"units_sold": null, "product_name": "CLUTCH CABLE RAIDER"}, {"units_sold": null, "product_name": "PARK LIGHT T15 PAIR YELLOW"}, {"units_sold": null, "product_name": "BALLRACE NMAX SUNTAL"}, {"units_sold": null, "product_name": "YAKIMOTO FLYBALL 10G - MIO"}, {"units_sold": null, "product_name": "BEARING KOYO 6302"}, {"units_sold": null, "product_name": "TIRE SEALANT KOBY / KHC"}, {"units_sold": null, "product_name": "FUEL HOSE BLACK PER FT"}, {"units_sold": null, "product_name": "WASHER 14"}]}
 \.
 
 
@@ -2266,11 +2274,11 @@ COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, qu
 384	384	5	2026-04-06	0	0	0	Initial import	Active
 289	289	5	2026-04-07	3	3	3	Return removed: #3	Active
 10	10	5	2026-04-08	10	10	10	RET-2026-003	Active
-60	60	5	2026-04-08	9	10	9	RET-2026-006	Active
 46	46	5	2026-04-08	8	10	8	RET-2026-007	Active
 442	442	5	2026-04-08	12	10	12	RET-2026-004	Active
 465	465	5	2026-04-08	10	10	10	Initial stock	Active
 324	324	5	2026-04-08	3	6	3	RET-2026-009	Active
+60	60	5	2026-04-10	8	10	9	RET-2026-010	Active
 \.
 
 
@@ -2308,6 +2316,7 @@ COPY public.inventory_stock_events (event_id, inventory_id, product_id, event_ty
 42	227	227	CUSTOMER_RETURN_REFUND_DEFECTIVE	7	7	8	8	7	8	0	0	1	-1	1	customer_returns	8	RET-2026-008	2026-04-08 11:15:20.676704
 43	324	324	CUSTOMER_RETURN_EXCHANGE	4	3	6	6	4	4	-1	0	0	-2	-1	customer_returns	9	RET-2026-009	2026-04-08 13:12:09.290252
 44	324	324	CUSTOMER_RETURN_TO_SUPPLIER	3	3	6	6	4	3	0	0	-1	-1	-3	customer_returns	9	Returned to supplier	2026-04-08 13:13:11.983093
+45	60	60	CUSTOMER_RETURN_EXCHANGE	9	8	10	10	9	9	-1	0	0	-1	0	customer_returns	10	RET-2026-010	2026-04-10 23:11:48.998755
 \.
 
 
@@ -2611,472 +2620,472 @@ COPY public.product_returns (return_id, reason, status, created_at, processed_at
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.products (product_id, category_id, supplier_id, product_name, unit_price, sku, date_added, unit_of_measurement, specific_category, pos_price, status, image_url) FROM stdin;
-1	1	3	YAMALUBE BLUE CORE 1L	309.00	L-YA-BC1L	2026-04-06	Liter	Engine Oil	365.00	Active	\N
-2	1	3	YAMALUBE AT 800ML	234.00	L-YA-AT8M	2026-04-06	Milliliter	Engine Oil	285.00	Active	\N
-3	1	6	YAMALUBE GEAR OIL 100ML	61.00	L-YA-GO1M	2026-04-06	Milliliter	Gear Oil	95.00	Active	\N
-4	1	1	HONDA GOLD 1L	260.00	L-HO-GL1L	2026-04-06	Liter	Engine Oil	295.00	Active	\N
-5	1	1	HONDA BLUE SCT 800ML	300.00	L-HO-BS8M	2026-04-06	Milliliter	Engine Oil	340.00	Active	\N
-6	1	1	HONDA BLUE 1L	325.00	L-HO-BL1L	2026-04-06	Liter	Engine Oil	375.00	Active	\N
-7	1	3	HONDA RED 1L	238.00	L-HO-RE1L	2026-04-06	Liter	Engine Oil	275.00	Active	\N
-8	1	1	HONDA GEAR OIL	70.00	L-HO-GEO	2026-04-06	Liter	Gear Oil	95.00	Active	\N
-9	1	3	YAMALUBE PERFORMANCE 1L	275.00	L-YA-PE1L	2026-04-06	Liter	Engine Oil	315.00	Active	\N
-10	1	3	YAMALUBE BUSINESS 1L	290.00	L-YA-BU1L	2026-04-06	Liter	Engine Oil	320.00	Active	\N
-11	1	3	WD-40 333ML	88.00	L-WD-3M	2026-04-06	Milliliter	Penetrant	\N	Archived	\N
-12	1	3	TOP 1 HIGH TEMP GREASE	20.00	L-TO-1HG	2026-04-06	Liter	Grease	35.00	Active	\N
-13	1	2	GREASE HIGH TEMP KOBY	7.00	L-GR-HTK	2026-04-06	Liter	Grease	30.00	Active	\N
-14	1	3	GASKET MAKER PITSTOP 30G	70.00	L-GA-MP3G	2026-04-06	Milliliter	Gasket Maker	\N	Archived	\N
-15	1	6	CVT CLEANER RS8	98.00	L-CV-CL8R	2026-04-06	Milliliter	Cleaner	150.00	Active	\N
-16	1	3	CVT FI CLEANER PRO 450ML	1.00	L-CV-FC4M	2026-04-06	Milliliter	Cleaner	\N	Archived	\N
-17	1	3	FORK OIL GENERIC	35.50	L-FO-OIG	2026-04-06	Milliliter	Fork Oil	90.00	Active	\N
-18	3	2	FUEL FILTER AEROX 155	33.00	A-FU-FA1	2026-04-06	Piece	Fuel Filter	110.00	Active	\N
-19	3	2	FUEL FILTER CLICK XRM	33.00	A-FU-FCX	2026-04-06	Piece	Fuel Filter	100.00	Active	\N
-20	3	2	OIL FILTER BAJAJ	30.00	A-OI-FIB	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-21	3	3	OIL FILTER YAMAHA	30.00	A-OI-FIY	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-22	3	2	OIL FILTER KAWASAKI	30.00	A-OI-FIK	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-23	3	2	OIL FILTER HJLX	30.00	A-OI-FIH	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-24	3	2	OIL FILTER LOFILTRO HF183	30.00	A-OI-FL1H	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-25	3	2	OIL FILTER VIC C-806	30.00	A-OI-FV8C	2026-04-06	Piece	Oil Filter	50.00	Active	\N
-26	2	2	HEAD LIGHT BULB MAKOTO	12.00	S-HE-LBM	2026-04-06	Piece	Light Bulb	25.00	Active	\N
-27	2	2	BEARING KOYO 6004	25.00	S-BE-KO6	2026-04-06	Piece	Bearing	120.00	Active	\N
-28	\N	\N	MOTUL SCT 800ML	289.00	PRD-MO-SC8M	2026-04-06	pcs	\N	330.00	Active	\N
-29	\N	\N	MOTUL GP MATIC 1L	325.00	PRD-MO-GM1L	2026-04-06	pcs	\N	380.00	Active	\N
-30	4	\N	ZIC M9 800ML	251.23	O-ZI-M98M	2026-04-06	Piece	Others	299.00	Active	\N
-31	4	\N	ZIC M9 1L	287.12	O-ZI-M91L	2026-04-06	Piece	Others	326.00	Active	\N
-32	4	\N	CASTROL ACTIV 1L	290.00	O-CA-AC1L	2026-04-06	Piece	Others	320.00	Active	\N
-33	4	\N	SUZUKI ECSTAR 1L	261.00	O-SU-EC1L	2026-04-06	Piece	Others	290.00	Active	\N
-34	4	\N	SHELL ADVANCE AX7 800ML	241.74	O-SH-AA8M	2026-04-06	Piece	Others	285.00	Active	\N
-35	4	\N	SHELL ADVANCE AX5 4T 800ML	197.88	O-SH-AA8M-001	2026-04-06	Piece	Others	230.00	Active	\N
-36	4	\N	TOP 1 GREEN ACTION MATIC 800ML	310.00	O-TO-1G8M	2026-04-06	Piece	Others	350.00	Active	\N
-37	4	\N	TOP 1 GREEN ACTION MATIC 1L	340.00	O-TO-1G1L	2026-04-06	Piece	Others	390.00	Active	\N
-38	4	\N	TOP 1 VIOLET MC 800ML	290.00	O-TO-1V8M	2026-04-06	Piece	Others	320.00	Active	\N
-39	4	\N	TOP 1 VIOLET MC 1L	300.00	O-TO-1V1L	2026-04-06	Piece	Others	360.00	Active	\N
-40	4	\N	PETRON MULTI-GRADE 800ML	160.00	O-PE-MU8M	2026-04-06	Piece	Others	200.00	Active	\N
-41	4	\N	PETRON SR200 1L	200.00	O-PE-SR1L	2026-04-06	Piece	Others	250.00	Active	\N
-42	2	\N	BEARING KOYO 6005	80.00	S-BE-KO6-001	2026-04-06	Piece	Bearing	250.00	Active	\N
-43	2	\N	BEARING KOYO 6200	80.00	S-BE-KO6-002	2026-04-06	Piece	Bearing	120.00	Active	\N
-44	2	\N	BEARING KOYO 6201	80.00	S-BE-KO6-003	2026-04-06	Piece	Bearing	120.00	Active	\N
-45	2	\N	BEARING KOYO 6202	80.00	S-BE-KO6-004	2026-04-06	Piece	Bearing	120.00	Active	\N
-46	2	\N	BEARING KOYO 6203	80.00	S-BE-KO6-005	2026-04-06	Piece	Bearing	120.00	Active	\N
-47	2	\N	BEARING KOYO 6204	80.00	S-BE-KO6-006	2026-04-06	Piece	Bearing	150.00	Active	\N
-48	2	\N	BEARING KOYO 6205	80.00	S-BE-KO6-007	2026-04-06	Piece	Bearing	120.00	Active	\N
-49	2	\N	BEARING KOYO 6300	80.00	S-BE-KO6-008	2026-04-06	Piece	Bearing	120.00	Active	\N
-50	2	\N	BEARING KOYO 6301	80.00	S-BE-KO6-009	2026-04-06	Piece	Bearing	120.00	Active	\N
-51	2	\N	BEARING KOYO 6302	80.00	S-BE-KO6-010	2026-04-06	Piece	Bearing	120.00	Active	\N
-52	2	\N	BEARING NSK 6200	75.00	S-BE-NS6	2026-04-06	Piece	Bearing	110.00	Active	\N
-53	2	\N	BEARING NSK 6302	75.00	S-BE-NS6-001	2026-04-06	Piece	Bearing	110.00	Active	\N
-54	2	\N	BEARING NSK 6004	75.00	S-BE-NS6-002	2026-04-06	Piece	Bearing	110.00	Active	\N
-55	2	\N	BEARING KSR 6200	75.00	S-BE-KS6	2026-04-06	Piece	Bearing	110.00	Active	\N
-56	2	\N	BEARING KSR 6204	75.00	S-BE-KS6-001	2026-04-06	Piece	Bearing	110.00	Active	\N
-57	4	\N	KSR 6004	75.00	O-KS-6	2026-04-06	Piece	Others	110.00	Active	\N
-58	4	\N	KSR 6005	75.00	O-KS-6-001	2026-04-06	Piece	Others	110.00	Active	\N
-59	1	\N	OIL FILTER SUZUKI	30.00	L-OI-FIS	2026-04-06	Bottle	Engine Oil	50.00	Active	\N
-60	2	\N	TAIL LIGHT BULB MAKOTO	12.00	S-TA-LBM	2026-04-06	Piece	Light Bulb	25.00	Active	\N
-61	2	\N	SPARK PLUG NGK C6HSA	85.00	S-SP-PN6C	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-62	2	\N	SPARK PLUG NGK C7HSA	85.80	S-SP-PN7C	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-63	2	\N	SPARK PLUG NGK CPR6EA-9	92.00	S-SP-PN6C-001	2026-04-06	Piece	Spark Plug	130.00	Active	\N
-64	2	\N	SPARK PLUG DENSO U24ES-N	109.90	S-SP-PD2U	2026-04-06	Piece	Spark Plug	130.00	Active	\N
-65	2	\N	SPARK PLUG DENSO W22FS-US	90.00	S-SP-PD2W	2026-04-06	Piece	Spark Plug	180.00	Active	\N
-66	2	\N	SPARK PLUG DENSO W24ES-US	70.00	S-SP-PD2W-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-67	2	\N	SPARK PLUG DENSO X20FS-U	69.90	S-SP-PD2X	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-68	2	\N	SPARK PLUG DENSO X24ES-U	73.80	S-SP-PD2X-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-69	2	\N	R8 TIRE SEALANT	60.00	S-R8-TIS	2026-04-06	Piece	Tire	100.00	Active	\N
-70	2	\N	TIRE SEALANT KOBY	70.00	S-TI-SEK	2026-04-06	Piece	Tire	125.00	Active	\N
-71	1	\N	BRAKE FLUID DOT3 NATIONAL	60.00	L-BR-FDN	2026-04-06	Bottle	Engine Oil	100.00	Active	\N
-72	2	\N	PEANUT BULB ORANGE	1.50	S-PE-BUO	2026-04-06	Piece	Light Bulb	10.00	Active	\N
-73	2	\N	PEANUT BULB WHITE	5.00	S-PE-BUW	2026-04-06	Piece	Light Bulb	15.00	Active	\N
-74	4	\N	DOMINO SWITCH	30.00	O-DO-S	2026-04-06	Piece	Others	120.00	Active	\N
-75	4	\N	STARTER SWITCH	10.00	O-ST-S	2026-04-06	Piece	Others	20.00	Active	\N
-76	2	\N	BRAKE SWITCH L	10.00	S-BR-SWL	2026-04-06	Set	Brake Shoe	25.00	Active	\N
-77	2	\N	BRAKE SWITCH R	4.00	S-BR-SWR	2026-04-06	Set	Brake Shoe	20.00	Active	\N
-78	4	\N	ON/OFF SWITCH	10.00	O-ON-S	2026-04-06	Piece	Others	20.00	Active	\N
-79	4	\N	HORN SWITCH	30.00	O-HO-S	2026-04-06	Piece	Others	50.00	Active	\N
-80	4	\N	HAZARD SWITCH	30.00	O-HA-S	2026-04-06	Piece	Others	50.00	Active	\N
-81	4	\N	H/L SWITCH	30.00	O-H/-S	2026-04-06	Piece	Others	50.00	Active	\N
-82	4	\N	HOLLOW SWITCH	20.00	O-HO-S-001	2026-04-06	Piece	Others	50.00	Active	\N
-83	4	\N	L/R SWITCH	20.00	O-L/-S	2026-04-06	Piece	Others	50.00	Active	\N
-84	4	\N	NITTO ELECTRICAL TAPE	25.00	O-NI-ELT	2026-04-06	Piece	Others	50.00	Active	\N
-85	4	\N	PITO	7.00	O-PI	2026-04-06	Piece	Others	50.00	Active	\N
-86	4	\N	FUEL HOSE RED per feet	10.00	O-FU-HRF	2026-04-06	Piece	Others	30.00	Active	\N
-87	4	\N	FUEL HOSE BLACK PER FT	25.00	O-FU-HBF	2026-04-06	Piece	Others	50.00	Active	\N
-88	4	\N	ALLEN BOLT	2.00	O-AL-B	2026-04-06	Piece	Others	10.00	Active	\N
-89	4	\N	HORN RELAY	40.00	O-HO-R	2026-04-06	Piece	Others	100.00	Active	\N
-90	4	\N	FLASHER RELAY (PAG)	53.00	O-FL-REP	2026-04-06	Piece	Others	100.00	Active	\N
-91	2	\N	YAMAHA BELT 2DP-E7641-00	289.00	S-YA-BE2D	2026-04-06	Piece	Drive Belt	850.00	Active	\N
-92	2	\N	HONDA BELT / CLICK 23100-K35-V01	338.00	S-HO-B/2K	2026-04-06	Piece	Drive Belt	850.00	Active	\N
-93	2	\N	JVT FLYBALL 15G - PCX/CLICK/ADV	297.77	S-JV-F1P	2026-04-06	Set	Flyball	550.00	Active	\N
-94	2	\N	YAKIMOTO FLYBALL 10G - MIO125	200.00	S-YA-F11M	2026-04-06	Set	Flyball	300.00	Active	\N
-95	1	\N	FORK OIL SEAL	60.00	L-FO-OIS	2026-04-06	Bottle	Fork Oil	120.00	Active	\N
-96	2	\N	BRAKE PAD YAMAKOTO SHOGUN 125	33.00	S-BR-PY1	2026-04-06	Set	Brake Pad	150.00	Active	\N
-97	2	\N	BRAKE PAD YAMAKOTO CLICK125/150	33.00	S-BR-PY1C	2026-04-06	Set	Brake Pad	100.00	Active	\N
-98	2	\N	BRAKE PAD YAMAKOTO BEAT	30.00	S-BR-PYB	2026-04-06	Set	Brake Pad	100.00	Active	\N
-99	2	\N	BRAKE PAD - RAIDER 150	30.00	S-BR-P-1	2026-04-06	Set	Brake Pad	250.00	Active	\N
-100	4	\N	HORN RELAY 4 PIN TRANSPARENT	49.00	O-HO-R4T	2026-04-06	Piece	Others	100.00	Active	\N
-101	4	\N	HORN RELAY 5 PIN TRANSPARENT	59.00	O-HO-R5T	2026-04-06	Piece	Others	100.00	Active	\N
-102	4	\N	FUSE 10A	2.00	O-FU-1A	2026-04-06	Piece	Others	10.00	Active	\N
-103	4	\N	FUSE 15A	2.00	O-FU-1A-001	2026-04-06	Piece	Others	10.00	Active	\N
-104	4	\N	GLASS FUSE - 15A	2.00	O-GL-F-1A	2026-04-06	Piece	Others	10.00	Active	\N
-105	4	\N	CHAIN LOCK 428H	3.28	O-CH-LO4H	2026-04-06	Piece	Others	25.00	Active	\N
-106	4	\N	CORSA CROSS S 90/90-14	1497.20	O-CO-CS9	2026-04-06	Piece	Others	1796.64	Active	\N
-107	4	\N	CORSA CROSS S 100/80-14	1694.80	O-CO-CS1	2026-04-06	Piece	Others	2033.76	Active	\N
-108	4	\N	CORSA CROSS S 110/80-14	1869.60	O-CO-CS1-001	2026-04-06	Piece	Others	2243.52	Active	\N
-109	4	\N	CORSA CROSS S 70/90-17	1322.40	O-CO-CS7	2026-04-06	Piece	Others	1586.28	Active	\N
-110	4	\N	CORSA CROSS S 100/80-17	2196.40	O-CO-CS1-002	2026-04-06	Piece	Others	2635.68	Active	\N
-111	4	\N	CORSA R26 100/80-14	1862.00	O-CO-R21	2026-04-06	Piece	Others	2234.40	Active	\N
-112	4	\N	CORSA S33 80/80-14	1194.00	O-CO-S38	2026-04-06	Piece	Others	1440.00	Active	\N
-113	4	\N	CORSA R26 80/80-14	1333.80	O-CO-R28	2026-04-06	Piece	Others	1600.56	Active	\N
-114	4	\N	CORSA R26 90/80-14	1592.20	O-CO-R29	2026-04-06	Piece	Others	1900.00	Active	\N
-115	4	\N	WASHER 10	1.00	O-WA-1	2026-04-06	Piece	Others	2.00	Active	\N
-116	4	\N	WASHER 12	1.00	O-WA-1-001	2026-04-06	Piece	Others	2.00	Active	\N
-117	4	\N	WASHER 14	1.00	O-WA-1-002	2026-04-06	Piece	Others	2.00	Active	\N
-118	4	\N	YUNXIN O-RING 1	10.00	O-YU-O-1	2026-04-06	Piece	Others	20.00	Active	\N
-119	4	\N	YUNXIN O-RING 3	5.00	O-YU-O-3	2026-04-06	Piece	Others	25.00	Active	\N
-120	4	\N	CLUTCH CABLE TMX	51.00	O-CL-CAT	2026-04-06	Piece	Others	150.00	Active	\N
-121	4	\N	EXHAUST GASKET	5.00	O-EX-G	2026-04-06	Piece	Others	20.00	Active	\N
-122	4	\N	PASAK	10.00	O-PA	2026-04-06	Piece	Others	40.00	Active	\N
-123	4	\N	FLARINGS SCREW	8.00	O-FL-S	2026-04-06	Piece	Others	12.00	Active	\N
-124	4	\N	RUBBER DUMPER (SNIPER)	90.00	O-RU-DUS	2026-04-06	Piece	Others	150.00	Active	\N
-125	2	\N	FUEL FILTER UNIVERSAL	10.00	S-FU-FIU	2026-04-06	Piece	Fuel Filter	50.00	Active	\N
-126	4	\N	ABETA GREY	90.00	O-AB-G	2026-04-06	Piece	Others	150.00	Active	\N
-127	2	\N	YAMAHA GENUINE BRAKE PADS 2DP-F5805-00	160.00	S-YA-GB2D	2026-04-06	Set	Brake Pad	250.00	Active	\N
-128	1	\N	PLATINUM FORK OIL 200ML	27.74	L-PL-FO2M	2026-04-06	Bottle	Fork Oil	90.00	Active	\N
-129	4	\N	CP HOLDER	118.00	O-CP-H	2026-04-06	Piece	Others	250.00	Active	\N
-130	4	\N	SPARKO 1101 LIQUID GASKET	18.50	O-SP-1LG	2026-04-06	Piece	Others	24.05	Active	\N
-131	4	\N	SIDE MIRROR ADAPTOR HONDA	5.00	O-SI-MAH	2026-04-06	Piece	Others	30.00	Active	\N
-132	4	\N	GRASA KOBY	6.15	O-GR-K	2026-04-06	Piece	Others	30.00	Active	\N
-133	4	\N	ELECTRICAL TAPE	25.00	O-EL-T	2026-04-06	Piece	Others	50.00	Active	\N
-134	4	\N	WASHER	1.00	O-WA	2026-04-06	Piece	Others	5.00	Active	\N
-135	2	\N	BRAKE PAD M3	26.00	S-BR-PA3M	2026-04-06	Set	Brake Pad	150.00	Active	\N
-136	1	\N	COOLANT	75.00	L-CO	2026-04-06	Bottle	Engine Oil	120.00	Active	\N
-137	4	\N	REPAIR KIT	25.00	O-RE-K	2026-04-06	Piece	Others	100.00	Active	\N
-138	2	\N	TAIL LIGHT BULB	13.40	S-TA-LIB	2026-04-06	Piece	Light Bulb	25.00	Active	\N
-139	2	\N	HEAD LIGHT BULB	13.40	S-HE-LIB	2026-04-06	Piece	Light Bulb	25.00	Active	\N
-140	2	\N	TIRE SEALANT KHC	45.00	S-TI-SEK-001	2026-04-06	Piece	Tire	100.00	Active	\N
-141	4	\N	THROTTLE CABLE	38.00	O-TH-C	2026-04-06	Piece	Others	150.00	Active	\N
-142	4	\N	STAINLESS SCREW WITH WASHER	7.00	O-ST-SWW	2026-04-06	Piece	Others	15.00	Active	\N
-143	4	\N	O-RING	16.50	O-O-	2026-04-06	Piece	Others	50.00	Active	\N
-144	2	\N	BRAKE PAD HONDA B6H	95.00	S-BR-PH6B	2026-04-06	Set	Brake Pad	200.00	Active	\N
-145	4	\N	HORN SOCKET	8.00	O-HO-S-002	2026-04-06	Piece	Others	10.00	Active	\N
-146	4	\N	HORN HELLA	238.00	O-HO-H	2026-04-06	Piece	Others	309.40	Active	\N
-147	4	\N	STARTER RELAY MIO	145.00	O-ST-REM	2026-04-06	Piece	Others	300.00	Active	\N
-148	2	\N	BRAKE PAD YAMAKOTO	24.00	S-BR-PAY	2026-04-06	Set	Brake Pad	120.00	Active	\N
-149	4	\N	BALL RACE GEAR/GRAVIS	150.00	O-BA-RAG	2026-04-06	Piece	Others	195.00	Active	\N
-150	4	\N	TTGR REGULATOR RUSI	220.00	O-TT-RER	2026-04-06	Piece	Others	286.00	Active	\N
-151	4	\N	FUSE BOX WITH FUSE	9.20	O-FU-BWF	2026-04-06	Piece	Others	50.00	Active	\N
-152	2	\N	AIR FILTER CLICK125	79.00	S-AI-FI1C	2026-04-06	Piece	Air Filter	200.00	Active	\N
-153	2	\N	AIR FILTER AEROX V1	105.00	S-AI-FA1V	2026-04-06	Piece	Air Filter	136.50	Active	\N
-154	2	\N	BRAKE MASTER REPAIR KIT XRM	17.00	S-BR-MRX	2026-04-06	Set	Brake Shoe	100.00	Active	\N
-155	4	\N	THROTTLE CABLE OTAKA	41.00	O-TH-CAO	2026-04-06	Piece	Others	53.30	Active	\N
-156	4	\N	CDI LIFAN 4 PIN HONGXIN	113.00	O-CD-L4H	2026-04-06	Piece	Others	146.90	Active	\N
-157	4	\N	RUBBER DUMPER WAVE 125	30.00	O-RU-DW1	2026-04-06	Piece	Others	39.00	Active	\N
-158	2	\N	BRAKE SHOE HONDA CLICK V1 GENUINE	225.00	S-BR-SHG	2026-04-06	Set	Brake Shoe	350.00	Active	\N
-159	4	\N	SIDE MIRROR HONDA	106.00	O-SI-MIH	2026-04-06	Piece	Others	190.00	Active	\N
-160	4	\N	HORN BOSCH 190	190.00	O-HO-BO1	2026-04-06	Piece	Others	250.00	Active	\N
-161	4	\N	FUEL HOSE GREY PER FOOT	13.20	O-FU-HGF	2026-04-06	Piece	Others	25.00	Active	\N
-162	4	\N	RACING CARBURETOR KEIHIN 28MM	680.00	O-RA-CK2M	2026-04-06	Piece	Others	950.00	Active	\N
-163	2	\N	BRAKE MASTER MRP SKYDRIVE125	180.00	S-BR-MM1S	2026-04-06	Set	Brake Shoe	234.00	Active	\N
-164	2	\N	BRAKE MASTER BEAT BEAT FI	49.40	S-BR-MBF	2026-04-06	Set	Brake Shoe	64.22	Active	\N
-165	4	\N	HEAD LIGHT LED SUPER BRIGHT T19 WHITE	79.00	O-HE-LLW	2026-04-06	Piece	Others	150.00	Active	\N
-166	4	\N	HEAD LIGHT LED SUPER BRIGHT MDL KILLER	105.00	O-HE-LLK	2026-04-06	Piece	Others	250.00	Active	\N
-167	4	\N	BOLT MUSHROOM TYPE 5X15 SILVER	20.00	O-BO-MTS	2026-04-06	Piece	Others	26.00	Active	\N
-168	4	\N	BOLT MUSHROOM TYPE 5X15 TITANIUM	22.00	O-BO-MTT	2026-04-06	Piece	Others	28.60	Active	\N
-169	4	\N	BOLT MUSHROOM TYPE 5X15 GOLD	20.00	O-BO-MTG	2026-04-06	Piece	Others	26.00	Active	\N
-170	2	\N	SPARK PLUG DENSO U22FS-U	61.90	S-SP-PD2U-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-171	4	\N	PARK LIGHT T15 PAIR WHITE	62.00	O-PA-LTW	2026-04-06	Piece	Others	80.60	Active	\N
-172	4	\N	PARK LIGHT T15 PAIR BLUE	62.00	O-PA-LTB	2026-04-06	Piece	Others	80.60	Active	\N
-173	4	\N	PARK LIGHT T15 PAIR YELLOW	62.00	O-PA-LTY	2026-04-06	Piece	Others	80.60	Active	\N
-174	2	\N	BRAKE PAD HONDA CLICK FRONT GENUINE	145.00	S-BR-PHG	2026-04-06	Set	Brake Pad	188.50	Active	\N
-175	2	\N	BRAKE PAD HONDA CRF150 REAR	59.00	S-BR-PHR	2026-04-06	Set	Brake Pad	76.70	Active	\N
-176	2	\N	BRAKE SHOE MTR CLICK	99.00	S-BR-SMC	2026-04-06	Set	Brake Shoe	150.00	Active	\N
-177	1	\N	OIL SEAL PULLEY SIDE NMAX/AEROX	42.00	L-OI-SPN	2026-04-06	Bottle	Engine Oil	54.60	Active	\N
-178	4	\N	BODY CLIP WITH BOLT	2.00	O-BO-CWB	2026-04-06	Piece	Others	2.60	Active	\N
-179	4	\N	SLIDER PIECE HONDA CLICK PCX ADV	60.00	O-SL-PHA	2026-04-06	Piece	Others	78.00	Active	\N
-180	4	\N	FUSE	1.76	O-FU	2026-04-06	Piece	Others	10.00	Active	\N
-181	4	\N	STARTER RELAY XR200	188.00	O-ST-RE2X	2026-04-06	Piece	Others	244.40	Active	\N
-182	2	\N	BRAKE PAD YAMAHA MIO SPORTY F	95.00	S-BR-PYF	2026-04-06	Set	Brake Pad	123.50	Active	\N
-183	2	\N	BRAKE PAD YAMAHA AEROX F	95.00	S-BR-PYF-001	2026-04-06	Set	Brake Pad	123.50	Active	\N
-184	2	\N	BRAKE MASTER REPAIR KIT YAMAHA MIO M3 AEROX	70.00	S-BR-MRA	2026-04-06	Set	Brake Shoe	91.00	Active	\N
-185	2	\N	BRAKE SWITCH UNIVERSAL	4.00	S-BR-SWU	2026-04-06	Set	Brake Shoe	30.00	Active	\N
-186	4	\N	PEANUT BULT T13 UNIVERSAL WHITE	3.00	O-PE-BTW	2026-04-06	Piece	Others	3.90	Active	\N
-187	4	\N	PEANUT BULT T13 UNIVERSAL ORANGE	3.00	O-PE-BTO	2026-04-06	Piece	Others	10.00	Active	\N
-188	4	\N	FUEL PUMP FLOATER HONDA BEAT	269.00	O-FU-PFB	2026-04-06	Piece	Others	349.70	Active	\N
-189	4	\N	AUTO WIRE #18 JAPAN PER METER	8.00	O-AU-W#M	2026-04-06	Piece	Others	25.00	Active	\N
-190	4	\N	OVERHAUL GASKET SET CB400	387.50	O-OV-GS4C	2026-04-06	Piece	Others	503.75	Active	\N
-191	4	\N	CLUTCH CABLE CB400	239.00	O-CL-CA4C	2026-04-06	Piece	Others	310.70	Active	\N
-192	4	\N	CARBURETOR DIAPHRAGM CB400 SET	162.00	O-CA-DCS	2026-04-06	Piece	Others	210.60	Active	\N
-193	4	\N	CARBON BRUSH WAVE 125	83.00	O-CA-BW1	2026-04-06	Piece	Others	107.90	Active	\N
-194	4	\N	FUEL PUMP O-RING BEAT	55.00	O-FU-POB	2026-04-06	Piece	Others	71.50	Active	\N
-195	4	\N	REGULATOR RECTIFIER SKYDRIVE CARB	118.00	O-RE-RSC	2026-04-06	Piece	Others	153.40	Active	\N
-196	4	\N	GEAR BOX YAMAHA 5TL MIO	98.00	O-GE-BYM	2026-04-06	Piece	Others	127.40	Active	\N
-197	1	\N	OIL FILTER YAMAHA P12	12.00	L-OI-FY1P	2026-04-06	Bottle	Engine Oil	50.00	Active	\N
-198	2	\N	BRAKE CABLE CLICK 125 RR MAKOTO	150.00	S-BR-CCM	2026-04-06	Set	Brake Shoe	195.00	Active	\N
-199	4	\N	FUEL PUMP ASSEMBLY HONDA BEAT FI	1188.00	O-FU-PAF	2026-04-06	Piece	Others	1544.40	Active	\N
-200	4	\N	FUEL COCK CB400	705.00	O-FU-CO4C	2026-04-06	Piece	Others	916.50	Active	\N
-201	1	\N	OIL SEAL AXLE DRIVE MIO	60.00	L-OI-SAM	2026-04-06	Bottle	Engine Oil	78.00	Active	\N
-202	2	\N	AIR FILTER YAMAHA MIO GRAVIS GEAR	100.00	S-AI-FYG	2026-04-06	Piece	Air Filter	130.00	Active	\N
-203	2	\N	AIR FILTER PCX ADV	145.00	S-AI-FPA	2026-04-06	Piece	Air Filter	200.00	Active	\N
-204	2	\N	BELT YAMAHA 5TL MIO SPORTY NOVO	244.00	S-BE-Y5N	2026-04-06	Piece	Drive Belt	650.00	Active	\N
-205	2	\N	BRAKE PAD YAMAKOTO RAIDER 150 FI F	30.00	S-BR-PYF-002	2026-04-06	Set	Brake Pad	100.00	Active	\N
-206	2	\N	BRAKE PAD YAMAKOTO RAIDER 150 FI R	30.00	S-BR-PYR	2026-04-06	Set	Brake Pad	100.00	Active	\N
-207	2	\N	BRAKE PAD YAMAKOTO PCX	30.00	S-BR-PYP	2026-04-06	Set	Brake Pad	100.00	Active	\N
-208	2	\N	BRAKE PAD YAMAKOTO MIO M3	30.00	S-BR-PY3M	2026-04-06	Set	Brake Pad	150.00	Active	\N
-209	2	\N	BALLRACE BEARING YAMAHA MIO	315.00	S-BA-BYM	2026-04-06	Piece	Bearing	409.50	Active	\N
-210	2	\N	BALLRACE BEARING KRYON CLICK	100.00	S-BA-BKC	2026-04-06	Piece	Bearing	350.00	Active	\N
-211	2	\N	BRAKE PAD YAMAHA SNIPER R	160.00	S-BR-PYR-001	2026-04-06	Set	Brake Pad	208.00	Active	\N
-212	2	\N	BELT HONDA BEAT FI	300.00	S-BE-HBF	2026-04-06	Piece	Drive Belt	390.00	Active	\N
-213	4	\N	ELECTRICAL TAPE NITTO 33	33.00	O-EL-TN3	2026-04-06	Piece	Others	50.00	Active	\N
-214	2	\N	BRAKE PAD YAMAHA SNIPER F	95.00	S-BR-PYF-003	2026-04-06	Set	Brake Pad	123.50	Active	\N
-215	2	\N	BRAKE SHOE OTAKA BEAT	94.00	S-BR-SOB	2026-04-06	Set	Brake Shoe	122.20	Active	\N
-216	2	\N	BRAKE SHOE OTAKA MIO	104.00	S-BR-SOM	2026-04-06	Set	Brake Shoe	220.00	Active	\N
-217	4	\N	CLUTCH CABLE OTAKA BARAKO	51.00	O-CL-COB	2026-04-06	Piece	Others	66.30	Active	\N
-218	4	\N	THROTTLE CABLE OTAKA TMX155	41.00	O-TH-CO1T	2026-04-06	Piece	Others	53.30	Active	\N
-219	2	\N	BELT HONDA PCX ADV CLICK 160	390.00	S-BE-HP1	2026-04-06	Piece	Drive Belt	850.00	Active	\N
-220	2	\N	FUEL FILTER BEAT	33.00	S-FU-FIB	2026-04-06	Piece	Fuel Filter	42.90	Active	\N
-221	4	\N	CLUTCH CABLE BARAKO	29.00	O-CL-CAB	2026-04-06	Piece	Others	100.00	Active	\N
-222	2	\N	BRAKE MASTER REPAIR KIT BEAT	20.00	S-BR-MRB	2026-04-06	Set	Brake Shoe	100.00	Active	\N
-223	2	\N	BRAKE MASTER REPAIR KIT CLICK	20.00	S-BR-MRC	2026-04-06	Set	Brake Shoe	100.00	Active	\N
-224	2	\N	BRAKE PAD YAMAKOTO XRM	30.00	S-BR-PYX	2026-04-06	Set	Brake Pad	100.00	Active	\N
-225	2	\N	BRAKE MASTER REPAIR KIT HONDA BEAT	40.00	S-BR-MRB-001	2026-04-06	Set	Brake Shoe	100.00	Active	\N
-226	4	\N	CARBURETOR RUBBER HOSE	186.00	O-CA-RUH	2026-04-06	Piece	Others	241.80	Active	\N
-227	2	\N	AIR FILTER KLX140	220.00	S-AI-FI1K	2026-04-06	Piece	Air Filter	286.00	Active	\N
-228	4	\N	RUBBER DUMPER KHC XRM	28.00	O-RU-DKX	2026-04-06	Piece	Others	80.00	Active	\N
-229	4	\N	RUBBER DUMPER KHC WAVE125	30.00	O-RU-DK1W	2026-04-06	Piece	Others	80.00	Active	\N
-230	4	\N	STARTER RELAY TMX125 RUSI	99.00	O-ST-RTR	2026-04-06	Piece	Others	200.00	Active	\N
-231	4	\N	BALLRACE SUNTAL GEAR/GRAVIS/FAZZIO	150.00	O-BA-SUG	2026-04-06	Piece	Others	300.00	Active	\N
-232	2	\N	BRAKE PAD YAMAKOTO SHOGUN F	24.00	S-BR-PYF-004	2026-04-06	Set	Brake Pad	100.00	Active	\N
-233	4	\N	CABLE TIE	1.00	O-CA-T	2026-04-06	Piece	Others	2.00	Active	\N
-234	4	\N	CLUTCH SHOE ONLY JVT SET M3/NMAX/AEROX/CLICK	951.00	O-CL-SO3M	2026-04-06	Piece	Others	1170.00	Active	\N
-235	2	\N	FLYBALL JVT CLICK/PCX/ADV 13G	297.77	S-FL-JC1G	2026-04-06	Set	Flyball	550.00	Active	\N
-236	2	\N	FLYBALL JVT CLICK/PCX/ADV 19G	297.77	S-FL-JC1G-001	2026-04-06	Set	Flyball	550.00	Active	\N
-237	4	\N	SLIDER PIECE JVT CLICK/PCX/ADV	79.19	O-SL-PJC	2026-04-06	Piece	Others	200.00	Active	\N
-238	2	\N	FLYBALL CWORKS NMAX/AEROX/M3 12G	256.50	S-FL-CN1G	2026-04-06	Set	Flyball	333.45	Active	\N
-239	2	\N	FLYBALL CWORKS BEAT FI/GY6 13G	247.50	S-FL-CB1G	2026-04-06	Set	Flyball	321.75	Active	\N
-240	2	\N	FLYBALL CWORKS CLICK/PCX/ADV 13G	256.50	S-FL-CC1G	2026-04-06	Set	Flyball	380.00	Active	\N
-241	2	\N	SPARK PLUG CAP CWORKS NMAX V-TYPE	234.00	S-SP-PCV	2026-04-06	Piece	Spark Plug	304.20	Active	\N
-242	2	\N	SPARK PLUG CAP CWORKS PCX/ADV L-TYPE	234.00	S-SP-PCL	2026-04-06	Piece	Spark Plug	350.00	Active	\N
-243	4	\N	FALCON VIPER 6160 90/90-14 TL	934.80	O-FA-V6T	2026-04-06	Piece	Others	1230.00	Active	\N
-244	4	\N	FALCON VIPER SPEED 90/80-14 TL	776.99	O-FA-VST	2026-04-06	Piece	Others	1165.00	Active	\N
-245	4	\N	FALCON VIPER EXTREME 110/80/14 TL	1134.40	O-FA-VET	2026-04-06	Piece	Others	1474.72	Active	\N
-246	4	\N	FALCON VIPER EXTREME 90/80/14 TL	885.40	O-FA-VET-001	2026-04-06	Piece	Others	1151.02	Active	\N
-247	4	\N	FALCON VIPER EXTREME 100/80/14 TL	1026.00	O-FA-VET-002	2026-04-06	Piece	Others	1333.80	Active	\N
-248	4	\N	CVT FI CLEANER PRO PROTECTOR 450ML	90.00	O-CV-FC4M	2026-04-06	Piece	Others	150.00	Active	\N
-249	4	\N	CORSA 110/70-13 M5	1793.60	O-CO-115M	2026-04-06	Piece	Others	2331.68	Active	\N
-250	4	\N	CORSA 130/70-13 M5	2173.60	O-CO-135M	2026-04-06	Piece	Others	2825.68	Active	\N
-251	2	\N	TIRE SEALANT BR	45.00	S-TI-SEB	2026-04-06	Piece	Tire	100.00	Active	\N
-252	1	\N	BRAKE FLUID SURE BRAKE	47.00	L-BR-FSB	2026-04-06	Bottle	Engine Oil	90.00	Active	\N
-253	1	\N	COOLANT THAI 500ML	75.00	L-CO-TH5M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N
-254	4	\N	PETRON MONOGRADE 800ML	153.85	O-PE-MO8M	2026-04-06	Piece	Others	200.00	Active	\N
-255	1	\N	GEAR OIL PETRON	61.54	L-GE-OIP	2026-04-06	Bottle	Gear Oil	80.00	Active	\N
-256	4	\N	RS8 R9 1L	300.00	O-RS-R91L	2026-04-06	Piece	Others	350.00	Active	\N
-257	4	\N	O-RING YAMAHA TORQUE DRIVE	76.92	O-O--YTD	2026-04-06	Piece	Others	100.00	Active	\N
-258	4	\N	STEEL BOLT 10MM	3.50	O-ST-BO1M	2026-04-06	Piece	Others	5.00	Active	\N
-259	4	\N	CLUTCH LEVER	75.00	O-CL-L	2026-04-06	Piece	Others	100.00	Active	\N
-260	4	\N	CLUTCH LINING JVT GRAVIS/MIO	807.69	O-CL-LJG	2026-04-06	Piece	Others	1050.00	Active	\N
-261	4	\N	NUT	2.00	O-NU	2026-04-06	Piece	Others	4.00	Active	\N
-262	4	\N	BOLT STAINLESS	10.00	O-BO-S	2026-04-06	Piece	Others	15.00	Active	\N
-263	4	\N	NUT STAINLESS	10.00	O-NU-S	2026-04-06	Piece	Others	6.00	Active	\N
-264	4	\N	NUT STAINLESS 14MM	8.00	O-NU-ST1M	2026-04-06	Piece	Others	15.00	Active	\N
-265	4	\N	HEADLIGHT LED 200	105.00	O-HE-LE2	2026-04-06	Piece	Others	200.00	Active	\N
-266	4	\N	STEEL NUT	2.00	O-ST-N	2026-04-06	Piece	Others	5.00	Active	\N
-267	4	\N	WELDING	0.00	O-WE	2026-04-06	Piece	Others	100.00	Active	\N
-268	4	\N	REGULATOR BARAKO	250.00	O-RE-B	2026-04-06	Piece	Others	350.00	Active	\N
-269	1	\N	USED OIL 1DRUM	0.00	L-US-OI1D	2026-04-06	Bottle	Engine Oil	2800.00	Active	\N
-270	4	\N	SYLVESTER SPRAY PAINT	100.00	O-SY-SPP	2026-04-06	Piece	Others	150.00	Active	\N
-271	4	\N	CLUTCH CABLE RAIDER	60.00	O-CL-CAR	2026-04-06	Piece	Others	120.00	Active	\N
-272	4	\N	BALLRACE NMAX SUNTAL	180.00	O-BA-NMS	2026-04-06	Piece	Others	350.00	Active	\N
-273	2	\N	STAINLESS SCREW FOR BRAKE MASTER	10.00	S-ST-SFM	2026-04-06	Set	Brake Shoe	15.00	Active	\N
-274	2	\N	CWORKS SPARK PLUG CUP	234.00	S-CW-SPC	2026-04-06	Piece	Spark Plug	320.00	Active	\N
-275	4	\N	DUNLOP D115 70/90-14	980.00	O-DU-D17	2026-04-06	Piece	Others	1400.00	Active	\N
-276	2	\N	PEANUT BULB SOCKET	5.00	S-PE-BUS	2026-04-06	Piece	Light Bulb	20.00	Active	\N
-277	4	\N	SLIDER PIECE JVT AEROX	88.00	O-SL-PJA	2026-04-06	Piece	Others	200.00	Active	\N
-278	4	\N	HANDLE GRIP *	50.00	O-HA-GR	2026-04-06	Piece	Others	150.00	Active	\N
-279	1	\N	ACOOLANT	150.00	L-AC	2026-04-06	Bottle	Engine Oil	100.00	Active	\N
-280	1	\N	AJVT GEAR OIL	70.00	L-AJ-GEO	2026-04-06	Bottle	Gear Oil	100.00	Active	\N
-281	4	\N	PETRON SCT	150.00	O-PE-S	2026-04-06	Piece	Others	195.00	Active	\N
-282	4	\N	O-RING CLICK	40.00	O-O--C	2026-04-06	Piece	Others	100.00	Active	\N
-283	2	\N	BEE RUBBER TIRE USED	0.00	S-BE-RTU	2026-04-06	Piece	Tire	300.00	Active	\N
-284	4	\N	INTERIOR	80.00	O-IN	2026-04-06	Piece	Others	130.00	Active	\N
-285	1	\N	OIL SEAL 200	100.00	L-OI-SE2	2026-04-06	Bottle	Engine Oil	200.00	Active	\N
-286	4	\N	ASPROCKET TMX 155	80.00	O-AS-TM1	2026-04-06	Piece	Others	135.00	Active	\N
-287	4	\N	ENGINE SPROCKET TMX	25.00	O-EN-SPT	2026-04-06	Piece	Others	80.00	Active	\N
-288	4	\N	AXLE EHE TMX	100.00	O-AX-EHT	2026-04-06	Piece	Others	180.00	Active	\N
-293	4	\N	BATTERY CHARGING	0.00	O-BA-C	2026-04-06	Piece	Others	40.00	Active	\N
-294	4	\N	RELAY SOCKET	15.00	O-RE-S	2026-04-06	Piece	Others	40.00	Active	\N
-295	4	\N	DID CHAIN 428H	220.00	O-DI-CH4H	2026-04-06	Piece	Others	400.00	Active	\N
-296	2	\N	ASPARK PLUG HELLA	60.00	S-AS-PLH	2026-04-06	Piece	Spark Plug	120.00	Active	\N
-297	4	\N	CDI 300	230.77	O-CD-3	2026-04-06	Piece	Others	300.00	Active	\N
-298	4	\N	STEEL BOLT 12MM	6.00	O-ST-BO1M-001	2026-04-06	Piece	Others	10.00	Active	\N
-299	4	\N	CLUTCH SPRING	153.85	O-CL-S	2026-04-06	Piece	Others	200.00	Active	\N
-300	4	\N	CARBURETOR REPAIR KIT	100.00	O-CA-REK	2026-04-06	Piece	Others	150.00	Active	\N
-301	2	\N	ABRAKE SWITCH FOOT BRAKE	50.00	S-AB-SFB	2026-04-06	Set	Brake Shoe	100.00	Active	\N
-302	4	\N	PETRON SC400	226.92	O-PE-4S	2026-04-06	Piece	Others	295.00	Active	\N
-303	2	\N	AFLYBALL MTRT MIO	250.00	S-AF-MTM	2026-04-06	Set	Flyball	420.00	Active	\N
-304	4	\N	AHEADLIGH SOCET	45.00	O-AH-S	2026-04-06	Piece	Others	90.00	Active	\N
-305	4	\N	AREGULATOR LAM9	150.00	O-AR-9L	2026-04-06	Piece	Others	300.00	Active	\N
-306	4	\N	AKRX TUBE	60.00	O-AK-T	2026-04-06	Piece	Others	125.00	Active	\N
-307	2	\N	ABRAKE PAD CLICK	75.00	S-AB-PAC	2026-04-06	Set	Brake Pad	150.00	Active	\N
-308	4	\N	SIGNAL LIGHT LED T15 BLUE	62.00	O-SI-LLB	2026-04-06	Piece	Others	150.00	Active	\N
-309	2	\N	BRAKE CABLE 150	115.38	S-BR-CA1	2026-04-06	Set	Brake Shoe	150.00	Active	\N
-310	4	\N	AINTERIOR KRX	60.00	O-AI-K	2026-04-06	Piece	Others	125.00	Active	\N
-311	2	\N	BRAKE CABLE BARAKO	90.00	S-BR-CAB	2026-04-06	Set	Brake Shoe	150.00	Active	\N
-312	2	\N	BALLRACE BEARING M3	269.23	S-BA-BE3M	2026-04-06	Piece	Bearing	350.00	Active	\N
-313	2	\N	BRAKE PAD ADV 160	115.38	S-BR-PA1	2026-04-06	Set	Brake Pad	150.00	Active	\N
-314	2	\N	BRAKE PAD MIO SPORTY	192.31	S-BR-PMS	2026-04-06	Set	Brake Pad	250.00	Active	\N
-315	2	\N	ABEARING KOYO 6303	25.00	S-AB-KO6	2026-04-06	Piece	Bearing	80.00	Active	\N
-316	4	\N	CLUTCH LINING	120.00	O-CL-L-001	2026-04-06	Piece	Others	200.00	Active	\N
-317	1	\N	ASUN RASING GEAR OIL	60.00	L-AS-RGO	2026-04-06	Bottle	Gear Oil	100.00	Active	\N
-318	2	\N	SPARK PLUG CUP OEM	20.00	S-SP-PCO	2026-04-06	Piece	Spark Plug	50.00	Active	\N
-319	4	\N	CARBON BRUSH 120	70.00	O-CA-BR1	2026-04-06	Piece	Others	120.00	Active	\N
-320	4	\N	CORSA R26 80/80-14 1200	923.08	O-CO-R81	2026-04-06	Piece	Others	1200.00	Active	\N
-321	1	\N	OIL SEAL YAMAHA PULLEY SIDE M3	92.31	L-OI-SY3M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N
-322	4	\N	ASLIDER PIECE SUN RACING	100.00	O-AS-PSR	2026-04-06	Piece	Others	180.00	Active	\N
-323	2	\N	ABRAKE SWITCH UNIVERSAL	10.00	S-AB-SWU	2026-04-06	Set	Brake Shoe	50.00	Active	\N
-325	4	\N	CORSA CROSS S 130/70-13	1923.08	O-CO-CS1-003	2026-04-06	Piece	Others	2500.00	Active	\N
-326	4	\N	ACARBURETOR CLEANER	60.00	O-AC-C	2026-04-06	Piece	Others	100.00	Active	\N
-327	1	\N	ARS8 ENGINE OIL	180.00	L-AR-ENO	2026-04-06	Bottle	Engine Oil	250.00	Active	\N
-328	2	\N	BRAKE PAD 150	115.38	S-BR-PA1-001	2026-04-06	Set	Brake Pad	150.00	Active	\N
-329	4	\N	HONDA SCT GREY	262.00	O-HO-SCG	2026-04-06	Piece	Others	295.00	Active	\N
-330	4	\N	SPROCKET SET	650.00	O-SP-S	2026-04-06	Piece	Others	800.00	Active	\N
-331	4	\N	O-RING TORQUE DRIVE 160	123.08	O-O--TD1	2026-04-06	Piece	Others	160.00	Active	\N
-332	4	\N	HONDA CARBON CLEANER	40.00	O-HO-CAC	2026-04-06	Piece	Others	80.00	Active	\N
-333	1	\N	BRAKE FLUID AEROMOTIVE DOT5	80.00	L-BR-FA5D	2026-04-06	Bottle	Engine Oil	150.00	Active	\N
-334	2	\N	KOBY TIRE BLACK	50.00	S-KO-TIB	2026-04-06	Piece	Tire	80.00	Active	\N
-335	1	\N	ADD OIL RACERX 200ML	20.00	L-AD-OR2M	2026-04-06	Bottle	Engine Oil	50.00	Active	\N
-336	2	\N	TIRE SEALANT PROTIRE	35.50	S-TI-SEP	2026-04-06	Piece	Tire	100.00	Active	\N
-337	4	\N	PULLEY SET JVT MIO/FINO/NOUVO	1508.91	O-PU-SJM	2026-04-06	Piece	Others	1957.00	Active	\N
-338	4	\N	PULLEY SET JVT MIOi125/m3	1865.81	O-PU-SJ1M	2026-04-06	Piece	Others	2397.00	Active	\N
-339	4	\N	CLUTCH LINING JVT BEAT FI	816.00	O-CL-LJF	2026-04-06	Piece	Others	1005.00	Active	\N
-340	4	\N	CLUTCH LINING JVT MIO	820.45	O-CL-LJM	2026-04-06	Piece	Others	1020.00	Active	\N
-341	2	\N	FLYBALL JVT PCX 19G	297.28	S-FL-JP1G	2026-04-06	Set	Flyball	550.00	Active	\N
-342	4	\N	SLIDER PIECE JVT NMAX/M3/AEROX	79.19	O-SL-PJ3N	2026-04-06	Piece	Others	200.00	Active	\N
-343	2	\N	BELT CWORKS 2PH	486.00	S-BE-CW2P	2026-04-06	Piece	Drive Belt	600.00	Active	\N
-344	2	\N	BRAKE SHOE CWORKS MIO SPORTY/SOULTY/M3/GEAR/GRAVIS/AEROX	279.00	S-BR-SC3S	2026-04-06	Set	Brake Shoe	350.00	Active	\N
-345	2	\N	BRAKE SHOE CWORKS CLICK125 V1 V2 V3 150/GC/160/AIRBLADE 150/BEAT FI	225.00	S-BR-SCF	2026-04-06	Set	Brake Shoe	290.00	Active	\N
-346	2	\N	BRAKE PAD CWORKS NMAX REAR/MIO SPORTY/MXI/VEGA/FINO FRONT	144.00	S-BR-PCF	2026-04-06	Set	Brake Pad	195.00	Active	\N
-347	2	\N	BRAKE PAD CWORKS NMAX FRONT/MIO 125/ MIO SOULi/M3/GRVIS/AEROX/SNIPER150/155	144.00	S-BR-PC3S	2026-04-06	Set	Brake Pad	195.00	Active	\N
-324	4	\N	A6300	25.00	O-A6	2026-04-06	Piece	Others	110.00	Active	\N
-348	4	\N	CLUTCH SPRING CWORKS ALL CLICK/PCX/ADV/MIO/M3/NMAX/AEROX/GY6/BEAT FI/XMAX/RUSI 800RPM	162.00	O-CL-SC8R	2026-04-06	Piece	Others	250.00	Active	\N
-349	4	\N	SLIDER PIECE CWORKS CLICK125i/150/V1V2V3	58.50	O-SL-PC1C	2026-04-06	Piece	Others	100.00	Active	\N
-350	4	\N	SLIDER PIECE CWORKS BEAT V1V2V3/GY6	58.50	O-SL-PC1V	2026-04-06	Piece	Others	100.00	Active	\N
-351	4	\N	SLIDER PIECE CWORKS NMAX/AEROX/MIO125/M3	58.50	O-SL-PC1N	2026-04-06	Piece	Others	100.00	Active	\N
-352	2	\N	BEARING KOYO 6002	25.00	S-BE-KO6-011	2026-04-06	Piece	Bearing	100.00	Active	\N
-353	2	\N	BALLRACE BEARING OTAKA CLICK/BEAT/WAVE125/C100/WAVE100	70.00	S-BA-BO1C	2026-04-06	Piece	Bearing	350.00	Active	\N
-354	1	\N	IGNITION COIL LAZX	150.00	L-IG-COL	2026-04-06	Bottle	Engine Oil	300.00	Active	\N
-355	2	\N	BEARING KOYO 62/22	85.00	S-BE-KO6-012	2026-04-06	Piece	Bearing	250.00	Active	\N
-356	1	\N	IGNITION COIL KHC	150.00	L-IG-COK	2026-04-06	Bottle	Engine Oil	250.00	Active	\N
-357	4	\N	BATTERY MOTOLITE MF4LB	700.00	O-BA-MO4M	2026-04-06	Piece	Others	850.00	Active	\N
-358	4	\N	BATTERY MOTOLITE CHAMPION MTZ6V	900.00	O-BA-MC6M	2026-04-06	Piece	Others	1000.00	Active	\N
-359	1	\N	COOLANT PETRON 500ML	80.00	L-CO-PE5M	2026-04-06	Bottle	Engine Oil	150.00	Active	\N
-360	4	\N	TENSIONER YAMAHA	164.00	O-TE-Y	2026-04-06	Piece	Others	300.00	Active	\N
-361	4	\N	SPEED CABLE WAVE	60.00	O-SP-CAW	2026-04-06	Piece	Others	150.00	Active	\N
-362	2	\N	QUICK TIRE 100/80-14	1115.00	S-QU-TI1	2026-04-06	Piece	Tire	1315.00	Active	\N
-363	1	\N	OIL SEAL BACKPLATE M3	92.31	L-OI-SB3M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N
-364	4	\N	HONDA BLUE SCT 800ML 285	285.00	O-HO-BS2	2026-04-06	Piece	Others	340.00	Active	\N
-365	4	\N	FLASHER RELAY ADJUSTABLE	45.00	O-FL-REA	2026-04-06	Piece	Others	120.00	Active	\N
-366	4	\N	FLASHER RELAY DZJ	40.00	O-FL-RED	2026-04-06	Piece	Others	100.00	Active	\N
-367	4	\N	NUT STAINLESS 12MM	6.00	O-NU-ST1M-001	2026-04-06	Piece	Others	10.00	Active	\N
-368	2	\N	QUICK TIRE 90/90-14	1041.71	S-QU-TI9	2026-04-06	Piece	Tire	1242.00	Active	\N
-369	2	\N	BRAKE PAD YAMAKOTO ADV/PCX REAR	30.00	S-BR-PYR-002	2026-04-06	Set	Brake Pad	100.00	Active	\N
-370	4	\N	THROTTLE CABLE MAKOTO SNIPER MXI VVA	140.00	O-TH-CMV	2026-04-06	Piece	Others	280.00	Active	\N
-371	4	\N	CLUTCH CABLE WOLF 125	70.00	O-CL-CW1	2026-04-06	Piece	Others	15.00	Active	\N
-372	4	\N	CHAIN ADJUSTER KHC	40.00	O-CH-ADK	2026-04-06	Piece	Others	80.00	Active	\N
-373	4	\N	CARBON CLEANER HONDA	25.00	O-CA-CLH	2026-04-06	Piece	Others	50.00	Active	\N
-374	2	\N	BELT NMAX YAMAKOTO	250.00	S-BE-NMY	2026-04-06	Piece	Drive Belt	350.00	Active	\N
-375	4	\N	WIRE #18 OLD STOCK	15.00	O-WI-#OS	2026-04-06	Piece	Others	25.00	Active	\N
-376	2	\N	AIR FILTER NMAX V2	127.00	S-AI-FN2V	2026-04-06	Piece	Air Filter	250.00	Active	\N
-377	4	\N	BOLT AND NUT 10MM	6.00	O-BO-AN1M	2026-04-06	Piece	Others	15.00	Active	\N
-378	2	\N	BELT HONDA CLICK 150	354.00	S-BE-HC1	2026-04-06	Piece	Drive Belt	700.00	Active	\N
-379	1	\N	PETRON MONOGRADE / SC400 / SCT	188.28	L-PE-M/S	2026-04-06	Bottle	Engine Oil	226.60	Active	\N
-380	1	\N	RS8 R9 1L / ARS8 ENGINE OIL	239.10	L-RS-R1O	2026-04-06	Bottle	Engine Oil	312.87	Active	\N
-381	1	\N	AJVT / ASUN RACING GEAR OIL	225.89	L-AJ-/AO	2026-04-06	Bottle	Gear Oil	282.58	Active	\N
-382	1	\N	BRAKE FLUID SURE / AEROMOTIVE	131.13	L-BR-FSA	2026-04-06	Bottle	Brake Fluid	162.68	Active	\N
-383	1	\N	COOLANT THAI / PETRON 500ML	130.18	L-CO-T/5M	2026-04-06	Bottle	Coolant	175.40	Active	\N
-385	2	\N	PEANUT BULB ORANGE / WHITE	204.68	S-PE-BOW	2026-04-06	Piece	Light Bulb	277.33	Active	\N
-386	2	\N	TAIL / HEAD LIGHT BULB	231.81	S-TA-/HB	2026-04-06	Piece	Light Bulb	281.98	Active	\N
-387	2	\N	STARTER / ON-OFF / HORN SW	107.89	S-ST-/OS	2026-04-06	Piece	Switch	132.95	Active	\N
-388	2	\N	BRAKE SWITCH L / R	106.75	S-BR-SLR	2026-04-06	Piece	Switch	131.22	Active	\N
-389	2	\N	HAZARD / H/L / L/R SWITCH	159.31	S-HA-/HS	2026-04-06	Piece	Switch	218.88	Active	\N
-390	2	\N	HORN RELAY (4-PIN / 5-PIN)	71.16	S-HO-R(5P	2026-04-06	Piece	Relay	91.29	Active	\N
-391	2	\N	FUSE 10A / 15A / GLASS	238.07	S-FU-1/G	2026-04-06	Piece	Fuse	320.92	Active	\N
-392	3	\N	HORN HELLA / BOSCH 190	192.64	A-HO-H/1	2026-04-06	Set/Piece	Horn	269.11	Active	\N
-393	2	\N	STARTER RELAY MIO / XR / TMX	303.72	S-ST-RMT	2026-04-06	Piece	Relay	369.27	Active	\N
-394	2	\N	REGULATOR RECTIFIER SKYDRIVE	190.71	S-RE-RES	2026-04-06	Piece	Regulator	242.77	Active	\N
-395	2	\N	FUSE / FUSE BOX	102.31	S-FU-/FB	2026-04-06	Piece	Fuse	127.15	Active	\N
-396	3	\N	HEAD LIGHT LED T19 WHITE	70.58	A-HE-LLW	2026-04-06	Piece	LED Bulb	95.72	Active	\N
-397	3	\N	HEAD LIGHT LED MDL KILLER	220.09	A-HE-LLK	2026-04-06	Piece	LED Bulb	270.83	Active	\N
-398	3	\N	PARK LIGHT T15 (W/B/Y)	77.03	A-PA-LTW	2026-04-06	Piece	LED Bulb	97.99	Active	\N
-399	4	\N	PEANUT BULB T13 (W/O)	55.63	O-PE-BTW-001	2026-04-06	Piece	Bulb	71.56	Active	\N
-400	4	\N	AUTO WIRE #18 JAPAN	194.25	O-AU-W#J	2026-04-06	Piece/Pack	Consumables	240.27	Active	\N
-401	2	\N	BATTERY MOTOLITE MF4LB / MTZ6V	54.47	S-BA-MM6M	2026-04-06	Piece	Battery	75.58	Active	\N
-402	2	\N	IGNITION COIL LAZX / KHC	348.38	S-IG-CLK	2026-04-06	Piece	Ignition	457.36	Active	\N
-403	2	\N	REGULATOR BARAKO / LAM9	218.79	S-RE-B/9L	2026-04-06	Piece	Regulator	290.62	Active	\N
-404	4	\N	HEADLIGHT LED 200 / T15 BLUE	288.75	O-HE-L2B	2026-04-06	Piece	LED Light	387.66	Active	\N
-405	2	\N	FLASHER RELAY ADJ / DZJ	318.50	S-FL-RAD	2026-04-06	Piece	Relay	383.38	Active	\N
-406	4	\N	TIRE SEALANT KOBY / KHC	195.66	O-TI-SKK	2026-04-06	Bottle	Tire Sealant	267.53	Active	\N
-407	2	\N	CORSA R26 80/80-14 / 90/80	232.24	S-CO-R89	2026-04-06	Piece	Tire	279.72	Active	\N
-408	2	\N	FALCON VIPER 6160 90/90-14	349.50	S-FA-V69	2026-04-06	Piece	Tire	475.55	Active	\N
-409	2	\N	FALCON VIPER SPEED 90/80	262.02	S-FA-VS9	2026-04-06	Piece	Tire	344.76	Active	\N
-410	2	\N	FALCON VIPER EXTREME (VAR)	286.73	S-FA-VEV	2026-04-06	Piece	Tire	381.14	Active	\N
-411	2	\N	CORSA 110/130 M5 & R26	269.44	S-CO-1M2R	2026-04-06	Piece	Tire	326.37	Active	\N
-412	2	\N	QUICK TIRE 100/80 / 90/90	133.54	S-QU-T19	2026-04-06	Piece	Tire	185.52	Active	\N
-413	4	\N	TIRE SEALANT BR / PROTIRE	307.37	O-TI-SBP	2026-04-06	Bottle	Tire Sealant	395.89	Active	\N
-414	2	\N	INTERIOR / KRX TUBE	75.73	S-IN-/KT	2026-04-06	Piece	Inner Tube	93.72	Active	\N
-415	2	\N	HONDA BELT CLICK 23100-K35	128.31	S-HO-BC2K	2026-04-06	Piece	Drive Belt	168.31	Active	\N
-416	2	\N	JVT FLYBALL 15G - PCX/CLICK	97.98	S-JV-F1P-001	2026-04-06	Set	Flyball	122.21	Active	\N
-417	2	\N	YAKIMOTO FLYBALL 10G - MIO	96.84	S-YA-F1M	2026-04-06	Set	Flyball	130.48	Active	\N
-418	2	\N	BELT YAMAHA 5TL MIO	233.93	S-BE-Y5M	2026-04-06	Piece	Drive Belt	301.49	Active	\N
-419	2	\N	BELT HONDA PCX/ADV 160	332.47	S-BE-HP1-001	2026-04-06	Piece	Drive Belt	449.21	Active	\N
-420	2	\N	FLYBALL JVT (13G/19G)	191.25	S-FL-JV1G	2026-04-06	Set	Flyball	236.86	Active	\N
-421	2	\N	FLYBALL CWORKS (12G/13G)	53.73	S-FL-CW1G	2026-04-06	Set	Flyball	69.22	Active	\N
-422	2	\N	SLIDER PIECE HONDA / JVT	288.32	S-SL-PHJ	2026-04-06	Set	Slider Piece	368.94	Active	\N
-423	2	\N	CLUTCH SHOE JVT SET	324.99	S-CL-SJS	2026-04-06	Piece/Set	Clutch Shoe	402.50	Active	\N
-424	2	\N	AIR FILTER CLICK / AEROX	281.73	S-AI-FCA	2026-04-06	Piece	Air Filter	342.93	Active	\N
-425	2	\N	AIR FILTER PCX / KLX / NMAX	166.23	S-AI-FPN	2026-04-06	Piece	Air Filter	218.93	Active	\N
-426	2	\N	RACING CARBURETOR KEIHIN	215.51	S-RA-CAK	2026-04-06	Piece	Carburetor	278.40	Active	\N
-427	2	\N	FUEL PUMP ASSEMBLY BEAT FI	62.80	S-FU-PAF	2026-04-06	Piece	Fuel Pump	78.35	Active	\N
-428	2	\N	BELT CWORKS 2PH / NMAX / CLICK	99.21	S-BE-C2C	2026-04-06	Piece	Drive Belt	119.67	Active	\N
-429	2	\N	CLUTCH LINING JVT (VARIOUS)	324.84	S-CL-LJV	2026-04-06	Set	Clutch Lining	407.40	Active	\N
-430	2	\N	FLYBALL JVT PCX 19G / MTRT	229.58	S-FL-JPM	2026-04-06	Set	Flyball	305.78	Active	\N
-431	2	\N	SLIDER PIECE CWORKS / JVT / SUN	312.03	S-SL-PCS	2026-04-06	Set	Slider Piece	435.87	Active	\N
-432	2	\N	CLUTCH SPRING CWORKS / GEN	323.57	S-CL-SCG	2026-04-06	Set	Clutch Spring	399.68	Active	\N
-433	2	\N	PULLEY SET JVT (VARIOUS)	63.18	S-PU-SJV	2026-04-06	Set	Pulley Set	81.29	Active	\N
-434	2	\N	SPROCKET SET / ENGINE / TMX	134.40	S-SP-S/T	2026-04-06	Set	Sprockets	186.13	Active	\N
-435	2	\N	BRAKE PAD YAMAKOTO SHOGUN	51.84	S-BR-PYS	2026-04-06	Set	Brake Pad	71.77	Active	\N
-436	2	\N	BRAKE PAD YAMAKOTO CLICK	245.90	S-BR-PYC	2026-04-06	Set	Brake Pad	307.62	Active	\N
-437	2	\N	YAMAHA GENUINE PADS 2DP	98.33	S-YA-GP2D	2026-04-06	Set	Brake Pad	121.00	Active	\N
-438	2	\N	BRAKE PAD YAMAKOTO (VAR)	239.58	S-BR-PYV	2026-04-06	Set	Brake Pad	311.86	Active	\N
-439	2	\N	BRAKE PAD HONDA (B6H/GEN)	212.96	S-BR-PH6B-001	2026-04-06	Set	Brake Pad	268.35	Active	\N
-440	2	\N	BRAKE PAD YAMAHA (MIO/AEROX)	234.68	S-BR-PYM	2026-04-06	Set	Brake Pad	323.47	Active	\N
-441	2	\N	BRAKE SHOE HONDA CLICK GEN	134.53	S-BR-SHG-001	2026-04-06	Set	Brake Shoe	187.54	Active	\N
-442	2	\N	BRAKE MASTER REPAIR KIT	271.43	S-BR-MRK	2026-04-06	Set	Repair Kit	353.33	Active	\N
-443	2	\N	BALLRACE / BEARING (VAR)	232.89	S-BA-/BV	2026-04-06	Set	Ballrace	311.92	Active	\N
-444	2	\N	OIL SEAL (PULLEY/AXLE)	153.74	S-OI-SEP	2026-04-06	Piece	Oil Seal	214.68	Active	\N
-445	2	\N	THROTTLE / CLUTCH / BRAKE CAB	245.32	S-TH-/CC	2026-04-06	Piece	Cable	334.49	Active	\N
-446	2	\N	BRAKE PAD CWORKS (VARIOUS)	117.50	S-BR-PCV	2026-04-06	Set	Brake Pad	161.96	Active	\N
-447	2	\N	BRAKE PAD YAMAKOTO ADV / PCX	176.05	S-BR-PYP-001	2026-04-06	Set	Brake Pad	215.12	Active	\N
-448	2	\N	BRAKE PAD CLICK / ADV / MIO	332.45	S-BR-PCM	2026-04-06	Set	Brake Pad	448.88	Active	\N
-449	2	\N	BRAKE SHOE CWORKS / OTAKA	248.57	S-BR-SCO	2026-04-06	Set	Brake Shoe	346.08	Active	\N
-450	2	\N	CLUTCH CABLE RAIDER / WOLF	338.45	S-CL-CRW	2026-04-06	Piece	Cable	421.92	Active	\N
-451	2	\N	THROTTLE / SPEED / BRAKE CABLE	348.05	S-TH-/SC	2026-04-06	Piece	Cable	417.99	Active	\N
-452	2	\N	BALLRACE NMAX / M3 / SUNTAL	176.59	S-BA-N/S	2026-04-06	Set	Ballrace	236.47	Active	\N
-453	2	\N	BEARING KOYO 6002 / 62/22 / 6303	282.76	S-BE-K66	2026-04-06	Piece	Bearing	387.95	Active	\N
-454	2	\N	FUEL HOSE RED / BLACK (FT)	346.32	S-FU-HRF	2026-04-06	Meter/Piece	Hose	416.79	Active	\N
-455	4	\N	WASHER 10 / 12 / 14	219.93	O-WA-1/1	2026-04-06	Piece	Hardware	271.68	Active	\N
-456	4	\N	FLARINGS SCREW / PASAK	309.29	O-FL-S/P	2026-04-06	Piece	Hardware	396.61	Active	\N
-457	4	\N	STAINLESS SCREW W/ WASHER	193.48	O-ST-SWW-001	2026-04-06	Piece	Hardware	251.12	Active	\N
-458	4	\N	BOLT MUSHROOM (S/T/G)	116.50	O-BO-MUS	2026-04-06	Piece	Hardware	160.03	Active	\N
-459	4	\N	RUBBER DUMPER WAVE/KHC	307.79	O-RU-DUW	2026-04-06	Piece	Hardware	419.67	Active	\N
-460	2	\N	O-RING / FUEL PUMP O-RING	51.97	S-O--/FO	2026-04-06	Piece	O-Ring	69.78	Active	\N
-461	4	\N	NUT / BOLT / WASHER STAINLESS	264.20	O-NU-/BS	2026-04-06	Piece	Hardware	331.18	Active	\N
-462	4	\N	STEEL BOLT 10MM / 12MM	65.56	O-ST-B11M	2026-04-06	Piece	Hardware	87.62	Active	\N
-463	2	\N	O-RING TORQUE DRIVE / CLICK	72.85	S-O--TDC	2026-04-06	Piece	O-Ring	96.72	Active	\N
-464	2	\N	OIL SEAL BACKPLATE / PULLEY M3	224.81	S-OI-SB3M	2026-04-06	Piece	Oil Seal	283.13	Active	\N
-289	1	\N	ADD OIL PETRON	25.00	L-A-AOP	2026-04-06	Bottle	Engine Oil	50.00	Active	\N
-290	4	\N	INTERIOR 2.75	75.00	O-A-IN2	2026-04-06	Piece	Others	150.00	Active	\N
-291	4	\N	DIODE	25.00	O-A-D	2026-04-06	Piece	Others	50.00	Active	\N
-292	4	\N	ROTOR DISC	125.00	O-A-ROD	2026-04-06	Piece	Others	250.00	Active	\N
-384	1	\N	ADD OIL PETRON / RACERX 200M	319.11	L-A-AO2M	2026-04-06	Bottle	Additive	433.34	Active	\N
-465	2	4	Yamaha Breakpad Nmax	2000.50	S-YA-BRN	2026-04-08	Piece	Brake Pad	2000.00	Active	\N
+COPY public.products (product_id, category_id, supplier_id, product_name, unit_price, sku, date_added, unit_of_measurement, specific_category, pos_price, status, image_url, unit_cost) FROM stdin;
+1	1	3	YAMALUBE BLUE CORE 1L	309.00	L-YA-BC1L	2026-04-06	Liter	Engine Oil	365.00	Active	\N	0.00
+2	1	3	YAMALUBE AT 800ML	234.00	L-YA-AT8M	2026-04-06	Milliliter	Engine Oil	285.00	Active	\N	0.00
+3	1	6	YAMALUBE GEAR OIL 100ML	61.00	L-YA-GO1M	2026-04-06	Milliliter	Gear Oil	95.00	Active	\N	0.00
+4	1	1	HONDA GOLD 1L	260.00	L-HO-GL1L	2026-04-06	Liter	Engine Oil	295.00	Active	\N	0.00
+5	1	1	HONDA BLUE SCT 800ML	300.00	L-HO-BS8M	2026-04-06	Milliliter	Engine Oil	340.00	Active	\N	0.00
+6	1	1	HONDA BLUE 1L	325.00	L-HO-BL1L	2026-04-06	Liter	Engine Oil	375.00	Active	\N	0.00
+7	1	3	HONDA RED 1L	238.00	L-HO-RE1L	2026-04-06	Liter	Engine Oil	275.00	Active	\N	0.00
+8	1	1	HONDA GEAR OIL	70.00	L-HO-GEO	2026-04-06	Liter	Gear Oil	95.00	Active	\N	0.00
+9	1	3	YAMALUBE PERFORMANCE 1L	275.00	L-YA-PE1L	2026-04-06	Liter	Engine Oil	315.00	Active	\N	0.00
+10	1	3	YAMALUBE BUSINESS 1L	290.00	L-YA-BU1L	2026-04-06	Liter	Engine Oil	320.00	Active	\N	0.00
+11	1	3	WD-40 333ML	88.00	L-WD-3M	2026-04-06	Milliliter	Penetrant	\N	Archived	\N	0.00
+12	1	3	TOP 1 HIGH TEMP GREASE	20.00	L-TO-1HG	2026-04-06	Liter	Grease	35.00	Active	\N	0.00
+13	1	2	GREASE HIGH TEMP KOBY	7.00	L-GR-HTK	2026-04-06	Liter	Grease	30.00	Active	\N	0.00
+14	1	3	GASKET MAKER PITSTOP 30G	70.00	L-GA-MP3G	2026-04-06	Milliliter	Gasket Maker	\N	Archived	\N	0.00
+15	1	6	CVT CLEANER RS8	98.00	L-CV-CL8R	2026-04-06	Milliliter	Cleaner	150.00	Active	\N	0.00
+16	1	3	CVT FI CLEANER PRO 450ML	1.00	L-CV-FC4M	2026-04-06	Milliliter	Cleaner	\N	Archived	\N	0.00
+17	1	3	FORK OIL GENERIC	35.50	L-FO-OIG	2026-04-06	Milliliter	Fork Oil	90.00	Active	\N	0.00
+18	3	2	FUEL FILTER AEROX 155	33.00	A-FU-FA1	2026-04-06	Piece	Fuel Filter	110.00	Active	\N	0.00
+19	3	2	FUEL FILTER CLICK XRM	33.00	A-FU-FCX	2026-04-06	Piece	Fuel Filter	100.00	Active	\N	0.00
+20	3	2	OIL FILTER BAJAJ	30.00	A-OI-FIB	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+21	3	3	OIL FILTER YAMAHA	30.00	A-OI-FIY	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+22	3	2	OIL FILTER KAWASAKI	30.00	A-OI-FIK	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+23	3	2	OIL FILTER HJLX	30.00	A-OI-FIH	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+24	3	2	OIL FILTER LOFILTRO HF183	30.00	A-OI-FL1H	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+25	3	2	OIL FILTER VIC C-806	30.00	A-OI-FV8C	2026-04-06	Piece	Oil Filter	50.00	Active	\N	0.00
+26	2	2	HEAD LIGHT BULB MAKOTO	12.00	S-HE-LBM	2026-04-06	Piece	Light Bulb	25.00	Active	\N	0.00
+27	2	2	BEARING KOYO 6004	25.00	S-BE-KO6	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+28	\N	\N	MOTUL SCT 800ML	289.00	PRD-MO-SC8M	2026-04-06	pcs	\N	330.00	Active	\N	0.00
+29	\N	\N	MOTUL GP MATIC 1L	325.00	PRD-MO-GM1L	2026-04-06	pcs	\N	380.00	Active	\N	0.00
+30	4	\N	ZIC M9 800ML	251.23	O-ZI-M98M	2026-04-06	Piece	Others	299.00	Active	\N	0.00
+31	4	\N	ZIC M9 1L	287.12	O-ZI-M91L	2026-04-06	Piece	Others	326.00	Active	\N	0.00
+32	4	\N	CASTROL ACTIV 1L	290.00	O-CA-AC1L	2026-04-06	Piece	Others	320.00	Active	\N	0.00
+33	4	\N	SUZUKI ECSTAR 1L	261.00	O-SU-EC1L	2026-04-06	Piece	Others	290.00	Active	\N	0.00
+34	4	\N	SHELL ADVANCE AX7 800ML	241.74	O-SH-AA8M	2026-04-06	Piece	Others	285.00	Active	\N	0.00
+35	4	\N	SHELL ADVANCE AX5 4T 800ML	197.88	O-SH-AA8M-001	2026-04-06	Piece	Others	230.00	Active	\N	0.00
+36	4	\N	TOP 1 GREEN ACTION MATIC 800ML	310.00	O-TO-1G8M	2026-04-06	Piece	Others	350.00	Active	\N	0.00
+37	4	\N	TOP 1 GREEN ACTION MATIC 1L	340.00	O-TO-1G1L	2026-04-06	Piece	Others	390.00	Active	\N	0.00
+38	4	\N	TOP 1 VIOLET MC 800ML	290.00	O-TO-1V8M	2026-04-06	Piece	Others	320.00	Active	\N	0.00
+39	4	\N	TOP 1 VIOLET MC 1L	300.00	O-TO-1V1L	2026-04-06	Piece	Others	360.00	Active	\N	0.00
+40	4	\N	PETRON MULTI-GRADE 800ML	160.00	O-PE-MU8M	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+41	4	\N	PETRON SR200 1L	200.00	O-PE-SR1L	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+42	2	\N	BEARING KOYO 6005	80.00	S-BE-KO6-001	2026-04-06	Piece	Bearing	250.00	Active	\N	0.00
+43	2	\N	BEARING KOYO 6200	80.00	S-BE-KO6-002	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+44	2	\N	BEARING KOYO 6201	80.00	S-BE-KO6-003	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+45	2	\N	BEARING KOYO 6202	80.00	S-BE-KO6-004	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+46	2	\N	BEARING KOYO 6203	80.00	S-BE-KO6-005	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+47	2	\N	BEARING KOYO 6204	80.00	S-BE-KO6-006	2026-04-06	Piece	Bearing	150.00	Active	\N	0.00
+48	2	\N	BEARING KOYO 6205	80.00	S-BE-KO6-007	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+49	2	\N	BEARING KOYO 6300	80.00	S-BE-KO6-008	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+50	2	\N	BEARING KOYO 6301	80.00	S-BE-KO6-009	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+51	2	\N	BEARING KOYO 6302	80.00	S-BE-KO6-010	2026-04-06	Piece	Bearing	120.00	Active	\N	0.00
+52	2	\N	BEARING NSK 6200	75.00	S-BE-NS6	2026-04-06	Piece	Bearing	110.00	Active	\N	0.00
+53	2	\N	BEARING NSK 6302	75.00	S-BE-NS6-001	2026-04-06	Piece	Bearing	110.00	Active	\N	0.00
+54	2	\N	BEARING NSK 6004	75.00	S-BE-NS6-002	2026-04-06	Piece	Bearing	110.00	Active	\N	0.00
+55	2	\N	BEARING KSR 6200	75.00	S-BE-KS6	2026-04-06	Piece	Bearing	110.00	Active	\N	0.00
+56	2	\N	BEARING KSR 6204	75.00	S-BE-KS6-001	2026-04-06	Piece	Bearing	110.00	Active	\N	0.00
+57	4	\N	KSR 6004	75.00	O-KS-6	2026-04-06	Piece	Others	110.00	Active	\N	0.00
+58	4	\N	KSR 6005	75.00	O-KS-6-001	2026-04-06	Piece	Others	110.00	Active	\N	0.00
+59	1	\N	OIL FILTER SUZUKI	30.00	L-OI-FIS	2026-04-06	Bottle	Engine Oil	50.00	Active	\N	0.00
+60	2	\N	TAIL LIGHT BULB MAKOTO	12.00	S-TA-LBM	2026-04-06	Piece	Light Bulb	25.00	Active	\N	0.00
+61	2	\N	SPARK PLUG NGK C6HSA	85.00	S-SP-PN6C	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+62	2	\N	SPARK PLUG NGK C7HSA	85.80	S-SP-PN7C	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+63	2	\N	SPARK PLUG NGK CPR6EA-9	92.00	S-SP-PN6C-001	2026-04-06	Piece	Spark Plug	130.00	Active	\N	0.00
+64	2	\N	SPARK PLUG DENSO U24ES-N	109.90	S-SP-PD2U	2026-04-06	Piece	Spark Plug	130.00	Active	\N	0.00
+65	2	\N	SPARK PLUG DENSO W22FS-US	90.00	S-SP-PD2W	2026-04-06	Piece	Spark Plug	180.00	Active	\N	0.00
+66	2	\N	SPARK PLUG DENSO W24ES-US	70.00	S-SP-PD2W-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+67	2	\N	SPARK PLUG DENSO X20FS-U	69.90	S-SP-PD2X	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+68	2	\N	SPARK PLUG DENSO X24ES-U	73.80	S-SP-PD2X-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+69	2	\N	R8 TIRE SEALANT	60.00	S-R8-TIS	2026-04-06	Piece	Tire	100.00	Active	\N	0.00
+70	2	\N	TIRE SEALANT KOBY	70.00	S-TI-SEK	2026-04-06	Piece	Tire	125.00	Active	\N	0.00
+71	1	\N	BRAKE FLUID DOT3 NATIONAL	60.00	L-BR-FDN	2026-04-06	Bottle	Engine Oil	100.00	Active	\N	0.00
+72	2	\N	PEANUT BULB ORANGE	1.50	S-PE-BUO	2026-04-06	Piece	Light Bulb	10.00	Active	\N	0.00
+73	2	\N	PEANUT BULB WHITE	5.00	S-PE-BUW	2026-04-06	Piece	Light Bulb	15.00	Active	\N	0.00
+74	4	\N	DOMINO SWITCH	30.00	O-DO-S	2026-04-06	Piece	Others	120.00	Active	\N	0.00
+75	4	\N	STARTER SWITCH	10.00	O-ST-S	2026-04-06	Piece	Others	20.00	Active	\N	0.00
+76	2	\N	BRAKE SWITCH L	10.00	S-BR-SWL	2026-04-06	Set	Brake Shoe	25.00	Active	\N	0.00
+77	2	\N	BRAKE SWITCH R	4.00	S-BR-SWR	2026-04-06	Set	Brake Shoe	20.00	Active	\N	0.00
+78	4	\N	ON/OFF SWITCH	10.00	O-ON-S	2026-04-06	Piece	Others	20.00	Active	\N	0.00
+79	4	\N	HORN SWITCH	30.00	O-HO-S	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+80	4	\N	HAZARD SWITCH	30.00	O-HA-S	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+81	4	\N	H/L SWITCH	30.00	O-H/-S	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+82	4	\N	HOLLOW SWITCH	20.00	O-HO-S-001	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+83	4	\N	L/R SWITCH	20.00	O-L/-S	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+84	4	\N	NITTO ELECTRICAL TAPE	25.00	O-NI-ELT	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+85	4	\N	PITO	7.00	O-PI	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+86	4	\N	FUEL HOSE RED per feet	10.00	O-FU-HRF	2026-04-06	Piece	Others	30.00	Active	\N	0.00
+87	4	\N	FUEL HOSE BLACK PER FT	25.00	O-FU-HBF	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+88	4	\N	ALLEN BOLT	2.00	O-AL-B	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+89	4	\N	HORN RELAY	40.00	O-HO-R	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+90	4	\N	FLASHER RELAY (PAG)	53.00	O-FL-REP	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+91	2	\N	YAMAHA BELT 2DP-E7641-00	289.00	S-YA-BE2D	2026-04-06	Piece	Drive Belt	850.00	Active	\N	0.00
+92	2	\N	HONDA BELT / CLICK 23100-K35-V01	338.00	S-HO-B/2K	2026-04-06	Piece	Drive Belt	850.00	Active	\N	0.00
+93	2	\N	JVT FLYBALL 15G - PCX/CLICK/ADV	297.77	S-JV-F1P	2026-04-06	Set	Flyball	550.00	Active	\N	0.00
+94	2	\N	YAKIMOTO FLYBALL 10G - MIO125	200.00	S-YA-F11M	2026-04-06	Set	Flyball	300.00	Active	\N	0.00
+95	1	\N	FORK OIL SEAL	60.00	L-FO-OIS	2026-04-06	Bottle	Fork Oil	120.00	Active	\N	0.00
+96	2	\N	BRAKE PAD YAMAKOTO SHOGUN 125	33.00	S-BR-PY1	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+97	2	\N	BRAKE PAD YAMAKOTO CLICK125/150	33.00	S-BR-PY1C	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+98	2	\N	BRAKE PAD YAMAKOTO BEAT	30.00	S-BR-PYB	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+99	2	\N	BRAKE PAD - RAIDER 150	30.00	S-BR-P-1	2026-04-06	Set	Brake Pad	250.00	Active	\N	0.00
+100	4	\N	HORN RELAY 4 PIN TRANSPARENT	49.00	O-HO-R4T	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+101	4	\N	HORN RELAY 5 PIN TRANSPARENT	59.00	O-HO-R5T	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+102	4	\N	FUSE 10A	2.00	O-FU-1A	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+103	4	\N	FUSE 15A	2.00	O-FU-1A-001	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+104	4	\N	GLASS FUSE - 15A	2.00	O-GL-F-1A	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+105	4	\N	CHAIN LOCK 428H	3.28	O-CH-LO4H	2026-04-06	Piece	Others	25.00	Active	\N	0.00
+106	4	\N	CORSA CROSS S 90/90-14	1497.20	O-CO-CS9	2026-04-06	Piece	Others	1796.64	Active	\N	0.00
+107	4	\N	CORSA CROSS S 100/80-14	1694.80	O-CO-CS1	2026-04-06	Piece	Others	2033.76	Active	\N	0.00
+108	4	\N	CORSA CROSS S 110/80-14	1869.60	O-CO-CS1-001	2026-04-06	Piece	Others	2243.52	Active	\N	0.00
+109	4	\N	CORSA CROSS S 70/90-17	1322.40	O-CO-CS7	2026-04-06	Piece	Others	1586.28	Active	\N	0.00
+110	4	\N	CORSA CROSS S 100/80-17	2196.40	O-CO-CS1-002	2026-04-06	Piece	Others	2635.68	Active	\N	0.00
+111	4	\N	CORSA R26 100/80-14	1862.00	O-CO-R21	2026-04-06	Piece	Others	2234.40	Active	\N	0.00
+112	4	\N	CORSA S33 80/80-14	1194.00	O-CO-S38	2026-04-06	Piece	Others	1440.00	Active	\N	0.00
+113	4	\N	CORSA R26 80/80-14	1333.80	O-CO-R28	2026-04-06	Piece	Others	1600.56	Active	\N	0.00
+114	4	\N	CORSA R26 90/80-14	1592.20	O-CO-R29	2026-04-06	Piece	Others	1900.00	Active	\N	0.00
+115	4	\N	WASHER 10	1.00	O-WA-1	2026-04-06	Piece	Others	2.00	Active	\N	0.00
+116	4	\N	WASHER 12	1.00	O-WA-1-001	2026-04-06	Piece	Others	2.00	Active	\N	0.00
+117	4	\N	WASHER 14	1.00	O-WA-1-002	2026-04-06	Piece	Others	2.00	Active	\N	0.00
+118	4	\N	YUNXIN O-RING 1	10.00	O-YU-O-1	2026-04-06	Piece	Others	20.00	Active	\N	0.00
+119	4	\N	YUNXIN O-RING 3	5.00	O-YU-O-3	2026-04-06	Piece	Others	25.00	Active	\N	0.00
+120	4	\N	CLUTCH CABLE TMX	51.00	O-CL-CAT	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+121	4	\N	EXHAUST GASKET	5.00	O-EX-G	2026-04-06	Piece	Others	20.00	Active	\N	0.00
+122	4	\N	PASAK	10.00	O-PA	2026-04-06	Piece	Others	40.00	Active	\N	0.00
+123	4	\N	FLARINGS SCREW	8.00	O-FL-S	2026-04-06	Piece	Others	12.00	Active	\N	0.00
+124	4	\N	RUBBER DUMPER (SNIPER)	90.00	O-RU-DUS	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+125	2	\N	FUEL FILTER UNIVERSAL	10.00	S-FU-FIU	2026-04-06	Piece	Fuel Filter	50.00	Active	\N	0.00
+126	4	\N	ABETA GREY	90.00	O-AB-G	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+127	2	\N	YAMAHA GENUINE BRAKE PADS 2DP-F5805-00	160.00	S-YA-GB2D	2026-04-06	Set	Brake Pad	250.00	Active	\N	0.00
+128	1	\N	PLATINUM FORK OIL 200ML	27.74	L-PL-FO2M	2026-04-06	Bottle	Fork Oil	90.00	Active	\N	0.00
+129	4	\N	CP HOLDER	118.00	O-CP-H	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+130	4	\N	SPARKO 1101 LIQUID GASKET	18.50	O-SP-1LG	2026-04-06	Piece	Others	24.05	Active	\N	0.00
+131	4	\N	SIDE MIRROR ADAPTOR HONDA	5.00	O-SI-MAH	2026-04-06	Piece	Others	30.00	Active	\N	0.00
+132	4	\N	GRASA KOBY	6.15	O-GR-K	2026-04-06	Piece	Others	30.00	Active	\N	0.00
+133	4	\N	ELECTRICAL TAPE	25.00	O-EL-T	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+134	4	\N	WASHER	1.00	O-WA	2026-04-06	Piece	Others	5.00	Active	\N	0.00
+135	2	\N	BRAKE PAD M3	26.00	S-BR-PA3M	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+136	1	\N	COOLANT	75.00	L-CO	2026-04-06	Bottle	Engine Oil	120.00	Active	\N	0.00
+137	4	\N	REPAIR KIT	25.00	O-RE-K	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+138	2	\N	TAIL LIGHT BULB	13.40	S-TA-LIB	2026-04-06	Piece	Light Bulb	25.00	Active	\N	0.00
+139	2	\N	HEAD LIGHT BULB	13.40	S-HE-LIB	2026-04-06	Piece	Light Bulb	25.00	Active	\N	0.00
+140	2	\N	TIRE SEALANT KHC	45.00	S-TI-SEK-001	2026-04-06	Piece	Tire	100.00	Active	\N	0.00
+141	4	\N	THROTTLE CABLE	38.00	O-TH-C	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+142	4	\N	STAINLESS SCREW WITH WASHER	7.00	O-ST-SWW	2026-04-06	Piece	Others	15.00	Active	\N	0.00
+143	4	\N	O-RING	16.50	O-O-	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+144	2	\N	BRAKE PAD HONDA B6H	95.00	S-BR-PH6B	2026-04-06	Set	Brake Pad	200.00	Active	\N	0.00
+145	4	\N	HORN SOCKET	8.00	O-HO-S-002	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+146	4	\N	HORN HELLA	238.00	O-HO-H	2026-04-06	Piece	Others	309.40	Active	\N	0.00
+147	4	\N	STARTER RELAY MIO	145.00	O-ST-REM	2026-04-06	Piece	Others	300.00	Active	\N	0.00
+148	2	\N	BRAKE PAD YAMAKOTO	24.00	S-BR-PAY	2026-04-06	Set	Brake Pad	120.00	Active	\N	0.00
+149	4	\N	BALL RACE GEAR/GRAVIS	150.00	O-BA-RAG	2026-04-06	Piece	Others	195.00	Active	\N	0.00
+150	4	\N	TTGR REGULATOR RUSI	220.00	O-TT-RER	2026-04-06	Piece	Others	286.00	Active	\N	0.00
+151	4	\N	FUSE BOX WITH FUSE	9.20	O-FU-BWF	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+152	2	\N	AIR FILTER CLICK125	79.00	S-AI-FI1C	2026-04-06	Piece	Air Filter	200.00	Active	\N	0.00
+153	2	\N	AIR FILTER AEROX V1	105.00	S-AI-FA1V	2026-04-06	Piece	Air Filter	136.50	Active	\N	0.00
+154	2	\N	BRAKE MASTER REPAIR KIT XRM	17.00	S-BR-MRX	2026-04-06	Set	Brake Shoe	100.00	Active	\N	0.00
+155	4	\N	THROTTLE CABLE OTAKA	41.00	O-TH-CAO	2026-04-06	Piece	Others	53.30	Active	\N	0.00
+156	4	\N	CDI LIFAN 4 PIN HONGXIN	113.00	O-CD-L4H	2026-04-06	Piece	Others	146.90	Active	\N	0.00
+157	4	\N	RUBBER DUMPER WAVE 125	30.00	O-RU-DW1	2026-04-06	Piece	Others	39.00	Active	\N	0.00
+158	2	\N	BRAKE SHOE HONDA CLICK V1 GENUINE	225.00	S-BR-SHG	2026-04-06	Set	Brake Shoe	350.00	Active	\N	0.00
+159	4	\N	SIDE MIRROR HONDA	106.00	O-SI-MIH	2026-04-06	Piece	Others	190.00	Active	\N	0.00
+160	4	\N	HORN BOSCH 190	190.00	O-HO-BO1	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+161	4	\N	FUEL HOSE GREY PER FOOT	13.20	O-FU-HGF	2026-04-06	Piece	Others	25.00	Active	\N	0.00
+162	4	\N	RACING CARBURETOR KEIHIN 28MM	680.00	O-RA-CK2M	2026-04-06	Piece	Others	950.00	Active	\N	0.00
+163	2	\N	BRAKE MASTER MRP SKYDRIVE125	180.00	S-BR-MM1S	2026-04-06	Set	Brake Shoe	234.00	Active	\N	0.00
+164	2	\N	BRAKE MASTER BEAT BEAT FI	49.40	S-BR-MBF	2026-04-06	Set	Brake Shoe	64.22	Active	\N	0.00
+165	4	\N	HEAD LIGHT LED SUPER BRIGHT T19 WHITE	79.00	O-HE-LLW	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+166	4	\N	HEAD LIGHT LED SUPER BRIGHT MDL KILLER	105.00	O-HE-LLK	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+167	4	\N	BOLT MUSHROOM TYPE 5X15 SILVER	20.00	O-BO-MTS	2026-04-06	Piece	Others	26.00	Active	\N	0.00
+168	4	\N	BOLT MUSHROOM TYPE 5X15 TITANIUM	22.00	O-BO-MTT	2026-04-06	Piece	Others	28.60	Active	\N	0.00
+169	4	\N	BOLT MUSHROOM TYPE 5X15 GOLD	20.00	O-BO-MTG	2026-04-06	Piece	Others	26.00	Active	\N	0.00
+170	2	\N	SPARK PLUG DENSO U22FS-U	61.90	S-SP-PD2U-001	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+171	4	\N	PARK LIGHT T15 PAIR WHITE	62.00	O-PA-LTW	2026-04-06	Piece	Others	80.60	Active	\N	0.00
+172	4	\N	PARK LIGHT T15 PAIR BLUE	62.00	O-PA-LTB	2026-04-06	Piece	Others	80.60	Active	\N	0.00
+173	4	\N	PARK LIGHT T15 PAIR YELLOW	62.00	O-PA-LTY	2026-04-06	Piece	Others	80.60	Active	\N	0.00
+174	2	\N	BRAKE PAD HONDA CLICK FRONT GENUINE	145.00	S-BR-PHG	2026-04-06	Set	Brake Pad	188.50	Active	\N	0.00
+175	2	\N	BRAKE PAD HONDA CRF150 REAR	59.00	S-BR-PHR	2026-04-06	Set	Brake Pad	76.70	Active	\N	0.00
+176	2	\N	BRAKE SHOE MTR CLICK	99.00	S-BR-SMC	2026-04-06	Set	Brake Shoe	150.00	Active	\N	0.00
+177	1	\N	OIL SEAL PULLEY SIDE NMAX/AEROX	42.00	L-OI-SPN	2026-04-06	Bottle	Engine Oil	54.60	Active	\N	0.00
+178	4	\N	BODY CLIP WITH BOLT	2.00	O-BO-CWB	2026-04-06	Piece	Others	2.60	Active	\N	0.00
+179	4	\N	SLIDER PIECE HONDA CLICK PCX ADV	60.00	O-SL-PHA	2026-04-06	Piece	Others	78.00	Active	\N	0.00
+180	4	\N	FUSE	1.76	O-FU	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+181	4	\N	STARTER RELAY XR200	188.00	O-ST-RE2X	2026-04-06	Piece	Others	244.40	Active	\N	0.00
+182	2	\N	BRAKE PAD YAMAHA MIO SPORTY F	95.00	S-BR-PYF	2026-04-06	Set	Brake Pad	123.50	Active	\N	0.00
+183	2	\N	BRAKE PAD YAMAHA AEROX F	95.00	S-BR-PYF-001	2026-04-06	Set	Brake Pad	123.50	Active	\N	0.00
+184	2	\N	BRAKE MASTER REPAIR KIT YAMAHA MIO M3 AEROX	70.00	S-BR-MRA	2026-04-06	Set	Brake Shoe	91.00	Active	\N	0.00
+185	2	\N	BRAKE SWITCH UNIVERSAL	4.00	S-BR-SWU	2026-04-06	Set	Brake Shoe	30.00	Active	\N	0.00
+186	4	\N	PEANUT BULT T13 UNIVERSAL WHITE	3.00	O-PE-BTW	2026-04-06	Piece	Others	3.90	Active	\N	0.00
+187	4	\N	PEANUT BULT T13 UNIVERSAL ORANGE	3.00	O-PE-BTO	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+188	4	\N	FUEL PUMP FLOATER HONDA BEAT	269.00	O-FU-PFB	2026-04-06	Piece	Others	349.70	Active	\N	0.00
+189	4	\N	AUTO WIRE #18 JAPAN PER METER	8.00	O-AU-W#M	2026-04-06	Piece	Others	25.00	Active	\N	0.00
+190	4	\N	OVERHAUL GASKET SET CB400	387.50	O-OV-GS4C	2026-04-06	Piece	Others	503.75	Active	\N	0.00
+191	4	\N	CLUTCH CABLE CB400	239.00	O-CL-CA4C	2026-04-06	Piece	Others	310.70	Active	\N	0.00
+192	4	\N	CARBURETOR DIAPHRAGM CB400 SET	162.00	O-CA-DCS	2026-04-06	Piece	Others	210.60	Active	\N	0.00
+193	4	\N	CARBON BRUSH WAVE 125	83.00	O-CA-BW1	2026-04-06	Piece	Others	107.90	Active	\N	0.00
+194	4	\N	FUEL PUMP O-RING BEAT	55.00	O-FU-POB	2026-04-06	Piece	Others	71.50	Active	\N	0.00
+195	4	\N	REGULATOR RECTIFIER SKYDRIVE CARB	118.00	O-RE-RSC	2026-04-06	Piece	Others	153.40	Active	\N	0.00
+196	4	\N	GEAR BOX YAMAHA 5TL MIO	98.00	O-GE-BYM	2026-04-06	Piece	Others	127.40	Active	\N	0.00
+197	1	\N	OIL FILTER YAMAHA P12	12.00	L-OI-FY1P	2026-04-06	Bottle	Engine Oil	50.00	Active	\N	0.00
+198	2	\N	BRAKE CABLE CLICK 125 RR MAKOTO	150.00	S-BR-CCM	2026-04-06	Set	Brake Shoe	195.00	Active	\N	0.00
+199	4	\N	FUEL PUMP ASSEMBLY HONDA BEAT FI	1188.00	O-FU-PAF	2026-04-06	Piece	Others	1544.40	Active	\N	0.00
+200	4	\N	FUEL COCK CB400	705.00	O-FU-CO4C	2026-04-06	Piece	Others	916.50	Active	\N	0.00
+201	1	\N	OIL SEAL AXLE DRIVE MIO	60.00	L-OI-SAM	2026-04-06	Bottle	Engine Oil	78.00	Active	\N	0.00
+202	2	\N	AIR FILTER YAMAHA MIO GRAVIS GEAR	100.00	S-AI-FYG	2026-04-06	Piece	Air Filter	130.00	Active	\N	0.00
+203	2	\N	AIR FILTER PCX ADV	145.00	S-AI-FPA	2026-04-06	Piece	Air Filter	200.00	Active	\N	0.00
+204	2	\N	BELT YAMAHA 5TL MIO SPORTY NOVO	244.00	S-BE-Y5N	2026-04-06	Piece	Drive Belt	650.00	Active	\N	0.00
+205	2	\N	BRAKE PAD YAMAKOTO RAIDER 150 FI F	30.00	S-BR-PYF-002	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+206	2	\N	BRAKE PAD YAMAKOTO RAIDER 150 FI R	30.00	S-BR-PYR	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+207	2	\N	BRAKE PAD YAMAKOTO PCX	30.00	S-BR-PYP	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+208	2	\N	BRAKE PAD YAMAKOTO MIO M3	30.00	S-BR-PY3M	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+209	2	\N	BALLRACE BEARING YAMAHA MIO	315.00	S-BA-BYM	2026-04-06	Piece	Bearing	409.50	Active	\N	0.00
+210	2	\N	BALLRACE BEARING KRYON CLICK	100.00	S-BA-BKC	2026-04-06	Piece	Bearing	350.00	Active	\N	0.00
+211	2	\N	BRAKE PAD YAMAHA SNIPER R	160.00	S-BR-PYR-001	2026-04-06	Set	Brake Pad	208.00	Active	\N	0.00
+212	2	\N	BELT HONDA BEAT FI	300.00	S-BE-HBF	2026-04-06	Piece	Drive Belt	390.00	Active	\N	0.00
+213	4	\N	ELECTRICAL TAPE NITTO 33	33.00	O-EL-TN3	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+214	2	\N	BRAKE PAD YAMAHA SNIPER F	95.00	S-BR-PYF-003	2026-04-06	Set	Brake Pad	123.50	Active	\N	0.00
+215	2	\N	BRAKE SHOE OTAKA BEAT	94.00	S-BR-SOB	2026-04-06	Set	Brake Shoe	122.20	Active	\N	0.00
+216	2	\N	BRAKE SHOE OTAKA MIO	104.00	S-BR-SOM	2026-04-06	Set	Brake Shoe	220.00	Active	\N	0.00
+217	4	\N	CLUTCH CABLE OTAKA BARAKO	51.00	O-CL-COB	2026-04-06	Piece	Others	66.30	Active	\N	0.00
+218	4	\N	THROTTLE CABLE OTAKA TMX155	41.00	O-TH-CO1T	2026-04-06	Piece	Others	53.30	Active	\N	0.00
+219	2	\N	BELT HONDA PCX ADV CLICK 160	390.00	S-BE-HP1	2026-04-06	Piece	Drive Belt	850.00	Active	\N	0.00
+220	2	\N	FUEL FILTER BEAT	33.00	S-FU-FIB	2026-04-06	Piece	Fuel Filter	42.90	Active	\N	0.00
+221	4	\N	CLUTCH CABLE BARAKO	29.00	O-CL-CAB	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+222	2	\N	BRAKE MASTER REPAIR KIT BEAT	20.00	S-BR-MRB	2026-04-06	Set	Brake Shoe	100.00	Active	\N	0.00
+223	2	\N	BRAKE MASTER REPAIR KIT CLICK	20.00	S-BR-MRC	2026-04-06	Set	Brake Shoe	100.00	Active	\N	0.00
+224	2	\N	BRAKE PAD YAMAKOTO XRM	30.00	S-BR-PYX	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+225	2	\N	BRAKE MASTER REPAIR KIT HONDA BEAT	40.00	S-BR-MRB-001	2026-04-06	Set	Brake Shoe	100.00	Active	\N	0.00
+226	4	\N	CARBURETOR RUBBER HOSE	186.00	O-CA-RUH	2026-04-06	Piece	Others	241.80	Active	\N	0.00
+227	2	\N	AIR FILTER KLX140	220.00	S-AI-FI1K	2026-04-06	Piece	Air Filter	286.00	Active	\N	0.00
+228	4	\N	RUBBER DUMPER KHC XRM	28.00	O-RU-DKX	2026-04-06	Piece	Others	80.00	Active	\N	0.00
+229	4	\N	RUBBER DUMPER KHC WAVE125	30.00	O-RU-DK1W	2026-04-06	Piece	Others	80.00	Active	\N	0.00
+230	4	\N	STARTER RELAY TMX125 RUSI	99.00	O-ST-RTR	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+231	4	\N	BALLRACE SUNTAL GEAR/GRAVIS/FAZZIO	150.00	O-BA-SUG	2026-04-06	Piece	Others	300.00	Active	\N	0.00
+232	2	\N	BRAKE PAD YAMAKOTO SHOGUN F	24.00	S-BR-PYF-004	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+233	4	\N	CABLE TIE	1.00	O-CA-T	2026-04-06	Piece	Others	2.00	Active	\N	0.00
+234	4	\N	CLUTCH SHOE ONLY JVT SET M3/NMAX/AEROX/CLICK	951.00	O-CL-SO3M	2026-04-06	Piece	Others	1170.00	Active	\N	0.00
+235	2	\N	FLYBALL JVT CLICK/PCX/ADV 13G	297.77	S-FL-JC1G	2026-04-06	Set	Flyball	550.00	Active	\N	0.00
+236	2	\N	FLYBALL JVT CLICK/PCX/ADV 19G	297.77	S-FL-JC1G-001	2026-04-06	Set	Flyball	550.00	Active	\N	0.00
+237	4	\N	SLIDER PIECE JVT CLICK/PCX/ADV	79.19	O-SL-PJC	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+238	2	\N	FLYBALL CWORKS NMAX/AEROX/M3 12G	256.50	S-FL-CN1G	2026-04-06	Set	Flyball	333.45	Active	\N	0.00
+239	2	\N	FLYBALL CWORKS BEAT FI/GY6 13G	247.50	S-FL-CB1G	2026-04-06	Set	Flyball	321.75	Active	\N	0.00
+240	2	\N	FLYBALL CWORKS CLICK/PCX/ADV 13G	256.50	S-FL-CC1G	2026-04-06	Set	Flyball	380.00	Active	\N	0.00
+241	2	\N	SPARK PLUG CAP CWORKS NMAX V-TYPE	234.00	S-SP-PCV	2026-04-06	Piece	Spark Plug	304.20	Active	\N	0.00
+242	2	\N	SPARK PLUG CAP CWORKS PCX/ADV L-TYPE	234.00	S-SP-PCL	2026-04-06	Piece	Spark Plug	350.00	Active	\N	0.00
+243	4	\N	FALCON VIPER 6160 90/90-14 TL	934.80	O-FA-V6T	2026-04-06	Piece	Others	1230.00	Active	\N	0.00
+244	4	\N	FALCON VIPER SPEED 90/80-14 TL	776.99	O-FA-VST	2026-04-06	Piece	Others	1165.00	Active	\N	0.00
+245	4	\N	FALCON VIPER EXTREME 110/80/14 TL	1134.40	O-FA-VET	2026-04-06	Piece	Others	1474.72	Active	\N	0.00
+246	4	\N	FALCON VIPER EXTREME 90/80/14 TL	885.40	O-FA-VET-001	2026-04-06	Piece	Others	1151.02	Active	\N	0.00
+247	4	\N	FALCON VIPER EXTREME 100/80/14 TL	1026.00	O-FA-VET-002	2026-04-06	Piece	Others	1333.80	Active	\N	0.00
+248	4	\N	CVT FI CLEANER PRO PROTECTOR 450ML	90.00	O-CV-FC4M	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+249	4	\N	CORSA 110/70-13 M5	1793.60	O-CO-115M	2026-04-06	Piece	Others	2331.68	Active	\N	0.00
+250	4	\N	CORSA 130/70-13 M5	2173.60	O-CO-135M	2026-04-06	Piece	Others	2825.68	Active	\N	0.00
+251	2	\N	TIRE SEALANT BR	45.00	S-TI-SEB	2026-04-06	Piece	Tire	100.00	Active	\N	0.00
+252	1	\N	BRAKE FLUID SURE BRAKE	47.00	L-BR-FSB	2026-04-06	Bottle	Engine Oil	90.00	Active	\N	0.00
+253	1	\N	COOLANT THAI 500ML	75.00	L-CO-TH5M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N	0.00
+254	4	\N	PETRON MONOGRADE 800ML	153.85	O-PE-MO8M	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+255	1	\N	GEAR OIL PETRON	61.54	L-GE-OIP	2026-04-06	Bottle	Gear Oil	80.00	Active	\N	0.00
+256	4	\N	RS8 R9 1L	300.00	O-RS-R91L	2026-04-06	Piece	Others	350.00	Active	\N	0.00
+257	4	\N	O-RING YAMAHA TORQUE DRIVE	76.92	O-O--YTD	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+258	4	\N	STEEL BOLT 10MM	3.50	O-ST-BO1M	2026-04-06	Piece	Others	5.00	Active	\N	0.00
+259	4	\N	CLUTCH LEVER	75.00	O-CL-L	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+260	4	\N	CLUTCH LINING JVT GRAVIS/MIO	807.69	O-CL-LJG	2026-04-06	Piece	Others	1050.00	Active	\N	0.00
+261	4	\N	NUT	2.00	O-NU	2026-04-06	Piece	Others	4.00	Active	\N	0.00
+262	4	\N	BOLT STAINLESS	10.00	O-BO-S	2026-04-06	Piece	Others	15.00	Active	\N	0.00
+263	4	\N	NUT STAINLESS	10.00	O-NU-S	2026-04-06	Piece	Others	6.00	Active	\N	0.00
+264	4	\N	NUT STAINLESS 14MM	8.00	O-NU-ST1M	2026-04-06	Piece	Others	15.00	Active	\N	0.00
+265	4	\N	HEADLIGHT LED 200	105.00	O-HE-LE2	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+266	4	\N	STEEL NUT	2.00	O-ST-N	2026-04-06	Piece	Others	5.00	Active	\N	0.00
+267	4	\N	WELDING	0.00	O-WE	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+268	4	\N	REGULATOR BARAKO	250.00	O-RE-B	2026-04-06	Piece	Others	350.00	Active	\N	0.00
+269	1	\N	USED OIL 1DRUM	0.00	L-US-OI1D	2026-04-06	Bottle	Engine Oil	2800.00	Active	\N	0.00
+270	4	\N	SYLVESTER SPRAY PAINT	100.00	O-SY-SPP	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+271	4	\N	CLUTCH CABLE RAIDER	60.00	O-CL-CAR	2026-04-06	Piece	Others	120.00	Active	\N	0.00
+272	4	\N	BALLRACE NMAX SUNTAL	180.00	O-BA-NMS	2026-04-06	Piece	Others	350.00	Active	\N	0.00
+273	2	\N	STAINLESS SCREW FOR BRAKE MASTER	10.00	S-ST-SFM	2026-04-06	Set	Brake Shoe	15.00	Active	\N	0.00
+274	2	\N	CWORKS SPARK PLUG CUP	234.00	S-CW-SPC	2026-04-06	Piece	Spark Plug	320.00	Active	\N	0.00
+275	4	\N	DUNLOP D115 70/90-14	980.00	O-DU-D17	2026-04-06	Piece	Others	1400.00	Active	\N	0.00
+276	2	\N	PEANUT BULB SOCKET	5.00	S-PE-BUS	2026-04-06	Piece	Light Bulb	20.00	Active	\N	0.00
+277	4	\N	SLIDER PIECE JVT AEROX	88.00	O-SL-PJA	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+278	4	\N	HANDLE GRIP *	50.00	O-HA-GR	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+279	1	\N	ACOOLANT	150.00	L-AC	2026-04-06	Bottle	Engine Oil	100.00	Active	\N	0.00
+280	1	\N	AJVT GEAR OIL	70.00	L-AJ-GEO	2026-04-06	Bottle	Gear Oil	100.00	Active	\N	0.00
+281	4	\N	PETRON SCT	150.00	O-PE-S	2026-04-06	Piece	Others	195.00	Active	\N	0.00
+282	4	\N	O-RING CLICK	40.00	O-O--C	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+283	2	\N	BEE RUBBER TIRE USED	0.00	S-BE-RTU	2026-04-06	Piece	Tire	300.00	Active	\N	0.00
+284	4	\N	INTERIOR	80.00	O-IN	2026-04-06	Piece	Others	130.00	Active	\N	0.00
+285	1	\N	OIL SEAL 200	100.00	L-OI-SE2	2026-04-06	Bottle	Engine Oil	200.00	Active	\N	0.00
+286	4	\N	ASPROCKET TMX 155	80.00	O-AS-TM1	2026-04-06	Piece	Others	135.00	Active	\N	0.00
+287	4	\N	ENGINE SPROCKET TMX	25.00	O-EN-SPT	2026-04-06	Piece	Others	80.00	Active	\N	0.00
+288	4	\N	AXLE EHE TMX	100.00	O-AX-EHT	2026-04-06	Piece	Others	180.00	Active	\N	0.00
+293	4	\N	BATTERY CHARGING	0.00	O-BA-C	2026-04-06	Piece	Others	40.00	Active	\N	0.00
+294	4	\N	RELAY SOCKET	15.00	O-RE-S	2026-04-06	Piece	Others	40.00	Active	\N	0.00
+295	4	\N	DID CHAIN 428H	220.00	O-DI-CH4H	2026-04-06	Piece	Others	400.00	Active	\N	0.00
+296	2	\N	ASPARK PLUG HELLA	60.00	S-AS-PLH	2026-04-06	Piece	Spark Plug	120.00	Active	\N	0.00
+297	4	\N	CDI 300	230.77	O-CD-3	2026-04-06	Piece	Others	300.00	Active	\N	0.00
+298	4	\N	STEEL BOLT 12MM	6.00	O-ST-BO1M-001	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+299	4	\N	CLUTCH SPRING	153.85	O-CL-S	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+300	4	\N	CARBURETOR REPAIR KIT	100.00	O-CA-REK	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+301	2	\N	ABRAKE SWITCH FOOT BRAKE	50.00	S-AB-SFB	2026-04-06	Set	Brake Shoe	100.00	Active	\N	0.00
+302	4	\N	PETRON SC400	226.92	O-PE-4S	2026-04-06	Piece	Others	295.00	Active	\N	0.00
+303	2	\N	AFLYBALL MTRT MIO	250.00	S-AF-MTM	2026-04-06	Set	Flyball	420.00	Active	\N	0.00
+304	4	\N	AHEADLIGH SOCET	45.00	O-AH-S	2026-04-06	Piece	Others	90.00	Active	\N	0.00
+305	4	\N	AREGULATOR LAM9	150.00	O-AR-9L	2026-04-06	Piece	Others	300.00	Active	\N	0.00
+306	4	\N	AKRX TUBE	60.00	O-AK-T	2026-04-06	Piece	Others	125.00	Active	\N	0.00
+307	2	\N	ABRAKE PAD CLICK	75.00	S-AB-PAC	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+308	4	\N	SIGNAL LIGHT LED T15 BLUE	62.00	O-SI-LLB	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+309	2	\N	BRAKE CABLE 150	115.38	S-BR-CA1	2026-04-06	Set	Brake Shoe	150.00	Active	\N	0.00
+310	4	\N	AINTERIOR KRX	60.00	O-AI-K	2026-04-06	Piece	Others	125.00	Active	\N	0.00
+311	2	\N	BRAKE CABLE BARAKO	90.00	S-BR-CAB	2026-04-06	Set	Brake Shoe	150.00	Active	\N	0.00
+312	2	\N	BALLRACE BEARING M3	269.23	S-BA-BE3M	2026-04-06	Piece	Bearing	350.00	Active	\N	0.00
+313	2	\N	BRAKE PAD ADV 160	115.38	S-BR-PA1	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+314	2	\N	BRAKE PAD MIO SPORTY	192.31	S-BR-PMS	2026-04-06	Set	Brake Pad	250.00	Active	\N	0.00
+315	2	\N	ABEARING KOYO 6303	25.00	S-AB-KO6	2026-04-06	Piece	Bearing	80.00	Active	\N	0.00
+316	4	\N	CLUTCH LINING	120.00	O-CL-L-001	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+317	1	\N	ASUN RASING GEAR OIL	60.00	L-AS-RGO	2026-04-06	Bottle	Gear Oil	100.00	Active	\N	0.00
+318	2	\N	SPARK PLUG CUP OEM	20.00	S-SP-PCO	2026-04-06	Piece	Spark Plug	50.00	Active	\N	0.00
+319	4	\N	CARBON BRUSH 120	70.00	O-CA-BR1	2026-04-06	Piece	Others	120.00	Active	\N	0.00
+320	4	\N	CORSA R26 80/80-14 1200	923.08	O-CO-R81	2026-04-06	Piece	Others	1200.00	Active	\N	0.00
+321	1	\N	OIL SEAL YAMAHA PULLEY SIDE M3	92.31	L-OI-SY3M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N	0.00
+322	4	\N	ASLIDER PIECE SUN RACING	100.00	O-AS-PSR	2026-04-06	Piece	Others	180.00	Active	\N	0.00
+323	2	\N	ABRAKE SWITCH UNIVERSAL	10.00	S-AB-SWU	2026-04-06	Set	Brake Shoe	50.00	Active	\N	0.00
+325	4	\N	CORSA CROSS S 130/70-13	1923.08	O-CO-CS1-003	2026-04-06	Piece	Others	2500.00	Active	\N	0.00
+326	4	\N	ACARBURETOR CLEANER	60.00	O-AC-C	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+327	1	\N	ARS8 ENGINE OIL	180.00	L-AR-ENO	2026-04-06	Bottle	Engine Oil	250.00	Active	\N	0.00
+328	2	\N	BRAKE PAD 150	115.38	S-BR-PA1-001	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
+329	4	\N	HONDA SCT GREY	262.00	O-HO-SCG	2026-04-06	Piece	Others	295.00	Active	\N	0.00
+330	4	\N	SPROCKET SET	650.00	O-SP-S	2026-04-06	Piece	Others	800.00	Active	\N	0.00
+331	4	\N	O-RING TORQUE DRIVE 160	123.08	O-O--TD1	2026-04-06	Piece	Others	160.00	Active	\N	0.00
+332	4	\N	HONDA CARBON CLEANER	40.00	O-HO-CAC	2026-04-06	Piece	Others	80.00	Active	\N	0.00
+333	1	\N	BRAKE FLUID AEROMOTIVE DOT5	80.00	L-BR-FA5D	2026-04-06	Bottle	Engine Oil	150.00	Active	\N	0.00
+334	2	\N	KOBY TIRE BLACK	50.00	S-KO-TIB	2026-04-06	Piece	Tire	80.00	Active	\N	0.00
+335	1	\N	ADD OIL RACERX 200ML	20.00	L-AD-OR2M	2026-04-06	Bottle	Engine Oil	50.00	Active	\N	0.00
+336	2	\N	TIRE SEALANT PROTIRE	35.50	S-TI-SEP	2026-04-06	Piece	Tire	100.00	Active	\N	0.00
+337	4	\N	PULLEY SET JVT MIO/FINO/NOUVO	1508.91	O-PU-SJM	2026-04-06	Piece	Others	1957.00	Active	\N	0.00
+338	4	\N	PULLEY SET JVT MIOi125/m3	1865.81	O-PU-SJ1M	2026-04-06	Piece	Others	2397.00	Active	\N	0.00
+339	4	\N	CLUTCH LINING JVT BEAT FI	816.00	O-CL-LJF	2026-04-06	Piece	Others	1005.00	Active	\N	0.00
+340	4	\N	CLUTCH LINING JVT MIO	820.45	O-CL-LJM	2026-04-06	Piece	Others	1020.00	Active	\N	0.00
+341	2	\N	FLYBALL JVT PCX 19G	297.28	S-FL-JP1G	2026-04-06	Set	Flyball	550.00	Active	\N	0.00
+342	4	\N	SLIDER PIECE JVT NMAX/M3/AEROX	79.19	O-SL-PJ3N	2026-04-06	Piece	Others	200.00	Active	\N	0.00
+343	2	\N	BELT CWORKS 2PH	486.00	S-BE-CW2P	2026-04-06	Piece	Drive Belt	600.00	Active	\N	0.00
+344	2	\N	BRAKE SHOE CWORKS MIO SPORTY/SOULTY/M3/GEAR/GRAVIS/AEROX	279.00	S-BR-SC3S	2026-04-06	Set	Brake Shoe	350.00	Active	\N	0.00
+345	2	\N	BRAKE SHOE CWORKS CLICK125 V1 V2 V3 150/GC/160/AIRBLADE 150/BEAT FI	225.00	S-BR-SCF	2026-04-06	Set	Brake Shoe	290.00	Active	\N	0.00
+346	2	\N	BRAKE PAD CWORKS NMAX REAR/MIO SPORTY/MXI/VEGA/FINO FRONT	144.00	S-BR-PCF	2026-04-06	Set	Brake Pad	195.00	Active	\N	0.00
+347	2	\N	BRAKE PAD CWORKS NMAX FRONT/MIO 125/ MIO SOULi/M3/GRVIS/AEROX/SNIPER150/155	144.00	S-BR-PC3S	2026-04-06	Set	Brake Pad	195.00	Active	\N	0.00
+324	4	\N	A6300	25.00	O-A6	2026-04-06	Piece	Others	110.00	Active	\N	0.00
+348	4	\N	CLUTCH SPRING CWORKS ALL CLICK/PCX/ADV/MIO/M3/NMAX/AEROX/GY6/BEAT FI/XMAX/RUSI 800RPM	162.00	O-CL-SC8R	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+349	4	\N	SLIDER PIECE CWORKS CLICK125i/150/V1V2V3	58.50	O-SL-PC1C	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+350	4	\N	SLIDER PIECE CWORKS BEAT V1V2V3/GY6	58.50	O-SL-PC1V	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+351	4	\N	SLIDER PIECE CWORKS NMAX/AEROX/MIO125/M3	58.50	O-SL-PC1N	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+352	2	\N	BEARING KOYO 6002	25.00	S-BE-KO6-011	2026-04-06	Piece	Bearing	100.00	Active	\N	0.00
+353	2	\N	BALLRACE BEARING OTAKA CLICK/BEAT/WAVE125/C100/WAVE100	70.00	S-BA-BO1C	2026-04-06	Piece	Bearing	350.00	Active	\N	0.00
+354	1	\N	IGNITION COIL LAZX	150.00	L-IG-COL	2026-04-06	Bottle	Engine Oil	300.00	Active	\N	0.00
+355	2	\N	BEARING KOYO 62/22	85.00	S-BE-KO6-012	2026-04-06	Piece	Bearing	250.00	Active	\N	0.00
+356	1	\N	IGNITION COIL KHC	150.00	L-IG-COK	2026-04-06	Bottle	Engine Oil	250.00	Active	\N	0.00
+357	4	\N	BATTERY MOTOLITE MF4LB	700.00	O-BA-MO4M	2026-04-06	Piece	Others	850.00	Active	\N	0.00
+358	4	\N	BATTERY MOTOLITE CHAMPION MTZ6V	900.00	O-BA-MC6M	2026-04-06	Piece	Others	1000.00	Active	\N	0.00
+359	1	\N	COOLANT PETRON 500ML	80.00	L-CO-PE5M	2026-04-06	Bottle	Engine Oil	150.00	Active	\N	0.00
+360	4	\N	TENSIONER YAMAHA	164.00	O-TE-Y	2026-04-06	Piece	Others	300.00	Active	\N	0.00
+361	4	\N	SPEED CABLE WAVE	60.00	O-SP-CAW	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+362	2	\N	QUICK TIRE 100/80-14	1115.00	S-QU-TI1	2026-04-06	Piece	Tire	1315.00	Active	\N	0.00
+363	1	\N	OIL SEAL BACKPLATE M3	92.31	L-OI-SB3M	2026-04-06	Bottle	Engine Oil	120.00	Active	\N	0.00
+364	4	\N	HONDA BLUE SCT 800ML 285	285.00	O-HO-BS2	2026-04-06	Piece	Others	340.00	Active	\N	0.00
+365	4	\N	FLASHER RELAY ADJUSTABLE	45.00	O-FL-REA	2026-04-06	Piece	Others	120.00	Active	\N	0.00
+366	4	\N	FLASHER RELAY DZJ	40.00	O-FL-RED	2026-04-06	Piece	Others	100.00	Active	\N	0.00
+367	4	\N	NUT STAINLESS 12MM	6.00	O-NU-ST1M-001	2026-04-06	Piece	Others	10.00	Active	\N	0.00
+368	2	\N	QUICK TIRE 90/90-14	1041.71	S-QU-TI9	2026-04-06	Piece	Tire	1242.00	Active	\N	0.00
+369	2	\N	BRAKE PAD YAMAKOTO ADV/PCX REAR	30.00	S-BR-PYR-002	2026-04-06	Set	Brake Pad	100.00	Active	\N	0.00
+370	4	\N	THROTTLE CABLE MAKOTO SNIPER MXI VVA	140.00	O-TH-CMV	2026-04-06	Piece	Others	280.00	Active	\N	0.00
+371	4	\N	CLUTCH CABLE WOLF 125	70.00	O-CL-CW1	2026-04-06	Piece	Others	15.00	Active	\N	0.00
+372	4	\N	CHAIN ADJUSTER KHC	40.00	O-CH-ADK	2026-04-06	Piece	Others	80.00	Active	\N	0.00
+373	4	\N	CARBON CLEANER HONDA	25.00	O-CA-CLH	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+374	2	\N	BELT NMAX YAMAKOTO	250.00	S-BE-NMY	2026-04-06	Piece	Drive Belt	350.00	Active	\N	0.00
+375	4	\N	WIRE #18 OLD STOCK	15.00	O-WI-#OS	2026-04-06	Piece	Others	25.00	Active	\N	0.00
+376	2	\N	AIR FILTER NMAX V2	127.00	S-AI-FN2V	2026-04-06	Piece	Air Filter	250.00	Active	\N	0.00
+377	4	\N	BOLT AND NUT 10MM	6.00	O-BO-AN1M	2026-04-06	Piece	Others	15.00	Active	\N	0.00
+378	2	\N	BELT HONDA CLICK 150	354.00	S-BE-HC1	2026-04-06	Piece	Drive Belt	700.00	Active	\N	0.00
+379	1	\N	PETRON MONOGRADE / SC400 / SCT	188.28	L-PE-M/S	2026-04-06	Bottle	Engine Oil	226.60	Active	\N	0.00
+380	1	\N	RS8 R9 1L / ARS8 ENGINE OIL	239.10	L-RS-R1O	2026-04-06	Bottle	Engine Oil	312.87	Active	\N	0.00
+381	1	\N	AJVT / ASUN RACING GEAR OIL	225.89	L-AJ-/AO	2026-04-06	Bottle	Gear Oil	282.58	Active	\N	0.00
+382	1	\N	BRAKE FLUID SURE / AEROMOTIVE	131.13	L-BR-FSA	2026-04-06	Bottle	Brake Fluid	162.68	Active	\N	0.00
+383	1	\N	COOLANT THAI / PETRON 500ML	130.18	L-CO-T/5M	2026-04-06	Bottle	Coolant	175.40	Active	\N	0.00
+385	2	\N	PEANUT BULB ORANGE / WHITE	204.68	S-PE-BOW	2026-04-06	Piece	Light Bulb	277.33	Active	\N	0.00
+386	2	\N	TAIL / HEAD LIGHT BULB	231.81	S-TA-/HB	2026-04-06	Piece	Light Bulb	281.98	Active	\N	0.00
+387	2	\N	STARTER / ON-OFF / HORN SW	107.89	S-ST-/OS	2026-04-06	Piece	Switch	132.95	Active	\N	0.00
+388	2	\N	BRAKE SWITCH L / R	106.75	S-BR-SLR	2026-04-06	Piece	Switch	131.22	Active	\N	0.00
+389	2	\N	HAZARD / H/L / L/R SWITCH	159.31	S-HA-/HS	2026-04-06	Piece	Switch	218.88	Active	\N	0.00
+390	2	\N	HORN RELAY (4-PIN / 5-PIN)	71.16	S-HO-R(5P	2026-04-06	Piece	Relay	91.29	Active	\N	0.00
+391	2	\N	FUSE 10A / 15A / GLASS	238.07	S-FU-1/G	2026-04-06	Piece	Fuse	320.92	Active	\N	0.00
+392	3	\N	HORN HELLA / BOSCH 190	192.64	A-HO-H/1	2026-04-06	Set/Piece	Horn	269.11	Active	\N	0.00
+393	2	\N	STARTER RELAY MIO / XR / TMX	303.72	S-ST-RMT	2026-04-06	Piece	Relay	369.27	Active	\N	0.00
+394	2	\N	REGULATOR RECTIFIER SKYDRIVE	190.71	S-RE-RES	2026-04-06	Piece	Regulator	242.77	Active	\N	0.00
+395	2	\N	FUSE / FUSE BOX	102.31	S-FU-/FB	2026-04-06	Piece	Fuse	127.15	Active	\N	0.00
+396	3	\N	HEAD LIGHT LED T19 WHITE	70.58	A-HE-LLW	2026-04-06	Piece	LED Bulb	95.72	Active	\N	0.00
+397	3	\N	HEAD LIGHT LED MDL KILLER	220.09	A-HE-LLK	2026-04-06	Piece	LED Bulb	270.83	Active	\N	0.00
+398	3	\N	PARK LIGHT T15 (W/B/Y)	77.03	A-PA-LTW	2026-04-06	Piece	LED Bulb	97.99	Active	\N	0.00
+399	4	\N	PEANUT BULB T13 (W/O)	55.63	O-PE-BTW-001	2026-04-06	Piece	Bulb	71.56	Active	\N	0.00
+400	4	\N	AUTO WIRE #18 JAPAN	194.25	O-AU-W#J	2026-04-06	Piece/Pack	Consumables	240.27	Active	\N	0.00
+401	2	\N	BATTERY MOTOLITE MF4LB / MTZ6V	54.47	S-BA-MM6M	2026-04-06	Piece	Battery	75.58	Active	\N	0.00
+402	2	\N	IGNITION COIL LAZX / KHC	348.38	S-IG-CLK	2026-04-06	Piece	Ignition	457.36	Active	\N	0.00
+403	2	\N	REGULATOR BARAKO / LAM9	218.79	S-RE-B/9L	2026-04-06	Piece	Regulator	290.62	Active	\N	0.00
+404	4	\N	HEADLIGHT LED 200 / T15 BLUE	288.75	O-HE-L2B	2026-04-06	Piece	LED Light	387.66	Active	\N	0.00
+405	2	\N	FLASHER RELAY ADJ / DZJ	318.50	S-FL-RAD	2026-04-06	Piece	Relay	383.38	Active	\N	0.00
+406	4	\N	TIRE SEALANT KOBY / KHC	195.66	O-TI-SKK	2026-04-06	Bottle	Tire Sealant	267.53	Active	\N	0.00
+407	2	\N	CORSA R26 80/80-14 / 90/80	232.24	S-CO-R89	2026-04-06	Piece	Tire	279.72	Active	\N	0.00
+408	2	\N	FALCON VIPER 6160 90/90-14	349.50	S-FA-V69	2026-04-06	Piece	Tire	475.55	Active	\N	0.00
+409	2	\N	FALCON VIPER SPEED 90/80	262.02	S-FA-VS9	2026-04-06	Piece	Tire	344.76	Active	\N	0.00
+410	2	\N	FALCON VIPER EXTREME (VAR)	286.73	S-FA-VEV	2026-04-06	Piece	Tire	381.14	Active	\N	0.00
+411	2	\N	CORSA 110/130 M5 & R26	269.44	S-CO-1M2R	2026-04-06	Piece	Tire	326.37	Active	\N	0.00
+412	2	\N	QUICK TIRE 100/80 / 90/90	133.54	S-QU-T19	2026-04-06	Piece	Tire	185.52	Active	\N	0.00
+413	4	\N	TIRE SEALANT BR / PROTIRE	307.37	O-TI-SBP	2026-04-06	Bottle	Tire Sealant	395.89	Active	\N	0.00
+414	2	\N	INTERIOR / KRX TUBE	75.73	S-IN-/KT	2026-04-06	Piece	Inner Tube	93.72	Active	\N	0.00
+415	2	\N	HONDA BELT CLICK 23100-K35	128.31	S-HO-BC2K	2026-04-06	Piece	Drive Belt	168.31	Active	\N	0.00
+416	2	\N	JVT FLYBALL 15G - PCX/CLICK	97.98	S-JV-F1P-001	2026-04-06	Set	Flyball	122.21	Active	\N	0.00
+417	2	\N	YAKIMOTO FLYBALL 10G - MIO	96.84	S-YA-F1M	2026-04-06	Set	Flyball	130.48	Active	\N	0.00
+418	2	\N	BELT YAMAHA 5TL MIO	233.93	S-BE-Y5M	2026-04-06	Piece	Drive Belt	301.49	Active	\N	0.00
+419	2	\N	BELT HONDA PCX/ADV 160	332.47	S-BE-HP1-001	2026-04-06	Piece	Drive Belt	449.21	Active	\N	0.00
+420	2	\N	FLYBALL JVT (13G/19G)	191.25	S-FL-JV1G	2026-04-06	Set	Flyball	236.86	Active	\N	0.00
+421	2	\N	FLYBALL CWORKS (12G/13G)	53.73	S-FL-CW1G	2026-04-06	Set	Flyball	69.22	Active	\N	0.00
+422	2	\N	SLIDER PIECE HONDA / JVT	288.32	S-SL-PHJ	2026-04-06	Set	Slider Piece	368.94	Active	\N	0.00
+423	2	\N	CLUTCH SHOE JVT SET	324.99	S-CL-SJS	2026-04-06	Piece/Set	Clutch Shoe	402.50	Active	\N	0.00
+424	2	\N	AIR FILTER CLICK / AEROX	281.73	S-AI-FCA	2026-04-06	Piece	Air Filter	342.93	Active	\N	0.00
+425	2	\N	AIR FILTER PCX / KLX / NMAX	166.23	S-AI-FPN	2026-04-06	Piece	Air Filter	218.93	Active	\N	0.00
+426	2	\N	RACING CARBURETOR KEIHIN	215.51	S-RA-CAK	2026-04-06	Piece	Carburetor	278.40	Active	\N	0.00
+427	2	\N	FUEL PUMP ASSEMBLY BEAT FI	62.80	S-FU-PAF	2026-04-06	Piece	Fuel Pump	78.35	Active	\N	0.00
+428	2	\N	BELT CWORKS 2PH / NMAX / CLICK	99.21	S-BE-C2C	2026-04-06	Piece	Drive Belt	119.67	Active	\N	0.00
+429	2	\N	CLUTCH LINING JVT (VARIOUS)	324.84	S-CL-LJV	2026-04-06	Set	Clutch Lining	407.40	Active	\N	0.00
+430	2	\N	FLYBALL JVT PCX 19G / MTRT	229.58	S-FL-JPM	2026-04-06	Set	Flyball	305.78	Active	\N	0.00
+431	2	\N	SLIDER PIECE CWORKS / JVT / SUN	312.03	S-SL-PCS	2026-04-06	Set	Slider Piece	435.87	Active	\N	0.00
+432	2	\N	CLUTCH SPRING CWORKS / GEN	323.57	S-CL-SCG	2026-04-06	Set	Clutch Spring	399.68	Active	\N	0.00
+433	2	\N	PULLEY SET JVT (VARIOUS)	63.18	S-PU-SJV	2026-04-06	Set	Pulley Set	81.29	Active	\N	0.00
+434	2	\N	SPROCKET SET / ENGINE / TMX	134.40	S-SP-S/T	2026-04-06	Set	Sprockets	186.13	Active	\N	0.00
+435	2	\N	BRAKE PAD YAMAKOTO SHOGUN	51.84	S-BR-PYS	2026-04-06	Set	Brake Pad	71.77	Active	\N	0.00
+436	2	\N	BRAKE PAD YAMAKOTO CLICK	245.90	S-BR-PYC	2026-04-06	Set	Brake Pad	307.62	Active	\N	0.00
+437	2	\N	YAMAHA GENUINE PADS 2DP	98.33	S-YA-GP2D	2026-04-06	Set	Brake Pad	121.00	Active	\N	0.00
+438	2	\N	BRAKE PAD YAMAKOTO (VAR)	239.58	S-BR-PYV	2026-04-06	Set	Brake Pad	311.86	Active	\N	0.00
+439	2	\N	BRAKE PAD HONDA (B6H/GEN)	212.96	S-BR-PH6B-001	2026-04-06	Set	Brake Pad	268.35	Active	\N	0.00
+440	2	\N	BRAKE PAD YAMAHA (MIO/AEROX)	234.68	S-BR-PYM	2026-04-06	Set	Brake Pad	323.47	Active	\N	0.00
+441	2	\N	BRAKE SHOE HONDA CLICK GEN	134.53	S-BR-SHG-001	2026-04-06	Set	Brake Shoe	187.54	Active	\N	0.00
+442	2	\N	BRAKE MASTER REPAIR KIT	271.43	S-BR-MRK	2026-04-06	Set	Repair Kit	353.33	Active	\N	0.00
+443	2	\N	BALLRACE / BEARING (VAR)	232.89	S-BA-/BV	2026-04-06	Set	Ballrace	311.92	Active	\N	0.00
+444	2	\N	OIL SEAL (PULLEY/AXLE)	153.74	S-OI-SEP	2026-04-06	Piece	Oil Seal	214.68	Active	\N	0.00
+445	2	\N	THROTTLE / CLUTCH / BRAKE CAB	245.32	S-TH-/CC	2026-04-06	Piece	Cable	334.49	Active	\N	0.00
+446	2	\N	BRAKE PAD CWORKS (VARIOUS)	117.50	S-BR-PCV	2026-04-06	Set	Brake Pad	161.96	Active	\N	0.00
+447	2	\N	BRAKE PAD YAMAKOTO ADV / PCX	176.05	S-BR-PYP-001	2026-04-06	Set	Brake Pad	215.12	Active	\N	0.00
+448	2	\N	BRAKE PAD CLICK / ADV / MIO	332.45	S-BR-PCM	2026-04-06	Set	Brake Pad	448.88	Active	\N	0.00
+449	2	\N	BRAKE SHOE CWORKS / OTAKA	248.57	S-BR-SCO	2026-04-06	Set	Brake Shoe	346.08	Active	\N	0.00
+450	2	\N	CLUTCH CABLE RAIDER / WOLF	338.45	S-CL-CRW	2026-04-06	Piece	Cable	421.92	Active	\N	0.00
+451	2	\N	THROTTLE / SPEED / BRAKE CABLE	348.05	S-TH-/SC	2026-04-06	Piece	Cable	417.99	Active	\N	0.00
+452	2	\N	BALLRACE NMAX / M3 / SUNTAL	176.59	S-BA-N/S	2026-04-06	Set	Ballrace	236.47	Active	\N	0.00
+453	2	\N	BEARING KOYO 6002 / 62/22 / 6303	282.76	S-BE-K66	2026-04-06	Piece	Bearing	387.95	Active	\N	0.00
+454	2	\N	FUEL HOSE RED / BLACK (FT)	346.32	S-FU-HRF	2026-04-06	Meter/Piece	Hose	416.79	Active	\N	0.00
+455	4	\N	WASHER 10 / 12 / 14	219.93	O-WA-1/1	2026-04-06	Piece	Hardware	271.68	Active	\N	0.00
+456	4	\N	FLARINGS SCREW / PASAK	309.29	O-FL-S/P	2026-04-06	Piece	Hardware	396.61	Active	\N	0.00
+457	4	\N	STAINLESS SCREW W/ WASHER	193.48	O-ST-SWW-001	2026-04-06	Piece	Hardware	251.12	Active	\N	0.00
+458	4	\N	BOLT MUSHROOM (S/T/G)	116.50	O-BO-MUS	2026-04-06	Piece	Hardware	160.03	Active	\N	0.00
+459	4	\N	RUBBER DUMPER WAVE/KHC	307.79	O-RU-DUW	2026-04-06	Piece	Hardware	419.67	Active	\N	0.00
+460	2	\N	O-RING / FUEL PUMP O-RING	51.97	S-O--/FO	2026-04-06	Piece	O-Ring	69.78	Active	\N	0.00
+461	4	\N	NUT / BOLT / WASHER STAINLESS	264.20	O-NU-/BS	2026-04-06	Piece	Hardware	331.18	Active	\N	0.00
+462	4	\N	STEEL BOLT 10MM / 12MM	65.56	O-ST-B11M	2026-04-06	Piece	Hardware	87.62	Active	\N	0.00
+463	2	\N	O-RING TORQUE DRIVE / CLICK	72.85	S-O--TDC	2026-04-06	Piece	O-Ring	96.72	Active	\N	0.00
+464	2	\N	OIL SEAL BACKPLATE / PULLEY M3	224.81	S-OI-SB3M	2026-04-06	Piece	Oil Seal	283.13	Active	\N	0.00
+289	1	\N	ADD OIL PETRON	25.00	L-A-AOP	2026-04-06	Bottle	Engine Oil	50.00	Active	\N	0.00
+290	4	\N	INTERIOR 2.75	75.00	O-A-IN2	2026-04-06	Piece	Others	150.00	Active	\N	0.00
+291	4	\N	DIODE	25.00	O-A-D	2026-04-06	Piece	Others	50.00	Active	\N	0.00
+292	4	\N	ROTOR DISC	125.00	O-A-ROD	2026-04-06	Piece	Others	250.00	Active	\N	0.00
+384	1	\N	ADD OIL PETRON / RACERX 200M	319.11	L-A-AO2M	2026-04-06	Bottle	Additive	433.34	Active	\N	0.00
+465	2	4	Yamaha Breakpad Nmax	2000.50	S-YA-BRN	2026-04-08	Piece	Brake Pad	2000.00	Active	\N	0.00
 \.
 
 
@@ -3084,7 +3093,7 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 -- Data for Name: purchase_order_items; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_price) FROM stdin;
+COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_price, received_quantity, received_at) FROM stdin;
 \.
 
 
@@ -3110,10 +3119,10 @@ COPY public.reports (report_id, report_type, generated_by, generated_at, payload
 --
 
 COPY public.roles (role_id, role_name, user_id, permissions_text) FROM stdin;
-2	Manager	\N	{"Sales": ["View", "Add", "Edit"], "Inventory": ["View", "Add Item", "Edit"], "Products": ["View", "Add Product", "Edit"], "Suppliers": ["View", "Add Supplier", "Edit"], "Reports": ["View", "Generate Report"], "Forecasting": ["View", "Generate Forecast"], "Stock Prediction": ["View", "Run Prediction"], "Purchase Order": ["View", "Create Order", "Edit"], "Product Return": ["View", "Process Return", "Edit"]}
 3	Sales Staff	\N	{"Sales": ["View", "Add"], "Inventory": ["View"], "Products": ["View"], "Product Return": ["View", "Process Return"]}
-1	Administrator	\N	{"Sales": ["View", "Add", "Edit", "Delete"], "Inventory": ["View", "Add Item", "Edit", "Delete"], "Products": ["View", "Add Product", "Edit", "Delete"], "Suppliers": ["View", "Add Supplier", "Edit", "Delete"], "Reports": ["View", "Generate Report"], "User Management": ["View", "Add User", "Edit User", "Delete User"], "Role Permissions": ["View", "Create", "Edit", "Delete"], "Forecasting": ["View", "Generate Forecast"], "Stock Prediction": ["View", "Run Prediction"], "Audit Log": ["View", "Export"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Product Return": ["View", "Process Return", "Edit"]}
 4	Cashier	\N	Point of Sale transactions only
+1	Administrator	\N	{"Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Sales": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"]}
+2	Manager	\N	{"Dashboard": ["View", "Export"], "Sales": ["View", "Add", "Edit", "Export"], "Inventory": ["View", "Add", "Edit", "Export"], "Products": ["View", "Add", "Edit", "Export"], "Suppliers": ["View", "Add", "Edit", "Export"], "Orders": ["View", "Add", "Edit", "Export"], "Reports": ["View", "Export"], "Forecasting": ["View", "Export"], "Stock Prediction": ["View", "Export"], "Archive": ["View"], "Supplier Return": ["View", "Add", "Edit", "Export"], "Audit Log": ["View", "Export"]}
 \.
 
 
@@ -3124,202 +3133,202 @@ COPY public.roles (role_id, role_name, user_id, permissions_text) FROM stdin;
 COPY public.sales (invoice_id, pos_terminal_id, user_id, invoice_date, total_amount, tax_amount, customer_info, payment_method, payment_status, service_charge, transaction_timestamp, return_id, cash_received, cash_given, change_amount, contact_number, address, failure_reason, customer_name) FROM stdin;
 5822	1	2	2026-04-08	113.30	3.30	Walk-in Customer	Cash	Paid	0.00	2026-04-08 05:30:48.305321	\N	120.00	120.00	6.70	\N	\N	\N	\N
 5823	1	2	2026-04-08	294.58	8.58	Walk-in Customer	Cash	Refunded	0.00	2026-04-08 06:36:10.170131	\N	300.00	300.00	5.42	\N	\N	\N	\N
-5626	1	5	2026-03-26	296.64	8.64	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:53:00	\N	296.64	296.64	0.00	\N	\N	\N	\N
-5627	1	5	2026-03-26	1173.99	34.19	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:03:00	\N	1173.99	1173.99	0.00	\N	\N	\N	\N
-5628	1	5	2026-03-26	562.01	16.37	Walk-in Customer	Cash	Paid	0.00	2026-03-26 09:20:00	\N	562.01	562.01	0.00	\N	\N	\N	\N
-5629	1	5	2026-03-26	3955.71	115.21	Walk-in Customer	Cash	Paid	0.00	2026-03-26 14:00:00	\N	3955.71	3955.71	0.00	\N	\N	\N	\N
-5630	1	5	2026-03-26	472.77	13.77	Walk-in Customer	Cash	Paid	0.00	2026-03-26 14:48:00	\N	472.77	472.77	0.00	\N	\N	\N	\N
-5631	1	5	2026-03-26	152.65	4.45	Walk-in Customer	Cash	Paid	0.00	2026-03-26 16:33:00	\N	152.65	152.65	0.00	\N	\N	\N	\N
-5632	1	5	2026-03-26	3480.10	101.36	Walk-in Customer	Cash	Paid	0.00	2026-03-26 12:49:00	\N	3480.10	3480.10	0.00	\N	\N	\N	\N
-5633	1	5	2026-03-26	349.90	10.19	Walk-in Customer	Cash	Paid	0.00	2026-03-26 17:13:00	\N	349.90	349.90	0.00	\N	\N	\N	\N
-5634	1	5	2026-03-26	393.05	11.45	Walk-in Customer	Cash	Paid	0.00	2026-03-26 15:39:00	\N	393.05	393.05	0.00	\N	\N	\N	\N
-5635	1	5	2026-03-26	58.71	1.71	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:28:00	\N	58.71	58.71	0.00	\N	\N	\N	\N
-5636	1	5	2026-03-26	98.88	2.88	Walk-in Customer	Cash	Paid	0.00	2026-03-26 19:41:00	\N	98.88	98.88	0.00	\N	\N	\N	\N
-5637	1	5	2026-03-26	1004.25	29.25	Walk-in Customer	Cash	Paid	0.00	2026-03-26 10:23:00	\N	1004.25	1004.25	0.00	\N	\N	\N	\N
-5638	1	5	2026-03-27	579.64	16.88	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:52:00	\N	579.64	579.64	0.00	\N	\N	\N	\N
-5639	1	5	2026-03-27	1333.51	38.84	Walk-in Customer	Cash	Paid	0.00	2026-03-27 16:20:00	\N	1333.51	1333.51	0.00	\N	\N	\N	\N
-5640	1	5	2026-03-27	1321.49	38.49	Walk-in Customer	Cash	Paid	0.00	2026-03-27 17:34:00	\N	1321.49	1321.49	0.00	\N	\N	\N	\N
-5641	1	5	2026-03-27	26.04	0.76	Walk-in Customer	Cash	Paid	0.00	2026-03-27 10:10:00	\N	26.04	26.04	0.00	\N	\N	\N	\N
-5642	1	5	2026-03-27	896.10	26.10	Walk-in Customer	Cash	Paid	0.00	2026-03-27 18:46:00	\N	896.10	896.10	0.00	\N	\N	\N	\N
-5643	1	5	2026-03-27	6160.17	179.42	Walk-in Customer	Cash	Paid	0.00	2026-03-27 14:20:00	\N	6160.17	6160.17	0.00	\N	\N	\N	\N
-5644	1	5	2026-03-27	450.07	13.11	Walk-in Customer	Cash	Paid	0.00	2026-03-27 11:48:00	\N	450.07	450.07	0.00	\N	\N	\N	\N
-5645	1	5	2026-03-27	4404.55	128.29	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:03:00	\N	4404.55	4404.55	0.00	\N	\N	\N	\N
-5646	1	5	2026-03-27	392.43	11.43	Walk-in Customer	Cash	Paid	0.00	2026-03-27 13:26:00	\N	392.43	392.43	0.00	\N	\N	\N	\N
-5647	1	5	2026-03-27	4574.44	133.24	Walk-in Customer	Cash	Paid	0.00	2026-03-27 19:12:00	\N	4574.44	4574.44	0.00	\N	\N	\N	\N
-5648	1	5	2026-03-27	696.28	20.28	Walk-in Customer	Cash	Paid	0.00	2026-03-27 12:46:00	\N	696.28	696.28	0.00	\N	\N	\N	\N
-5649	1	5	2026-03-27	1232.68	35.90	Walk-in Customer	Cash	Paid	0.00	2026-03-27 10:00:00	\N	1232.68	1232.68	0.00	\N	\N	\N	\N
-5650	1	5	2026-03-27	26.78	0.78	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:24:00	\N	26.78	26.78	0.00	\N	\N	\N	\N
-5651	1	5	2026-03-28	1004.22	29.25	Walk-in Customer	Cash	Paid	0.00	2026-03-28 15:09:00	\N	1004.22	1004.22	0.00	\N	\N	\N	\N
-5652	1	5	2026-03-28	1575.64	45.89	Walk-in Customer	Cash	Paid	0.00	2026-03-28 09:32:00	\N	1575.64	1575.64	0.00	\N	\N	\N	\N
-5653	1	5	2026-03-28	515.95	15.03	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:31:00	\N	515.95	515.95	0.00	\N	\N	\N	\N
-5654	1	5	2026-03-28	314.15	9.15	Walk-in Customer	Cash	Paid	0.00	2026-03-28 09:04:00	\N	314.15	314.15	0.00	\N	\N	\N	\N
-5655	1	5	2026-03-28	208.38	6.07	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:33:00	\N	208.38	208.38	0.00	\N	\N	\N	\N
-5656	1	5	2026-03-28	345.59	10.07	Walk-in Customer	Cash	Paid	0.00	2026-03-28 17:16:00	\N	345.59	345.59	0.00	\N	\N	\N	\N
-5657	1	5	2026-03-28	1149.48	33.48	Walk-in Customer	Cash	Paid	0.00	2026-03-28 13:11:00	\N	1149.48	1149.48	0.00	\N	\N	\N	\N
-5658	1	5	2026-03-28	1154.49	33.63	Walk-in Customer	Cash	Paid	0.00	2026-03-28 12:35:00	\N	1154.49	1154.49	0.00	\N	\N	\N	\N
-5659	1	5	2026-03-28	425.80	12.40	Walk-in Customer	Cash	Paid	0.00	2026-03-28 15:57:00	\N	425.80	425.80	0.00	\N	\N	\N	\N
-5660	1	5	2026-03-28	2811.90	81.90	Walk-in Customer	Cash	Paid	0.00	2026-03-28 17:19:00	\N	2811.90	2811.90	0.00	\N	\N	\N	\N
-5661	1	5	2026-03-28	1985.23	57.82	Walk-in Customer	Cash	Paid	0.00	2026-03-28 19:38:00	\N	1985.23	1985.23	0.00	\N	\N	\N	\N
-5662	1	5	2026-03-28	633.45	18.45	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:38:00	\N	633.45	633.45	0.00	\N	\N	\N	\N
-5663	1	5	2026-03-28	230.72	6.72	Walk-in Customer	Cash	Paid	0.00	2026-03-28 10:00:00	\N	230.72	230.72	0.00	\N	\N	\N	\N
-5664	1	5	2026-03-29	5815.96	169.40	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:59:00	\N	5815.96	5815.96	0.00	\N	\N	\N	\N
-5665	1	5	2026-03-29	221.98	6.47	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:01:00	\N	221.98	221.98	0.00	\N	\N	\N	\N
-5666	1	5	2026-03-29	1027.33	29.92	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:50:00	\N	1027.33	1027.33	0.00	\N	\N	\N	\N
-5667	1	5	2026-03-29	618.00	18.00	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:50:00	\N	618.00	618.00	0.00	\N	\N	\N	\N
-5668	1	5	2026-03-29	7240.08	210.88	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:50:00	\N	7240.08	7240.08	0.00	\N	\N	\N	\N
-5669	1	5	2026-03-29	193.93	5.65	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:37:00	\N	193.93	193.93	0.00	\N	\N	\N	\N
-5670	1	5	2026-03-29	692.68	20.18	Walk-in Customer	Cash	Paid	0.00	2026-03-29 13:37:00	\N	692.68	692.68	0.00	\N	\N	\N	\N
-5671	1	5	2026-03-29	456.05	13.28	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:15:00	\N	456.05	456.05	0.00	\N	\N	\N	\N
-5672	1	5	2026-03-29	537.66	15.66	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:54:00	\N	537.66	537.66	0.00	\N	\N	\N	\N
-5673	1	5	2026-03-29	527.36	15.36	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:57:00	\N	527.36	527.36	0.00	\N	\N	\N	\N
-5674	1	5	2026-03-29	833.21	24.27	Walk-in Customer	Cash	Paid	0.00	2026-03-29 18:39:00	\N	833.21	833.21	0.00	\N	\N	\N	\N
-5675	1	5	2026-03-29	690.10	20.10	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:31:00	\N	690.10	690.10	0.00	\N	\N	\N	\N
-5676	1	5	2026-03-29	993.56	28.94	Walk-in Customer	Cash	Paid	0.00	2026-03-29 12:38:00	\N	993.56	993.56	0.00	\N	\N	\N	\N
-5677	1	5	2026-03-29	88.20	2.57	Walk-in Customer	Cash	Paid	0.00	2026-03-29 11:52:00	\N	88.20	88.20	0.00	\N	\N	\N	\N
-5678	1	5	2026-03-29	1101.91	32.09	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:14:00	\N	1101.91	1101.91	0.00	\N	\N	\N	\N
-5679	1	5	2026-03-29	350.20	10.20	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:03:00	\N	350.20	350.20	0.00	\N	\N	\N	\N
-5680	1	5	2026-03-29	1049.44	30.57	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:03:00	\N	1049.44	1049.44	0.00	\N	\N	\N	\N
-5681	1	5	2026-03-29	249.26	7.26	Walk-in Customer	Cash	Paid	0.00	2026-03-29 19:07:00	\N	249.26	249.26	0.00	\N	\N	\N	\N
-5682	1	5	2026-03-29	2.06	0.06	Walk-in Customer	Cash	Paid	0.00	2026-03-29 13:51:00	\N	2.06	2.06	0.00	\N	\N	\N	\N
-5683	1	5	2026-03-29	3800.29	110.69	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:26:00	\N	3800.29	3800.29	0.00	\N	\N	\N	\N
-5684	1	5	2026-03-29	368.49	10.73	Walk-in Customer	Cash	Paid	0.00	2026-03-29 11:13:00	\N	368.49	368.49	0.00	\N	\N	\N	\N
-5685	1	5	2026-03-29	563.90	16.42	Walk-in Customer	Cash	Paid	0.00	2026-03-29 17:29:00	\N	563.90	563.90	0.00	\N	\N	\N	\N
-5686	1	5	2026-03-29	570.08	16.60	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:20:00	\N	570.08	570.08	0.00	\N	\N	\N	\N
-5687	1	5	2026-03-29	473.80	13.80	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:21:00	\N	473.80	473.80	0.00	\N	\N	\N	\N
-5688	1	5	2026-03-29	4.64	0.14	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:01:00	\N	4.64	4.64	0.00	\N	\N	\N	\N
-5689	1	5	2026-03-29	350.71	10.21	Walk-in Customer	Cash	Paid	0.00	2026-03-29 16:05:00	\N	350.71	350.71	0.00	\N	\N	\N	\N
-5690	1	5	2026-03-30	606.62	17.67	Walk-in Customer	Cash	Paid	0.00	2026-03-30 19:10:00	\N	606.62	606.62	0.00	\N	\N	\N	\N
-5691	1	5	2026-03-30	391.40	11.40	Walk-in Customer	Cash	Paid	0.00	2026-03-30 12:55:00	\N	391.40	391.40	0.00	\N	\N	\N	\N
-5692	1	5	2026-03-30	652.08	18.99	Walk-in Customer	Cash	Paid	0.00	2026-03-30 13:20:00	\N	652.08	652.08	0.00	\N	\N	\N	\N
-5693	1	5	2026-03-30	1077.38	31.38	Walk-in Customer	Cash	Paid	0.00	2026-03-30 14:34:00	\N	1077.38	1077.38	0.00	\N	\N	\N	\N
-5694	1	5	2026-03-30	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-30 09:06:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
-5695	1	5	2026-03-30	851.86	24.81	Walk-in Customer	Cash	Paid	0.00	2026-03-30 14:11:00	\N	851.86	851.86	0.00	\N	\N	\N	\N
-5696	1	5	2026-03-30	1402.98	40.86	Walk-in Customer	Cash	Paid	0.00	2026-03-30 15:43:00	\N	1402.98	1402.98	0.00	\N	\N	\N	\N
-5697	1	5	2026-03-30	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-30 18:47:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
-5698	1	5	2026-03-30	363.78	10.60	Walk-in Customer	Cash	Paid	0.00	2026-03-30 17:47:00	\N	363.78	363.78	0.00	\N	\N	\N	\N
-5699	1	5	2026-03-30	440.84	12.84	Walk-in Customer	Cash	Paid	0.00	2026-03-30 16:02:00	\N	440.84	440.84	0.00	\N	\N	\N	\N
-5700	1	5	2026-03-30	597.40	17.40	Walk-in Customer	Cash	Paid	0.00	2026-03-30 17:25:00	\N	597.40	597.40	0.00	\N	\N	\N	\N
-5701	1	5	2026-03-30	25.75	0.75	Walk-in Customer	Cash	Paid	0.00	2026-03-30 12:57:00	\N	25.75	25.75	0.00	\N	\N	\N	\N
-5702	1	5	2026-03-31	1598.43	46.56	Walk-in Customer	Cash	Paid	0.00	2026-03-31 15:48:00	\N	1598.43	1598.43	0.00	\N	\N	\N	\N
-5703	1	5	2026-03-31	1171.01	34.11	Walk-in Customer	Cash	Paid	0.00	2026-03-31 15:41:00	\N	1171.01	1171.01	0.00	\N	\N	\N	\N
-5704	1	5	2026-03-31	291.24	8.48	Walk-in Customer	Cash	Paid	0.00	2026-03-31 14:19:00	\N	291.24	291.24	0.00	\N	\N	\N	\N
-5705	1	5	2026-03-31	978.42	28.50	Walk-in Customer	Cash	Paid	0.00	2026-03-31 16:13:00	\N	978.42	978.42	0.00	\N	\N	\N	\N
-5706	1	5	2026-03-31	464.77	13.54	Walk-in Customer	Cash	Paid	0.00	2026-03-31 12:53:00	\N	464.77	464.77	0.00	\N	\N	\N	\N
-5707	1	5	2026-03-31	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-31 11:47:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
-5708	1	5	2026-03-31	652.63	19.01	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:47:00	\N	652.63	652.63	0.00	\N	\N	\N	\N
-5709	1	5	2026-03-31	471.74	13.74	Walk-in Customer	Cash	Paid	0.00	2026-03-31 14:32:00	\N	471.74	471.74	0.00	\N	\N	\N	\N
-5710	1	5	2026-03-31	3473.77	101.18	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:20:00	\N	3473.77	3473.77	0.00	\N	\N	\N	\N
-5711	1	5	2026-03-31	1301.10	37.90	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:39:00	\N	1301.10	1301.10	0.00	\N	\N	\N	\N
-5712	1	5	2026-03-31	1128.88	32.88	Walk-in Customer	Cash	Paid	0.00	2026-03-31 12:16:00	\N	1128.88	1128.88	0.00	\N	\N	\N	\N
-5713	1	5	2026-03-31	113.30	3.30	Walk-in Customer	Cash	Paid	0.00	2026-03-31 16:43:00	\N	113.30	113.30	0.00	\N	\N	\N	\N
-5714	1	5	2026-03-31	1394.62	40.62	Walk-in Customer	Cash	Paid	0.00	2026-03-31 18:03:00	\N	1394.62	1394.62	0.00	\N	\N	\N	\N
-5715	1	5	2026-04-01	8656.87	252.14	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:26:00	\N	8656.87	8656.87	0.00	\N	\N	\N	\N
-5716	1	5	2026-04-01	986.93	28.75	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:36:00	\N	986.93	986.93	0.00	\N	\N	\N	\N
-5717	1	5	2026-04-01	4230.30	123.21	Walk-in Customer	Cash	Paid	0.00	2026-04-01 11:46:00	\N	4230.30	4230.30	0.00	\N	\N	\N	\N
-5718	1	5	2026-04-01	2193.90	63.90	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:30:00	\N	2193.90	2193.90	0.00	\N	\N	\N	\N
-5719	1	5	2026-04-01	421.27	12.27	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:02:00	\N	421.27	421.27	0.00	\N	\N	\N	\N
-5720	1	5	2026-04-01	1021.69	29.76	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:26:00	\N	1021.69	1021.69	0.00	\N	\N	\N	\N
-5721	1	5	2026-04-01	12.36	0.36	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:19:00	\N	12.36	12.36	0.00	\N	\N	\N	\N
-5722	1	5	2026-04-01	272.13	7.93	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:33:00	\N	272.13	272.13	0.00	\N	\N	\N	\N
-5723	1	5	2026-04-01	417.15	12.15	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:53:00	\N	417.15	417.15	0.00	\N	\N	\N	\N
-5724	1	5	2026-04-01	3075.58	89.58	Walk-in Customer	Cash	Paid	0.00	2026-04-01 11:05:00	\N	3075.58	3075.58	0.00	\N	\N	\N	\N
-5725	1	5	2026-04-01	829.15	24.15	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:14:00	\N	829.15	829.15	0.00	\N	\N	\N	\N
-5726	1	5	2026-04-01	61.80	1.80	Walk-in Customer	Cash	Paid	0.00	2026-04-01 18:30:00	\N	61.80	61.80	0.00	\N	\N	\N	\N
-5727	1	5	2026-04-01	492.34	14.34	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:21:00	\N	492.34	492.34	0.00	\N	\N	\N	\N
-5728	1	5	2026-04-01	285.90	8.33	Walk-in Customer	Cash	Paid	0.00	2026-04-01 10:55:00	\N	285.90	285.90	0.00	\N	\N	\N	\N
-5729	1	5	2026-04-01	908.70	26.47	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:27:00	\N	908.70	908.70	0.00	\N	\N	\N	\N
-5730	1	5	2026-04-01	771.26	22.46	Walk-in Customer	Cash	Paid	0.00	2026-04-01 12:48:00	\N	771.26	771.26	0.00	\N	\N	\N	\N
-5731	1	5	2026-04-01	1712.33	49.87	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:49:00	\N	1712.33	1712.33	0.00	\N	\N	\N	\N
-5732	1	5	2026-04-01	377.80	11.00	Walk-in Customer	Cash	Paid	0.00	2026-04-01 09:25:00	\N	377.80	377.80	0.00	\N	\N	\N	\N
-5733	1	5	2026-04-01	700.40	20.40	Walk-in Customer	Cash	Paid	0.00	2026-04-01 12:25:00	\N	700.40	700.40	0.00	\N	\N	\N	\N
-5734	1	5	2026-04-02	225.11	6.56	Walk-in Customer	Cash	Paid	0.00	2026-04-02 12:46:00	\N	225.11	225.11	0.00	\N	\N	\N	\N
-5735	1	5	2026-04-02	1474.45	42.95	Walk-in Customer	Cash	Paid	0.00	2026-04-02 11:45:00	\N	1474.45	1474.45	0.00	\N	\N	\N	\N
-5736	1	5	2026-04-02	1249.23	36.39	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:42:00	\N	1249.23	1249.23	0.00	\N	\N	\N	\N
-5737	1	5	2026-04-02	77.25	2.25	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:43:00	\N	77.25	77.25	0.00	\N	\N	\N	\N
-5738	1	5	2026-04-02	831.96	24.23	Walk-in Customer	Cash	Paid	0.00	2026-04-02 11:28:00	\N	831.96	831.96	0.00	\N	\N	\N	\N
-5739	1	5	2026-04-02	808.94	23.56	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:53:00	\N	808.94	808.94	0.00	\N	\N	\N	\N
-5740	1	5	2026-04-02	662.86	19.31	Walk-in Customer	Cash	Paid	0.00	2026-04-02 12:13:00	\N	662.86	662.86	0.00	\N	\N	\N	\N
-5741	1	5	2026-04-03	143.17	4.17	Walk-in Customer	Cash	Paid	0.00	2026-04-03 13:56:00	\N	143.17	143.17	0.00	\N	\N	\N	\N
-5742	1	5	2026-04-04	1257.51	36.63	Walk-in Customer	Cash	Paid	0.00	2026-04-04 13:46:00	\N	1257.51	1257.51	0.00	\N	\N	\N	\N
-5743	1	5	2026-04-04	1664.25	48.47	Walk-in Customer	Cash	Paid	0.00	2026-04-04 10:26:00	\N	1664.25	1664.25	0.00	\N	\N	\N	\N
-5744	1	5	2026-04-04	606.15	17.65	Walk-in Customer	Cash	Paid	0.00	2026-04-04 09:06:00	\N	606.15	606.15	0.00	\N	\N	\N	\N
-5745	1	5	2026-04-04	185.40	5.40	Walk-in Customer	Cash	Paid	0.00	2026-04-04 14:09:00	\N	185.40	185.40	0.00	\N	\N	\N	\N
-5746	1	5	2026-04-04	760.14	22.14	Walk-in Customer	Cash	Paid	0.00	2026-04-04 09:49:00	\N	760.14	760.14	0.00	\N	\N	\N	\N
-5747	1	5	2026-04-04	1225.99	35.71	Walk-in Customer	Cash	Paid	0.00	2026-04-04 17:24:00	\N	1225.99	1225.99	0.00	\N	\N	\N	\N
-5748	1	5	2026-04-04	1532.38	44.63	Walk-in Customer	Cash	Paid	0.00	2026-04-04 10:42:00	\N	1532.38	1532.38	0.00	\N	\N	\N	\N
-5749	1	5	2026-04-05	7003.18	203.98	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:02:00	\N	7003.18	7003.18	0.00	\N	\N	\N	\N
-5750	1	5	2026-04-05	2462.73	71.73	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:41:00	\N	2462.73	2462.73	0.00	\N	\N	\N	\N
-5751	1	5	2026-04-05	381.10	11.10	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:58:00	\N	381.10	381.10	0.00	\N	\N	\N	\N
-5752	1	5	2026-04-05	201.88	5.88	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:44:00	\N	201.88	201.88	0.00	\N	\N	\N	\N
-5753	1	5	2026-04-05	297.67	8.67	Walk-in Customer	Cash	Paid	0.00	2026-04-05 18:48:00	\N	297.67	297.67	0.00	\N	\N	\N	\N
-5754	1	5	2026-04-05	1190.04	34.66	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:59:00	\N	1190.04	1190.04	0.00	\N	\N	\N	\N
-5755	1	5	2026-04-05	199.28	5.80	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:54:00	\N	199.28	199.28	0.00	\N	\N	\N	\N
-5756	1	5	2026-04-05	162.22	4.72	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:48:00	\N	162.22	162.22	0.00	\N	\N	\N	\N
-5757	1	5	2026-04-05	25.75	0.75	Walk-in Customer	Cash	Paid	0.00	2026-04-05 15:40:00	\N	25.75	25.75	0.00	\N	\N	\N	\N
-5758	1	5	2026-04-05	10.30	0.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 11:19:00	\N	10.30	10.30	0.00	\N	\N	\N	\N
-5759	1	5	2026-04-05	1143.27	33.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:34:00	\N	1143.27	1143.27	0.00	\N	\N	\N	\N
-5760	1	5	2026-04-05	114.33	3.33	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:30:00	\N	114.33	114.33	0.00	\N	\N	\N	\N
-5761	1	5	2026-04-05	164.09	4.78	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:14:00	\N	164.09	164.09	0.00	\N	\N	\N	\N
-5762	1	5	2026-04-05	1488.26	43.35	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:48:00	\N	1488.26	1488.26	0.00	\N	\N	\N	\N
-5763	1	5	2026-04-05	780.01	22.72	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:20:00	\N	780.01	780.01	0.00	\N	\N	\N	\N
-5764	1	5	2026-04-05	269.88	7.86	Walk-in Customer	Cash	Paid	0.00	2026-04-05 19:14:00	\N	269.88	269.88	0.00	\N	\N	\N	\N
-5765	1	5	2026-04-05	820.85	23.91	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:10:00	\N	820.85	820.85	0.00	\N	\N	\N	\N
-5766	1	5	2026-04-05	226.38	6.59	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:03:00	\N	226.38	226.38	0.00	\N	\N	\N	\N
-5767	1	5	2026-04-05	4988.71	145.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:15:00	\N	4988.71	4988.71	0.00	\N	\N	\N	\N
-5768	1	5	2026-04-05	1646.85	47.97	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:35:00	\N	1646.85	1646.85	0.00	\N	\N	\N	\N
-5769	1	5	2026-04-05	1293.76	37.68	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:21:00	\N	1293.76	1293.76	0.00	\N	\N	\N	\N
-5770	1	5	2026-04-05	290.18	8.45	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:15:00	\N	290.18	290.18	0.00	\N	\N	\N	\N
-5771	1	5	2026-04-05	637.70	18.57	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:13:00	\N	637.70	637.70	0.00	\N	\N	\N	\N
-5772	1	5	2026-04-05	550.30	16.03	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:26:00	\N	550.30	550.30	0.00	\N	\N	\N	\N
-5773	1	5	2026-04-05	911.67	26.55	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:57:00	\N	911.67	911.67	0.00	\N	\N	\N	\N
-5774	1	5	2026-04-05	247.20	7.20	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:28:00	\N	247.20	247.20	0.00	\N	\N	\N	\N
-5775	1	5	2026-04-05	4084.57	118.97	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:15:00	\N	4084.57	4084.57	0.00	\N	\N	\N	\N
-5776	1	5	2026-04-05	41.41	1.21	Walk-in Customer	Cash	Paid	0.00	2026-04-05 19:35:00	\N	41.41	41.41	0.00	\N	\N	\N	\N
-5777	1	5	2026-04-05	214.24	6.24	Walk-in Customer	Cash	Paid	0.00	2026-04-05 18:34:00	\N	214.24	214.24	0.00	\N	\N	\N	\N
-5778	1	5	2026-04-05	2067.64	60.22	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:50:00	\N	2067.64	2067.64	0.00	\N	\N	\N	\N
-5779	1	5	2026-04-05	144.20	4.20	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:42:00	\N	144.20	144.20	0.00	\N	\N	\N	\N
-5780	1	5	2026-04-05	789.49	22.99	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:08:00	\N	789.49	789.49	0.00	\N	\N	\N	\N
-5781	1	5	2026-04-05	4430.19	129.03	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:40:00	\N	4430.19	4430.19	0.00	\N	\N	\N	\N
-5782	1	5	2026-04-05	1374.69	40.04	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:44:00	\N	1374.69	1374.69	0.00	\N	\N	\N	\N
-5783	1	5	2026-04-05	460.41	13.41	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:01:00	\N	460.41	460.41	0.00	\N	\N	\N	\N
-5784	1	5	2026-04-06	191.58	5.58	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:34:00	\N	191.58	191.58	0.00	\N	\N	\N	\N
-5785	1	5	2026-04-06	1040.92	30.32	Walk-in Customer	Cash	Paid	0.00	2026-04-06 15:46:00	\N	1040.92	1040.92	0.00	\N	\N	\N	\N
-5786	1	5	2026-04-06	164.09	4.78	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:02:00	\N	164.09	164.09	0.00	\N	\N	\N	\N
-5787	1	5	2026-04-06	1395.65	40.65	Walk-in Customer	Cash	Paid	0.00	2026-04-06 11:25:00	\N	1395.65	1395.65	0.00	\N	\N	\N	\N
-5788	1	5	2026-04-06	349.17	10.17	Walk-in Customer	Cash	Paid	0.00	2026-04-06 17:58:00	\N	349.17	349.17	0.00	\N	\N	\N	\N
-5789	1	5	2026-04-06	123.60	3.60	Walk-in Customer	Cash	Paid	0.00	2026-04-06 11:26:00	\N	123.60	123.60	0.00	\N	\N	\N	\N
-5790	1	5	2026-04-06	346.08	10.08	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:48:00	\N	346.08	346.08	0.00	\N	\N	\N	\N
-5791	1	5	2026-04-06	3.09	0.09	Walk-in Customer	Cash	Paid	0.00	2026-04-06 13:05:00	\N	3.09	3.09	0.00	\N	\N	\N	\N
-5792	1	5	2026-04-06	265.74	7.74	Walk-in Customer	Cash	Paid	0.00	2026-04-06 17:43:00	\N	265.74	265.74	0.00	\N	\N	\N	\N
-5793	1	5	2026-04-06	973.22	28.35	Walk-in Customer	Cash	Paid	0.00	2026-04-06 18:46:00	\N	973.22	973.22	0.00	\N	\N	\N	\N
-5794	1	5	2026-04-06	390.48	11.37	Walk-in Customer	Cash	Paid	0.00	2026-04-06 10:37:00	\N	390.48	390.48	0.00	\N	\N	\N	\N
-5795	1	5	2026-04-06	850.67	24.78	Walk-in Customer	Cash	Paid	0.00	2026-04-06 15:02:00	\N	850.67	850.67	0.00	\N	\N	\N	\N
-5796	1	5	2026-04-07	723.06	21.06	Walk-in Customer	Cash	Paid	0.00	2026-04-07 19:05:00	\N	723.06	723.06	0.00	\N	\N	\N	\N
-5797	1	5	2026-04-07	2459.64	71.64	Walk-in Customer	Cash	Paid	0.00	2026-04-07 11:01:00	\N	2459.64	2459.64	0.00	\N	\N	\N	\N
-5798	1	5	2026-04-07	510.96	14.88	Walk-in Customer	Cash	Paid	0.00	2026-04-07 10:00:00	\N	510.96	510.96	0.00	\N	\N	\N	\N
-5799	1	5	2026-04-07	82.40	2.40	Walk-in Customer	Cash	Paid	0.00	2026-04-07 13:32:00	\N	82.40	82.40	0.00	\N	\N	\N	\N
-5800	1	5	2026-04-07	795.48	23.17	Walk-in Customer	Cash	Paid	0.00	2026-04-07 15:41:00	\N	795.48	795.48	0.00	\N	\N	\N	\N
-5801	1	5	2026-04-07	1050.69	30.60	Walk-in Customer	Cash	Paid	0.00	2026-04-07 17:15:00	\N	1050.69	1050.69	0.00	\N	\N	\N	\N
-5802	1	5	2026-04-07	1552.92	45.23	Walk-in Customer	Cash	Paid	0.00	2026-04-07 10:41:00	\N	1552.92	1552.92	0.00	\N	\N	\N	\N
-5803	1	5	2026-04-07	20.60	0.60	Walk-in Customer	Cash	Paid	0.00	2026-04-07 14:55:00	\N	20.60	20.60	0.00	\N	\N	\N	\N
-5804	1	5	2026-04-07	4270.56	124.39	Walk-in Customer	Cash	Paid	0.00	2026-04-07 14:59:00	\N	4270.56	4270.56	0.00	\N	\N	\N	\N
-5805	1	5	2026-04-07	41.20	1.20	Walk-in Customer	Cash	Paid	0.00	2026-04-07 19:41:00	\N	41.20	41.20	0.00	\N	\N	\N	\N
-5806	1	5	2026-04-07	2712.71	79.01	Walk-in Customer	Cash	Paid	0.00	2026-04-07 16:48:00	\N	2712.71	2712.71	0.00	\N	\N	\N	\N
-5807	1	5	2026-04-07	1690.13	49.23	Walk-in Customer	Cash	Paid	0.00	2026-04-07 11:31:00	\N	1690.13	1690.13	0.00	\N	\N	\N	\N
-5808	1	5	2026-04-07	244.11	7.11	Walk-in Customer	Cash	Paid	0.00	2026-04-07 15:13:00	\N	244.11	244.11	0.00	\N	\N	\N	\N
-5809	1	5	2026-04-08	1191.44	34.70	Walk-in Customer	Cash	Paid	0.00	2026-04-08 10:24:00	\N	1191.44	1191.44	0.00	\N	\N	\N	\N
-5810	1	5	2026-04-08	887.65	25.85	Walk-in Customer	Cash	Paid	0.00	2026-04-08 15:52:00	\N	887.65	887.65	0.00	\N	\N	\N	\N
-5811	1	5	2026-04-08	1106.22	32.22	Walk-in Customer	Cash	Paid	0.00	2026-04-08 16:56:00	\N	1106.22	1106.22	0.00	\N	\N	\N	\N
-5812	1	5	2026-04-08	1388.31	40.44	Walk-in Customer	Cash	Paid	0.00	2026-04-08 10:37:00	\N	1388.31	1388.31	0.00	\N	\N	\N	\N
-5813	1	5	2026-04-08	1561.90	45.49	Walk-in Customer	Cash	Paid	0.00	2026-04-08 13:29:00	\N	1561.90	1561.90	0.00	\N	\N	\N	\N
-5814	1	5	2026-04-08	594.82	17.32	Walk-in Customer	Cash	Paid	0.00	2026-04-08 17:25:00	\N	594.82	594.82	0.00	\N	\N	\N	\N
-5815	1	5	2026-04-08	1336.69	38.93	Walk-in Customer	Cash	Paid	0.00	2026-04-08 09:53:00	\N	1336.69	1336.69	0.00	\N	\N	\N	\N
-5816	1	5	2026-04-08	624.18	18.18	Walk-in Customer	Cash	Paid	0.00	2026-04-08 09:44:00	\N	624.18	624.18	0.00	\N	\N	\N	\N
-5817	1	5	2026-04-08	872.17	25.40	Walk-in Customer	Cash	Paid	0.00	2026-04-08 11:35:00	\N	872.17	872.17	0.00	\N	\N	\N	\N
-5818	1	5	2026-04-08	12.36	0.36	Walk-in Customer	Cash	Paid	0.00	2026-04-08 10:09:00	\N	12.36	12.36	0.00	\N	\N	\N	\N
-5819	1	5	2026-04-08	5156.93	150.20	Walk-in Customer	Cash	Paid	0.00	2026-04-08 14:15:00	\N	5156.93	5156.93	0.00	\N	\N	\N	\N
-5820	1	5	2026-04-08	1509.83	43.98	Walk-in Customer	Cash	Refunded	0.00	2026-04-08 13:34:00	\N	1509.83	1509.83	0.00	\N	\N	\N	\N
-5821	1	5	2026-04-08	792.87	23.09	Walk-in Customer	Cash	Refunded	0.00	2026-04-08 19:39:00	\N	792.87	792.87	0.00	\N	\N	\N	\N
+5626	1	\N	2026-03-26	296.64	8.64	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:53:00	\N	296.64	296.64	0.00	\N	\N	\N	\N
+5627	1	\N	2026-03-26	1173.99	34.19	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:03:00	\N	1173.99	1173.99	0.00	\N	\N	\N	\N
+5628	1	\N	2026-03-26	562.01	16.37	Walk-in Customer	Cash	Paid	0.00	2026-03-26 09:20:00	\N	562.01	562.01	0.00	\N	\N	\N	\N
+5629	1	\N	2026-03-26	3955.71	115.21	Walk-in Customer	Cash	Paid	0.00	2026-03-26 14:00:00	\N	3955.71	3955.71	0.00	\N	\N	\N	\N
+5630	1	\N	2026-03-26	472.77	13.77	Walk-in Customer	Cash	Paid	0.00	2026-03-26 14:48:00	\N	472.77	472.77	0.00	\N	\N	\N	\N
+5631	1	\N	2026-03-26	152.65	4.45	Walk-in Customer	Cash	Paid	0.00	2026-03-26 16:33:00	\N	152.65	152.65	0.00	\N	\N	\N	\N
+5632	1	\N	2026-03-26	3480.10	101.36	Walk-in Customer	Cash	Paid	0.00	2026-03-26 12:49:00	\N	3480.10	3480.10	0.00	\N	\N	\N	\N
+5633	1	\N	2026-03-26	349.90	10.19	Walk-in Customer	Cash	Paid	0.00	2026-03-26 17:13:00	\N	349.90	349.90	0.00	\N	\N	\N	\N
+5634	1	\N	2026-03-26	393.05	11.45	Walk-in Customer	Cash	Paid	0.00	2026-03-26 15:39:00	\N	393.05	393.05	0.00	\N	\N	\N	\N
+5635	1	\N	2026-03-26	58.71	1.71	Walk-in Customer	Cash	Paid	0.00	2026-03-26 11:28:00	\N	58.71	58.71	0.00	\N	\N	\N	\N
+5636	1	\N	2026-03-26	98.88	2.88	Walk-in Customer	Cash	Paid	0.00	2026-03-26 19:41:00	\N	98.88	98.88	0.00	\N	\N	\N	\N
+5637	1	\N	2026-03-26	1004.25	29.25	Walk-in Customer	Cash	Paid	0.00	2026-03-26 10:23:00	\N	1004.25	1004.25	0.00	\N	\N	\N	\N
+5638	1	\N	2026-03-27	579.64	16.88	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:52:00	\N	579.64	579.64	0.00	\N	\N	\N	\N
+5639	1	\N	2026-03-27	1333.51	38.84	Walk-in Customer	Cash	Paid	0.00	2026-03-27 16:20:00	\N	1333.51	1333.51	0.00	\N	\N	\N	\N
+5640	1	\N	2026-03-27	1321.49	38.49	Walk-in Customer	Cash	Paid	0.00	2026-03-27 17:34:00	\N	1321.49	1321.49	0.00	\N	\N	\N	\N
+5641	1	\N	2026-03-27	26.04	0.76	Walk-in Customer	Cash	Paid	0.00	2026-03-27 10:10:00	\N	26.04	26.04	0.00	\N	\N	\N	\N
+5642	1	\N	2026-03-27	896.10	26.10	Walk-in Customer	Cash	Paid	0.00	2026-03-27 18:46:00	\N	896.10	896.10	0.00	\N	\N	\N	\N
+5643	1	\N	2026-03-27	6160.17	179.42	Walk-in Customer	Cash	Paid	0.00	2026-03-27 14:20:00	\N	6160.17	6160.17	0.00	\N	\N	\N	\N
+5644	1	\N	2026-03-27	450.07	13.11	Walk-in Customer	Cash	Paid	0.00	2026-03-27 11:48:00	\N	450.07	450.07	0.00	\N	\N	\N	\N
+5645	1	\N	2026-03-27	4404.55	128.29	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:03:00	\N	4404.55	4404.55	0.00	\N	\N	\N	\N
+5646	1	\N	2026-03-27	392.43	11.43	Walk-in Customer	Cash	Paid	0.00	2026-03-27 13:26:00	\N	392.43	392.43	0.00	\N	\N	\N	\N
+5647	1	\N	2026-03-27	4574.44	133.24	Walk-in Customer	Cash	Paid	0.00	2026-03-27 19:12:00	\N	4574.44	4574.44	0.00	\N	\N	\N	\N
+5648	1	\N	2026-03-27	696.28	20.28	Walk-in Customer	Cash	Paid	0.00	2026-03-27 12:46:00	\N	696.28	696.28	0.00	\N	\N	\N	\N
+5649	1	\N	2026-03-27	1232.68	35.90	Walk-in Customer	Cash	Paid	0.00	2026-03-27 10:00:00	\N	1232.68	1232.68	0.00	\N	\N	\N	\N
+5650	1	\N	2026-03-27	26.78	0.78	Walk-in Customer	Cash	Paid	0.00	2026-03-27 15:24:00	\N	26.78	26.78	0.00	\N	\N	\N	\N
+5651	1	\N	2026-03-28	1004.22	29.25	Walk-in Customer	Cash	Paid	0.00	2026-03-28 15:09:00	\N	1004.22	1004.22	0.00	\N	\N	\N	\N
+5652	1	\N	2026-03-28	1575.64	45.89	Walk-in Customer	Cash	Paid	0.00	2026-03-28 09:32:00	\N	1575.64	1575.64	0.00	\N	\N	\N	\N
+5653	1	\N	2026-03-28	515.95	15.03	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:31:00	\N	515.95	515.95	0.00	\N	\N	\N	\N
+5654	1	\N	2026-03-28	314.15	9.15	Walk-in Customer	Cash	Paid	0.00	2026-03-28 09:04:00	\N	314.15	314.15	0.00	\N	\N	\N	\N
+5655	1	\N	2026-03-28	208.38	6.07	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:33:00	\N	208.38	208.38	0.00	\N	\N	\N	\N
+5656	1	\N	2026-03-28	345.59	10.07	Walk-in Customer	Cash	Paid	0.00	2026-03-28 17:16:00	\N	345.59	345.59	0.00	\N	\N	\N	\N
+5657	1	\N	2026-03-28	1149.48	33.48	Walk-in Customer	Cash	Paid	0.00	2026-03-28 13:11:00	\N	1149.48	1149.48	0.00	\N	\N	\N	\N
+5658	1	\N	2026-03-28	1154.49	33.63	Walk-in Customer	Cash	Paid	0.00	2026-03-28 12:35:00	\N	1154.49	1154.49	0.00	\N	\N	\N	\N
+5659	1	\N	2026-03-28	425.80	12.40	Walk-in Customer	Cash	Paid	0.00	2026-03-28 15:57:00	\N	425.80	425.80	0.00	\N	\N	\N	\N
+5660	1	\N	2026-03-28	2811.90	81.90	Walk-in Customer	Cash	Paid	0.00	2026-03-28 17:19:00	\N	2811.90	2811.90	0.00	\N	\N	\N	\N
+5661	1	\N	2026-03-28	1985.23	57.82	Walk-in Customer	Cash	Paid	0.00	2026-03-28 19:38:00	\N	1985.23	1985.23	0.00	\N	\N	\N	\N
+5662	1	\N	2026-03-28	633.45	18.45	Walk-in Customer	Cash	Paid	0.00	2026-03-28 16:38:00	\N	633.45	633.45	0.00	\N	\N	\N	\N
+5663	1	\N	2026-03-28	230.72	6.72	Walk-in Customer	Cash	Paid	0.00	2026-03-28 10:00:00	\N	230.72	230.72	0.00	\N	\N	\N	\N
+5664	1	\N	2026-03-29	5815.96	169.40	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:59:00	\N	5815.96	5815.96	0.00	\N	\N	\N	\N
+5665	1	\N	2026-03-29	221.98	6.47	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:01:00	\N	221.98	221.98	0.00	\N	\N	\N	\N
+5666	1	\N	2026-03-29	1027.33	29.92	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:50:00	\N	1027.33	1027.33	0.00	\N	\N	\N	\N
+5667	1	\N	2026-03-29	618.00	18.00	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:50:00	\N	618.00	618.00	0.00	\N	\N	\N	\N
+5668	1	\N	2026-03-29	7240.08	210.88	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:50:00	\N	7240.08	7240.08	0.00	\N	\N	\N	\N
+5669	1	\N	2026-03-29	193.93	5.65	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:37:00	\N	193.93	193.93	0.00	\N	\N	\N	\N
+5670	1	\N	2026-03-29	692.68	20.18	Walk-in Customer	Cash	Paid	0.00	2026-03-29 13:37:00	\N	692.68	692.68	0.00	\N	\N	\N	\N
+5671	1	\N	2026-03-29	456.05	13.28	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:15:00	\N	456.05	456.05	0.00	\N	\N	\N	\N
+5672	1	\N	2026-03-29	537.66	15.66	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:54:00	\N	537.66	537.66	0.00	\N	\N	\N	\N
+5673	1	\N	2026-03-29	527.36	15.36	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:57:00	\N	527.36	527.36	0.00	\N	\N	\N	\N
+5674	1	\N	2026-03-29	833.21	24.27	Walk-in Customer	Cash	Paid	0.00	2026-03-29 18:39:00	\N	833.21	833.21	0.00	\N	\N	\N	\N
+5808	1	\N	2026-04-07	244.11	7.11	Walk-in Customer	Cash	Paid	0.00	2026-04-07 15:13:00	\N	244.11	244.11	0.00	\N	\N	\N	\N
+5809	1	\N	2026-04-08	1191.44	34.70	Walk-in Customer	Cash	Paid	0.00	2026-04-08 10:24:00	\N	1191.44	1191.44	0.00	\N	\N	\N	\N
+5675	1	\N	2026-03-29	690.10	20.10	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:31:00	\N	690.10	690.10	0.00	\N	\N	\N	\N
+5676	1	\N	2026-03-29	993.56	28.94	Walk-in Customer	Cash	Paid	0.00	2026-03-29 12:38:00	\N	993.56	993.56	0.00	\N	\N	\N	\N
+5677	1	\N	2026-03-29	88.20	2.57	Walk-in Customer	Cash	Paid	0.00	2026-03-29 11:52:00	\N	88.20	88.20	0.00	\N	\N	\N	\N
+5678	1	\N	2026-03-29	1101.91	32.09	Walk-in Customer	Cash	Paid	0.00	2026-03-29 14:14:00	\N	1101.91	1101.91	0.00	\N	\N	\N	\N
+5679	1	\N	2026-03-29	350.20	10.20	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:03:00	\N	350.20	350.20	0.00	\N	\N	\N	\N
+5680	1	\N	2026-03-29	1049.44	30.57	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:03:00	\N	1049.44	1049.44	0.00	\N	\N	\N	\N
+5681	1	\N	2026-03-29	249.26	7.26	Walk-in Customer	Cash	Paid	0.00	2026-03-29 19:07:00	\N	249.26	249.26	0.00	\N	\N	\N	\N
+5682	1	\N	2026-03-29	2.06	0.06	Walk-in Customer	Cash	Paid	0.00	2026-03-29 13:51:00	\N	2.06	2.06	0.00	\N	\N	\N	\N
+5683	1	\N	2026-03-29	3800.29	110.69	Walk-in Customer	Cash	Paid	0.00	2026-03-29 15:26:00	\N	3800.29	3800.29	0.00	\N	\N	\N	\N
+5684	1	\N	2026-03-29	368.49	10.73	Walk-in Customer	Cash	Paid	0.00	2026-03-29 11:13:00	\N	368.49	368.49	0.00	\N	\N	\N	\N
+5685	1	\N	2026-03-29	563.90	16.42	Walk-in Customer	Cash	Paid	0.00	2026-03-29 17:29:00	\N	563.90	563.90	0.00	\N	\N	\N	\N
+5686	1	\N	2026-03-29	570.08	16.60	Walk-in Customer	Cash	Paid	0.00	2026-03-29 09:20:00	\N	570.08	570.08	0.00	\N	\N	\N	\N
+5687	1	\N	2026-03-29	473.80	13.80	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:21:00	\N	473.80	473.80	0.00	\N	\N	\N	\N
+5688	1	\N	2026-03-29	4.64	0.14	Walk-in Customer	Cash	Paid	0.00	2026-03-29 10:01:00	\N	4.64	4.64	0.00	\N	\N	\N	\N
+5689	1	\N	2026-03-29	350.71	10.21	Walk-in Customer	Cash	Paid	0.00	2026-03-29 16:05:00	\N	350.71	350.71	0.00	\N	\N	\N	\N
+5690	1	\N	2026-03-30	606.62	17.67	Walk-in Customer	Cash	Paid	0.00	2026-03-30 19:10:00	\N	606.62	606.62	0.00	\N	\N	\N	\N
+5691	1	\N	2026-03-30	391.40	11.40	Walk-in Customer	Cash	Paid	0.00	2026-03-30 12:55:00	\N	391.40	391.40	0.00	\N	\N	\N	\N
+5692	1	\N	2026-03-30	652.08	18.99	Walk-in Customer	Cash	Paid	0.00	2026-03-30 13:20:00	\N	652.08	652.08	0.00	\N	\N	\N	\N
+5693	1	\N	2026-03-30	1077.38	31.38	Walk-in Customer	Cash	Paid	0.00	2026-03-30 14:34:00	\N	1077.38	1077.38	0.00	\N	\N	\N	\N
+5694	1	\N	2026-03-30	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-30 09:06:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
+5695	1	\N	2026-03-30	851.86	24.81	Walk-in Customer	Cash	Paid	0.00	2026-03-30 14:11:00	\N	851.86	851.86	0.00	\N	\N	\N	\N
+5696	1	\N	2026-03-30	1402.98	40.86	Walk-in Customer	Cash	Paid	0.00	2026-03-30 15:43:00	\N	1402.98	1402.98	0.00	\N	\N	\N	\N
+5697	1	\N	2026-03-30	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-30 18:47:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
+5698	1	\N	2026-03-30	363.78	10.60	Walk-in Customer	Cash	Paid	0.00	2026-03-30 17:47:00	\N	363.78	363.78	0.00	\N	\N	\N	\N
+5699	1	\N	2026-03-30	440.84	12.84	Walk-in Customer	Cash	Paid	0.00	2026-03-30 16:02:00	\N	440.84	440.84	0.00	\N	\N	\N	\N
+5700	1	\N	2026-03-30	597.40	17.40	Walk-in Customer	Cash	Paid	0.00	2026-03-30 17:25:00	\N	597.40	597.40	0.00	\N	\N	\N	\N
+5701	1	\N	2026-03-30	25.75	0.75	Walk-in Customer	Cash	Paid	0.00	2026-03-30 12:57:00	\N	25.75	25.75	0.00	\N	\N	\N	\N
+5702	1	\N	2026-03-31	1598.43	46.56	Walk-in Customer	Cash	Paid	0.00	2026-03-31 15:48:00	\N	1598.43	1598.43	0.00	\N	\N	\N	\N
+5703	1	\N	2026-03-31	1171.01	34.11	Walk-in Customer	Cash	Paid	0.00	2026-03-31 15:41:00	\N	1171.01	1171.01	0.00	\N	\N	\N	\N
+5704	1	\N	2026-03-31	291.24	8.48	Walk-in Customer	Cash	Paid	0.00	2026-03-31 14:19:00	\N	291.24	291.24	0.00	\N	\N	\N	\N
+5705	1	\N	2026-03-31	978.42	28.50	Walk-in Customer	Cash	Paid	0.00	2026-03-31 16:13:00	\N	978.42	978.42	0.00	\N	\N	\N	\N
+5706	1	\N	2026-03-31	464.77	13.54	Walk-in Customer	Cash	Paid	0.00	2026-03-31 12:53:00	\N	464.77	464.77	0.00	\N	\N	\N	\N
+5707	1	\N	2026-03-31	30.90	0.90	Walk-in Customer	Cash	Paid	0.00	2026-03-31 11:47:00	\N	30.90	30.90	0.00	\N	\N	\N	\N
+5708	1	\N	2026-03-31	652.63	19.01	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:47:00	\N	652.63	652.63	0.00	\N	\N	\N	\N
+5709	1	\N	2026-03-31	471.74	13.74	Walk-in Customer	Cash	Paid	0.00	2026-03-31 14:32:00	\N	471.74	471.74	0.00	\N	\N	\N	\N
+5710	1	\N	2026-03-31	3473.77	101.18	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:20:00	\N	3473.77	3473.77	0.00	\N	\N	\N	\N
+5711	1	\N	2026-03-31	1301.10	37.90	Walk-in Customer	Cash	Paid	0.00	2026-03-31 10:39:00	\N	1301.10	1301.10	0.00	\N	\N	\N	\N
+5712	1	\N	2026-03-31	1128.88	32.88	Walk-in Customer	Cash	Paid	0.00	2026-03-31 12:16:00	\N	1128.88	1128.88	0.00	\N	\N	\N	\N
+5713	1	\N	2026-03-31	113.30	3.30	Walk-in Customer	Cash	Paid	0.00	2026-03-31 16:43:00	\N	113.30	113.30	0.00	\N	\N	\N	\N
+5714	1	\N	2026-03-31	1394.62	40.62	Walk-in Customer	Cash	Paid	0.00	2026-03-31 18:03:00	\N	1394.62	1394.62	0.00	\N	\N	\N	\N
+5715	1	\N	2026-04-01	8656.87	252.14	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:26:00	\N	8656.87	8656.87	0.00	\N	\N	\N	\N
+5716	1	\N	2026-04-01	986.93	28.75	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:36:00	\N	986.93	986.93	0.00	\N	\N	\N	\N
+5717	1	\N	2026-04-01	4230.30	123.21	Walk-in Customer	Cash	Paid	0.00	2026-04-01 11:46:00	\N	4230.30	4230.30	0.00	\N	\N	\N	\N
+5718	1	\N	2026-04-01	2193.90	63.90	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:30:00	\N	2193.90	2193.90	0.00	\N	\N	\N	\N
+5719	1	\N	2026-04-01	421.27	12.27	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:02:00	\N	421.27	421.27	0.00	\N	\N	\N	\N
+5720	1	\N	2026-04-01	1021.69	29.76	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:26:00	\N	1021.69	1021.69	0.00	\N	\N	\N	\N
+5721	1	\N	2026-04-01	12.36	0.36	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:19:00	\N	12.36	12.36	0.00	\N	\N	\N	\N
+5722	1	\N	2026-04-01	272.13	7.93	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:33:00	\N	272.13	272.13	0.00	\N	\N	\N	\N
+5723	1	\N	2026-04-01	417.15	12.15	Walk-in Customer	Cash	Paid	0.00	2026-04-01 19:53:00	\N	417.15	417.15	0.00	\N	\N	\N	\N
+5724	1	\N	2026-04-01	3075.58	89.58	Walk-in Customer	Cash	Paid	0.00	2026-04-01 11:05:00	\N	3075.58	3075.58	0.00	\N	\N	\N	\N
+5725	1	\N	2026-04-01	829.15	24.15	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:14:00	\N	829.15	829.15	0.00	\N	\N	\N	\N
+5726	1	\N	2026-04-01	61.80	1.80	Walk-in Customer	Cash	Paid	0.00	2026-04-01 18:30:00	\N	61.80	61.80	0.00	\N	\N	\N	\N
+5727	1	\N	2026-04-01	492.34	14.34	Walk-in Customer	Cash	Paid	0.00	2026-04-01 16:21:00	\N	492.34	492.34	0.00	\N	\N	\N	\N
+5728	1	\N	2026-04-01	285.90	8.33	Walk-in Customer	Cash	Paid	0.00	2026-04-01 10:55:00	\N	285.90	285.90	0.00	\N	\N	\N	\N
+5729	1	\N	2026-04-01	908.70	26.47	Walk-in Customer	Cash	Paid	0.00	2026-04-01 15:27:00	\N	908.70	908.70	0.00	\N	\N	\N	\N
+5730	1	\N	2026-04-01	771.26	22.46	Walk-in Customer	Cash	Paid	0.00	2026-04-01 12:48:00	\N	771.26	771.26	0.00	\N	\N	\N	\N
+5731	1	\N	2026-04-01	1712.33	49.87	Walk-in Customer	Cash	Paid	0.00	2026-04-01 14:49:00	\N	1712.33	1712.33	0.00	\N	\N	\N	\N
+5732	1	\N	2026-04-01	377.80	11.00	Walk-in Customer	Cash	Paid	0.00	2026-04-01 09:25:00	\N	377.80	377.80	0.00	\N	\N	\N	\N
+5733	1	\N	2026-04-01	700.40	20.40	Walk-in Customer	Cash	Paid	0.00	2026-04-01 12:25:00	\N	700.40	700.40	0.00	\N	\N	\N	\N
+5734	1	\N	2026-04-02	225.11	6.56	Walk-in Customer	Cash	Paid	0.00	2026-04-02 12:46:00	\N	225.11	225.11	0.00	\N	\N	\N	\N
+5735	1	\N	2026-04-02	1474.45	42.95	Walk-in Customer	Cash	Paid	0.00	2026-04-02 11:45:00	\N	1474.45	1474.45	0.00	\N	\N	\N	\N
+5736	1	\N	2026-04-02	1249.23	36.39	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:42:00	\N	1249.23	1249.23	0.00	\N	\N	\N	\N
+5737	1	\N	2026-04-02	77.25	2.25	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:43:00	\N	77.25	77.25	0.00	\N	\N	\N	\N
+5738	1	\N	2026-04-02	831.96	24.23	Walk-in Customer	Cash	Paid	0.00	2026-04-02 11:28:00	\N	831.96	831.96	0.00	\N	\N	\N	\N
+5739	1	\N	2026-04-02	808.94	23.56	Walk-in Customer	Cash	Paid	0.00	2026-04-02 13:53:00	\N	808.94	808.94	0.00	\N	\N	\N	\N
+5740	1	\N	2026-04-02	662.86	19.31	Walk-in Customer	Cash	Paid	0.00	2026-04-02 12:13:00	\N	662.86	662.86	0.00	\N	\N	\N	\N
+5741	1	\N	2026-04-03	143.17	4.17	Walk-in Customer	Cash	Paid	0.00	2026-04-03 13:56:00	\N	143.17	143.17	0.00	\N	\N	\N	\N
+5742	1	\N	2026-04-04	1257.51	36.63	Walk-in Customer	Cash	Paid	0.00	2026-04-04 13:46:00	\N	1257.51	1257.51	0.00	\N	\N	\N	\N
+5743	1	\N	2026-04-04	1664.25	48.47	Walk-in Customer	Cash	Paid	0.00	2026-04-04 10:26:00	\N	1664.25	1664.25	0.00	\N	\N	\N	\N
+5744	1	\N	2026-04-04	606.15	17.65	Walk-in Customer	Cash	Paid	0.00	2026-04-04 09:06:00	\N	606.15	606.15	0.00	\N	\N	\N	\N
+5745	1	\N	2026-04-04	185.40	5.40	Walk-in Customer	Cash	Paid	0.00	2026-04-04 14:09:00	\N	185.40	185.40	0.00	\N	\N	\N	\N
+5746	1	\N	2026-04-04	760.14	22.14	Walk-in Customer	Cash	Paid	0.00	2026-04-04 09:49:00	\N	760.14	760.14	0.00	\N	\N	\N	\N
+5747	1	\N	2026-04-04	1225.99	35.71	Walk-in Customer	Cash	Paid	0.00	2026-04-04 17:24:00	\N	1225.99	1225.99	0.00	\N	\N	\N	\N
+5748	1	\N	2026-04-04	1532.38	44.63	Walk-in Customer	Cash	Paid	0.00	2026-04-04 10:42:00	\N	1532.38	1532.38	0.00	\N	\N	\N	\N
+5749	1	\N	2026-04-05	7003.18	203.98	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:02:00	\N	7003.18	7003.18	0.00	\N	\N	\N	\N
+5750	1	\N	2026-04-05	2462.73	71.73	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:41:00	\N	2462.73	2462.73	0.00	\N	\N	\N	\N
+5751	1	\N	2026-04-05	381.10	11.10	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:58:00	\N	381.10	381.10	0.00	\N	\N	\N	\N
+5752	1	\N	2026-04-05	201.88	5.88	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:44:00	\N	201.88	201.88	0.00	\N	\N	\N	\N
+5753	1	\N	2026-04-05	297.67	8.67	Walk-in Customer	Cash	Paid	0.00	2026-04-05 18:48:00	\N	297.67	297.67	0.00	\N	\N	\N	\N
+5754	1	\N	2026-04-05	1190.04	34.66	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:59:00	\N	1190.04	1190.04	0.00	\N	\N	\N	\N
+5755	1	\N	2026-04-05	199.28	5.80	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:54:00	\N	199.28	199.28	0.00	\N	\N	\N	\N
+5756	1	\N	2026-04-05	162.22	4.72	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:48:00	\N	162.22	162.22	0.00	\N	\N	\N	\N
+5757	1	\N	2026-04-05	25.75	0.75	Walk-in Customer	Cash	Paid	0.00	2026-04-05 15:40:00	\N	25.75	25.75	0.00	\N	\N	\N	\N
+5758	1	\N	2026-04-05	10.30	0.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 11:19:00	\N	10.30	10.30	0.00	\N	\N	\N	\N
+5759	1	\N	2026-04-05	1143.27	33.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:34:00	\N	1143.27	1143.27	0.00	\N	\N	\N	\N
+5760	1	\N	2026-04-05	114.33	3.33	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:30:00	\N	114.33	114.33	0.00	\N	\N	\N	\N
+5761	1	\N	2026-04-05	164.09	4.78	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:14:00	\N	164.09	164.09	0.00	\N	\N	\N	\N
+5762	1	\N	2026-04-05	1488.26	43.35	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:48:00	\N	1488.26	1488.26	0.00	\N	\N	\N	\N
+5763	1	\N	2026-04-05	780.01	22.72	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:20:00	\N	780.01	780.01	0.00	\N	\N	\N	\N
+5764	1	\N	2026-04-05	269.88	7.86	Walk-in Customer	Cash	Paid	0.00	2026-04-05 19:14:00	\N	269.88	269.88	0.00	\N	\N	\N	\N
+5765	1	\N	2026-04-05	820.85	23.91	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:10:00	\N	820.85	820.85	0.00	\N	\N	\N	\N
+5766	1	\N	2026-04-05	226.38	6.59	Walk-in Customer	Cash	Paid	0.00	2026-04-05 17:03:00	\N	226.38	226.38	0.00	\N	\N	\N	\N
+5767	1	\N	2026-04-05	4988.71	145.30	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:15:00	\N	4988.71	4988.71	0.00	\N	\N	\N	\N
+5768	1	\N	2026-04-05	1646.85	47.97	Walk-in Customer	Cash	Paid	0.00	2026-04-05 10:35:00	\N	1646.85	1646.85	0.00	\N	\N	\N	\N
+5769	1	\N	2026-04-05	1293.76	37.68	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:21:00	\N	1293.76	1293.76	0.00	\N	\N	\N	\N
+5770	1	\N	2026-04-05	290.18	8.45	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:15:00	\N	290.18	290.18	0.00	\N	\N	\N	\N
+5771	1	\N	2026-04-05	637.70	18.57	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:13:00	\N	637.70	637.70	0.00	\N	\N	\N	\N
+5772	1	\N	2026-04-05	550.30	16.03	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:26:00	\N	550.30	550.30	0.00	\N	\N	\N	\N
+5773	1	\N	2026-04-05	911.67	26.55	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:57:00	\N	911.67	911.67	0.00	\N	\N	\N	\N
+5774	1	\N	2026-04-05	247.20	7.20	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:28:00	\N	247.20	247.20	0.00	\N	\N	\N	\N
+5775	1	\N	2026-04-05	4084.57	118.97	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:15:00	\N	4084.57	4084.57	0.00	\N	\N	\N	\N
+5776	1	\N	2026-04-05	41.41	1.21	Walk-in Customer	Cash	Paid	0.00	2026-04-05 19:35:00	\N	41.41	41.41	0.00	\N	\N	\N	\N
+5777	1	\N	2026-04-05	214.24	6.24	Walk-in Customer	Cash	Paid	0.00	2026-04-05 18:34:00	\N	214.24	214.24	0.00	\N	\N	\N	\N
+5778	1	\N	2026-04-05	2067.64	60.22	Walk-in Customer	Cash	Paid	0.00	2026-04-05 09:50:00	\N	2067.64	2067.64	0.00	\N	\N	\N	\N
+5779	1	\N	2026-04-05	144.20	4.20	Walk-in Customer	Cash	Paid	0.00	2026-04-05 13:42:00	\N	144.20	144.20	0.00	\N	\N	\N	\N
+5780	1	\N	2026-04-05	789.49	22.99	Walk-in Customer	Cash	Paid	0.00	2026-04-05 16:08:00	\N	789.49	789.49	0.00	\N	\N	\N	\N
+5781	1	\N	2026-04-05	4430.19	129.03	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:40:00	\N	4430.19	4430.19	0.00	\N	\N	\N	\N
+5782	1	\N	2026-04-05	1374.69	40.04	Walk-in Customer	Cash	Paid	0.00	2026-04-05 12:44:00	\N	1374.69	1374.69	0.00	\N	\N	\N	\N
+5783	1	\N	2026-04-05	460.41	13.41	Walk-in Customer	Cash	Paid	0.00	2026-04-05 14:01:00	\N	460.41	460.41	0.00	\N	\N	\N	\N
+5784	1	\N	2026-04-06	191.58	5.58	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:34:00	\N	191.58	191.58	0.00	\N	\N	\N	\N
+5785	1	\N	2026-04-06	1040.92	30.32	Walk-in Customer	Cash	Paid	0.00	2026-04-06 15:46:00	\N	1040.92	1040.92	0.00	\N	\N	\N	\N
+5786	1	\N	2026-04-06	164.09	4.78	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:02:00	\N	164.09	164.09	0.00	\N	\N	\N	\N
+5787	1	\N	2026-04-06	1395.65	40.65	Walk-in Customer	Cash	Paid	0.00	2026-04-06 11:25:00	\N	1395.65	1395.65	0.00	\N	\N	\N	\N
+5788	1	\N	2026-04-06	349.17	10.17	Walk-in Customer	Cash	Paid	0.00	2026-04-06 17:58:00	\N	349.17	349.17	0.00	\N	\N	\N	\N
+5789	1	\N	2026-04-06	123.60	3.60	Walk-in Customer	Cash	Paid	0.00	2026-04-06 11:26:00	\N	123.60	123.60	0.00	\N	\N	\N	\N
+5790	1	\N	2026-04-06	346.08	10.08	Walk-in Customer	Cash	Paid	0.00	2026-04-06 19:48:00	\N	346.08	346.08	0.00	\N	\N	\N	\N
+5791	1	\N	2026-04-06	3.09	0.09	Walk-in Customer	Cash	Paid	0.00	2026-04-06 13:05:00	\N	3.09	3.09	0.00	\N	\N	\N	\N
+5792	1	\N	2026-04-06	265.74	7.74	Walk-in Customer	Cash	Paid	0.00	2026-04-06 17:43:00	\N	265.74	265.74	0.00	\N	\N	\N	\N
+5793	1	\N	2026-04-06	973.22	28.35	Walk-in Customer	Cash	Paid	0.00	2026-04-06 18:46:00	\N	973.22	973.22	0.00	\N	\N	\N	\N
+5794	1	\N	2026-04-06	390.48	11.37	Walk-in Customer	Cash	Paid	0.00	2026-04-06 10:37:00	\N	390.48	390.48	0.00	\N	\N	\N	\N
+5795	1	\N	2026-04-06	850.67	24.78	Walk-in Customer	Cash	Paid	0.00	2026-04-06 15:02:00	\N	850.67	850.67	0.00	\N	\N	\N	\N
+5796	1	\N	2026-04-07	723.06	21.06	Walk-in Customer	Cash	Paid	0.00	2026-04-07 19:05:00	\N	723.06	723.06	0.00	\N	\N	\N	\N
+5797	1	\N	2026-04-07	2459.64	71.64	Walk-in Customer	Cash	Paid	0.00	2026-04-07 11:01:00	\N	2459.64	2459.64	0.00	\N	\N	\N	\N
+5798	1	\N	2026-04-07	510.96	14.88	Walk-in Customer	Cash	Paid	0.00	2026-04-07 10:00:00	\N	510.96	510.96	0.00	\N	\N	\N	\N
+5799	1	\N	2026-04-07	82.40	2.40	Walk-in Customer	Cash	Paid	0.00	2026-04-07 13:32:00	\N	82.40	82.40	0.00	\N	\N	\N	\N
+5800	1	\N	2026-04-07	795.48	23.17	Walk-in Customer	Cash	Paid	0.00	2026-04-07 15:41:00	\N	795.48	795.48	0.00	\N	\N	\N	\N
+5801	1	\N	2026-04-07	1050.69	30.60	Walk-in Customer	Cash	Paid	0.00	2026-04-07 17:15:00	\N	1050.69	1050.69	0.00	\N	\N	\N	\N
+5802	1	\N	2026-04-07	1552.92	45.23	Walk-in Customer	Cash	Paid	0.00	2026-04-07 10:41:00	\N	1552.92	1552.92	0.00	\N	\N	\N	\N
+5803	1	\N	2026-04-07	20.60	0.60	Walk-in Customer	Cash	Paid	0.00	2026-04-07 14:55:00	\N	20.60	20.60	0.00	\N	\N	\N	\N
+5804	1	\N	2026-04-07	4270.56	124.39	Walk-in Customer	Cash	Paid	0.00	2026-04-07 14:59:00	\N	4270.56	4270.56	0.00	\N	\N	\N	\N
+5805	1	\N	2026-04-07	41.20	1.20	Walk-in Customer	Cash	Paid	0.00	2026-04-07 19:41:00	\N	41.20	41.20	0.00	\N	\N	\N	\N
+5806	1	\N	2026-04-07	2712.71	79.01	Walk-in Customer	Cash	Paid	0.00	2026-04-07 16:48:00	\N	2712.71	2712.71	0.00	\N	\N	\N	\N
+5807	1	\N	2026-04-07	1690.13	49.23	Walk-in Customer	Cash	Paid	0.00	2026-04-07 11:31:00	\N	1690.13	1690.13	0.00	\N	\N	\N	\N
+5810	1	\N	2026-04-08	887.65	25.85	Walk-in Customer	Cash	Paid	0.00	2026-04-08 15:52:00	\N	887.65	887.65	0.00	\N	\N	\N	\N
+5811	1	\N	2026-04-08	1106.22	32.22	Walk-in Customer	Cash	Paid	0.00	2026-04-08 16:56:00	\N	1106.22	1106.22	0.00	\N	\N	\N	\N
+5812	1	\N	2026-04-08	1388.31	40.44	Walk-in Customer	Cash	Paid	0.00	2026-04-08 10:37:00	\N	1388.31	1388.31	0.00	\N	\N	\N	\N
+5813	1	\N	2026-04-08	1561.90	45.49	Walk-in Customer	Cash	Paid	0.00	2026-04-08 13:29:00	\N	1561.90	1561.90	0.00	\N	\N	\N	\N
+5814	1	\N	2026-04-08	594.82	17.32	Walk-in Customer	Cash	Paid	0.00	2026-04-08 17:25:00	\N	594.82	594.82	0.00	\N	\N	\N	\N
+5815	1	\N	2026-04-08	1336.69	38.93	Walk-in Customer	Cash	Paid	0.00	2026-04-08 09:53:00	\N	1336.69	1336.69	0.00	\N	\N	\N	\N
+5816	1	\N	2026-04-08	624.18	18.18	Walk-in Customer	Cash	Paid	0.00	2026-04-08 09:44:00	\N	624.18	624.18	0.00	\N	\N	\N	\N
+5817	1	\N	2026-04-08	872.17	25.40	Walk-in Customer	Cash	Paid	0.00	2026-04-08 11:35:00	\N	872.17	872.17	0.00	\N	\N	\N	\N
+5819	1	\N	2026-04-08	5156.93	150.20	Walk-in Customer	Cash	Paid	0.00	2026-04-08 14:15:00	\N	5156.93	5156.93	0.00	\N	\N	\N	\N
+5820	1	\N	2026-04-08	1509.83	43.98	Walk-in Customer	Cash	Refunded	0.00	2026-04-08 13:34:00	\N	1509.83	1509.83	0.00	\N	\N	\N	\N
+5821	1	\N	2026-04-08	792.87	23.09	Walk-in Customer	Cash	Refunded	0.00	2026-04-08 19:39:00	\N	792.87	792.87	0.00	\N	\N	\N	\N
+5818	1	\N	2026-04-08	12.36	0.36	Walk-in Customer	Cash	Exchanged	0.00	2026-04-08 10:09:00	\N	12.36	12.36	0.00	\N	\N	\N	\N
 \.
 
 
@@ -3859,12 +3868,10 @@ COPY public.user_settings (user_id, setting_key, setting_value, updated_at) FROM
 --
 
 COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at) FROM stdin;
-5	5	$2b$12$VgRwjBoSFya1PQCA.oFJsO5zH4.0CjctNy/T2s3Mnjk3ez2p7Myri	Cedie logatoc	Manager	f	2026-04-06	2026-04-06	Cedie	{"Reports": ["View", "Generate Report"]}	chrisdennis2204@gmail.com	\N	\N
-6	6	$2b$12$RigIcCTGd1LDCnoPEy/N7ew/430fYmjY2pPn1LDPDPBFN1f1HQ/CS	John Doe	Cashier	f	2026-04-07	2026-04-08	Totoyz	{}	harpoon0930@gmail.com	\N	\N
 8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N
 7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N
 9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N
-2	2	$2b$12$r75vPN4Scxis19Ad.pXsrOeCghecU89sAnkoFl2E6IJmimD7hEAH2	ROBEK!	administrator	t	2026-03-25	2026-04-10	rootadminnginamo	{}	\N	\N	\N
+2	2	$2b$12$z3O/RxsHXq3TFxiwuhCLcuknlIJycGBavWVBzAdTi42VGTebxjuJq	ROBEK!	administrator	t	2026-03-25	2026-04-11	rootadminnginamo	{}	\N	\N	\N
 \.
 
 
@@ -3886,28 +3893,28 @@ SELECT pg_catalog.setval('public.auditlog_log_id_seq', 37, true);
 -- Name: customer_return_items_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.customer_return_items_item_id_seq', 13, true);
+SELECT pg_catalog.setval('public.customer_return_items_item_id_seq', 14, true);
 
 
 --
 -- Name: customer_returns_return_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.customer_returns_return_id_seq', 9, true);
+SELECT pg_catalog.setval('public.customer_returns_return_id_seq', 10, true);
 
 
 --
 -- Name: generated_reports_report_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.generated_reports_report_id_seq', 5, true);
+SELECT pg_catalog.setval('public.generated_reports_report_id_seq', 26, true);
 
 
 --
 -- Name: inventory_stock_events_event_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 44, true);
+SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 45, true);
 
 
 --
@@ -4438,5 +4445,5 @@ ALTER TABLE ONLY public.user_settings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1tBSBPYPbAntjqC4JwkWC59gmCIcDTaZgwg7yShwQqkT8fNOORkRLrIRuDS5JIX
+\unrestrict bDVwRS81JHC7ed53jUZIf3cNwZ7LNkrgUH32DPF5JKTxhdRLbaYy91Q61gBmtjz
 

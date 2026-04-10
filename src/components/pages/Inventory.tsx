@@ -306,14 +306,14 @@ export function Inventory() {
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Actual
                 </th>
+                <th className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Difference
+                </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Reorder Level
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Status
-                </th>
-                <th className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                  Difference
                 </th>
                 <th className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Actions
@@ -382,6 +382,11 @@ export function Inventory() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {item.actual}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                      <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
+                        {item.difference}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {item.reorder_level}
                     </td>
@@ -396,11 +401,6 @@ export function Inventory() {
                           : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                       }`}>
                         {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                      <span className={item.difference < 0 ? "text-red-600" : "text-gray-500"}>
-                        {item.difference}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">

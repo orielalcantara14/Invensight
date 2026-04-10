@@ -383,11 +383,12 @@ export interface UserManagementStats {
 
 export interface AuditLogEntry {
   log_id: number;
-  user_id: number;
+  user_id: number | null;
   username: string;
+  role: string | null;
   action: string;
   entity_type: string;
-  entity_id: number;
+  entity_id: number | null;
   timestamp: string;
   details: string | null;
 }
@@ -397,6 +398,9 @@ export interface DashboardStats {
   total_transactions: number;
   completed_sales: number;
   failed_payments: number;
+  refunded_sales: number;
+  out_of_stock_count: number;
+  low_stock_count: number;
   sales_performance: Array<{ label: string; revenue: number; transactions: number }>;
   sales_trend: Array<{ month: string; actual_sales: number; forecast_sales: number }>;
   sales_by_category: Array<{ category: string; value: number; percentage: number }>;
@@ -531,6 +535,7 @@ export const api = {
   getUsers: () => request<ApiUser[]>("/api/users"),
   getUserManagementStats: (actorUserId: number) => requestAsActor<UserManagementStats>(actorUserId, "/api/user-management-stats"),
   getAuditLogs: (actorUserId: number) => requestAsActor<AuditLogEntry[]>(actorUserId, "/api/audit-logs"),
+  deleteAuditLogs: (actorUserId: number) => requestAsActor<{ ok: boolean }>(actorUserId, "/api/audit-logs", { method: "DELETE" }),
   createUser: (payload: CreateUserPayload, actorUserId: number) => requestAsActor<ApiUser>(actorUserId, "/api/users", { method: "POST", body: JSON.stringify(payload) }),
   updateUser: (userId: number, payload: UpdateUserPayload, actorUserId: number) => requestAsActor<ApiUser>(actorUserId, `/api/users/${userId}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteUser: (userId: number, actorUserId: number) => requestAsActor<{ ok: boolean }>(actorUserId, `/api/users/${userId}`, { method: "DELETE" }),
@@ -604,7 +609,96 @@ export const api = {
   changePassword: (userId: number, payload: any) => requestWithUser<{ ok: boolean }>(userId, "/api/profile/change-password", { method: "POST", body: JSON.stringify(payload) }),
   getProfileActivity: (userId: number, limit = 10) => requestWithUser<ProfileActivityItem[]>(userId, `/api/profile/activity?limit=${limit}`),
 
-  getCustomerReturns: () => request<CustomerReturn[]>("/api/customer-returns/"),
+  getCustomerReturnBySaleId: (saleId: number) => request<CustomerReturn>(`/api/customer-returns/sale/${saleId}`),
   createCustomerReturn: (payload: CreateCustomerReturnPayload) => request<{ ok: boolean; rma_number: string }>("/api/customer-returns/", { method: "POST", body: JSON.stringify(payload) }),
   markCustomerReturnToSupplier: (returnId: number) => request<{ ok: boolean }>(`/api/customer-returns/${returnId}/to-supplier`, { method: "PUT" }),
+
+  getReportHistory: () => request<GeneratedReport[]>("/api/reports/history"),
+  generateReport: (payload: { 
+    report_type: string; 
+    start_date?: string; 
+    end_date?: string;
+    category_id?: number;
+    supplier_id?: number;
+    status?: string;
+  }) => 
+    request<{ report_id: number; report_data: any }>("/api/reports/generate", { method: "POST", body: JSON.stringify(payload) }),
+  deleteReport: (reportId: number) => request<{ status: string }>(`/api/reports/${reportId}`, { method: "DELETE" }),
 };
+
+export interface GeneratedReport {
+  id: number;
+  reportType: string;
+  dateRange: string;
+  generatedDate: string;
+  generatedBy: string;
+  reportData?: any;
+}
+
+export interface SalesReportData {
+  summary: {
+    total_revenue_gross: number;
+    total_revenue_net: number;
+    refunded_total: number;
+  };
+  trends: {
+    annual: Array<{ month: string; sales: number }>;
+  };
+  top_products: Array<{ product_name: string; units_sold: number; revenue: number }>;
+  lowest_products: Array<{ product_name: string; units_sold: number }>;
+}
+
+export interface InventoryReportData {
+  breakdown: Array<{ status: string; count: number }>;
+  critical_frequency: Array<{ product_name: string; incident_count: number }>;
+  detailed_inventory: Array<{
+    product_name: string;
+    sku: string;
+    expected: number;
+    actual: number;
+    difference: number;
+    reorder_level: number;
+  }>;
+}
+
+export interface ProductCategoryReportData {
+  products: Array<{
+    category: string;
+    product_name: string;
+    sku: string;
+    unit_cost: number;
+    srp: number;
+    stock: number;
+    total_cost: number;
+  }>;
+  investment_summary: Array<{ category: string; total_category_cost: number }>;
+}
+
+export interface SupplierReportData {
+  suppliers: Array<{
+    supplier_name: string;
+    status: string;
+    contact_number: string;
+    email: string;
+    po_count: number;
+    total_spent: number;
+    avg_lead_time: number | null;
+  }>;
+}
+
+export interface OrdersReturnsReportData {
+  purchase_orders: Array<{
+    order_id: string;
+    created_at: string;
+    status: string;
+    expected_delivery: string;
+  }>;
+  customer_returns: Array<{
+    rma_number: string;
+    sale_id: number;
+    customer_name: string;
+    return_type: string;
+    reason: string;
+  }>;
+}
+

@@ -550,11 +550,12 @@ class CustomerReturnResponse(BaseModel):
 
 class AuditLogEntryResponse(BaseModel):
     log_id: int
-    user_id: int
+    user_id: Optional[int] = None
     username: str
+    role: Optional[str] = None
     action: str
     entity_type: str
-    entity_id: int
+    entity_id: Optional[int] = None
     timestamp: str
     details: Optional[str] = None
 
@@ -589,6 +590,9 @@ class DashboardStatsResponse(BaseModel):
     total_transactions: int
     completed_sales: int
     failed_payments: int
+    refunded_sales: int
+    out_of_stock_count: int
+    low_stock_count: int
     sales_performance: List[SalesPerformancePoint]
     sales_trend: List[SalesTrendItem]
     sales_by_category: List[SalesByCategoryItem]

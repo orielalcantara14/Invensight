@@ -437,8 +437,19 @@ def mark_order_as_received(
                 title="Purchase Order Received",
                 message=f"Purchase order {order_id} has been received and stock updated.",
                 link=f"/orders?id={order_id}",
-                target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                target_roles=["Administrator", "Manager"]
             )
+
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "RECEIVE_ORDER",
+                    "order",
+                    0, # Using 0 as entity_id since order_id is string
+                    f"Received purchase order: {order_id} (Supplier: {order_row['supplier_name']})"
+                )
 
             conn.commit()
             return {"ok": True}

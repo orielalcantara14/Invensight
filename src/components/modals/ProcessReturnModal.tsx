@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { SaleDetail } from "@/types";
 import { api, CreateCustomerReturnPayload } from "@/services/api";
 import { toast } from "sonner";
+import { ReturnReceiptModal } from "./ReturnReceiptModal";
 
 interface ProcessReturnModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
     is_damaged: boolean;
   }>>([]);
   const [loading, setLoading] = useState(false);
+  const [rmaNumber, setRmaNumber] = useState<string | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   useEffect(() => {
     if (invoice) {
@@ -62,10 +65,13 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
         }))
       };
 
-      await api.createCustomerReturn(payload);
+      const res = await api.createCustomerReturn(payload);
       toast.success(`Product return processed as ${returnType}`);
+      setRmaNumber(res.rma_number);
       onSuccess();
-      onClose();
+      setShowReceipt(true);
+      // We don't call onClose() yet, we wait for receipt to be closed or we handle it in render
+
     } catch (error: any) {
       toast.error(error.message || "Failed to process return");
     } finally {
@@ -75,8 +81,26 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
 
   if (!isOpen || !invoice) return null;
 
+  if (showReceipt && rmaNumber) {
+    return (
+      <ReturnReceiptModal
+        isOpen={showReceipt}
+        onClose={() => {
+          setShowReceipt(false);
+          onClose();
+        }}
+        invoice={invoice}
+        rmaNumber={rmaNumber}
+        returnType={returnType}
+        reason={reason}
+        items={items.filter(i => i.selected)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* ... existing modal structure ... */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">

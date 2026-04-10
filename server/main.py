@@ -677,7 +677,8 @@ def seed_default_roles():
                     "Forecasting": ["View", "Export"],
                     "Stock Prediction": ["View", "Export"],
                     "Archive": ["View"],
-                    "Supplier Return": ["View", "Add", "Edit", "Export"]
+                    "Supplier Return": ["View", "Add", "Edit", "Export"],
+                    "Audit Log": ["View", "Export"]
                 },
                 "sales staff": {
                     "Dashboard": ["View"],

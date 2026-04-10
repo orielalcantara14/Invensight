@@ -225,16 +225,46 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT SUM(total_amount) as revenue, COUNT(*) as total FROM sales")
-            sales_stats = cur.fetchone()
-            total_revenue = float(sales_stats['revenue'] or 0.0)
-            total_transactions = int(sales_stats['total'] or 0)
+            # Base Revenue includes Paid and Exchanged (excludes Failed)
+            # We subtract actual refund_amounts from customer_returns
+            cur.execute("""
+                SELECT 
+                    COALESCE(SUM(total_amount), 0) as total_sales,
+                    COUNT(*) as tx_count
+                FROM sales 
+                WHERE payment_status NOT IN ('Refunded', 'Failed')
+            """)
+            s_stats = cur.fetchone()
+            base_revenue = float(s_stats['total_sales'] or 0.0)
+            # We also include Refunded transactions in the base revenue sum IF they were partially refunded,
+            # BUT the user said "Refunded is not counted as sales" earlier.
+            # If a sale is "Refunded" (Full), its status is 'Refunded'.
+            # If a sale had a partial refund, its status remains 'Paid' or 'Exchanged'?
+            # Usually, we only set status to 'Refunded' for full refunds in customer_returns.py.
+            
+            # Let's get the total deductions from refund amounts
+            cur.execute("SELECT COALESCE(SUM(refund_amount), 0) as total_refunds FROM customer_returns WHERE return_type = 'Refund'")
+            total_refunds = float(cur.fetchone()['total_refunds'] or 0.0)
+            
+            total_revenue = base_revenue - total_refunds
+            total_transactions = int(s_stats['tx_count'] or 0)
 
-            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Paid'")
+            # Completed includes Paid and Exchanged
+            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status IN ('Paid', 'Exchanged')")
             completed_sales = cur.fetchone()['count']
 
             cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Failed'")
             failed_payments = cur.fetchone()['count']
+
+            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Refunded'")
+            refunded_sales = cur.fetchone()['count']
+
+            # Stock counts
+            cur.execute("SELECT COUNT(*) as count FROM inventory WHERE status = 'Out of Stock'")
+            out_of_stock_count = cur.fetchone()['count']
+
+            cur.execute("SELECT COUNT(*) as count FROM inventory WHERE status = 'Low'")
+            low_stock_count = cur.fetchone()['count']
 
             sales_performance = _fetch_sales_performance_series(cur, view)
 
@@ -310,6 +340,9 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                 total_transactions=total_transactions,
                 completed_sales=completed_sales,
                 failed_payments=failed_payments,
+                refunded_sales=refunded_sales,
+                out_of_stock_count=out_of_stock_count,
+                low_stock_count=low_stock_count,
                 sales_performance=sales_performance,
                 sales_trend=sales_trend,
                 sales_by_category=sales_by_category,

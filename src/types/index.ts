@@ -33,7 +33,7 @@ export interface ProductCategory {
 // ── Sales ─────────────────────────────────────────────────────────────────────
 
 export type SaleType = 'Service' | 'Product Sale';
-export type PaymentStatus = 'Paid' | 'Pending' | 'Refunded';
+export type PaymentStatus = 'Paid' | 'Pending' | 'Refunded' | 'Exchanged';
 
 export interface SaleItem {
   product_id: number;
@@ -89,14 +89,7 @@ export interface Supplier {
 export type OrderStatus = 'Pending' | 'Processing' | 'Delivered' | 'Cancelled' | 'Received' | 'Archived';
 export type ReturnStatus = 'Pending' | 'Approved' | 'Rejected';
 
-export interface PurchaseOrder {
-  id: string;
-  supplier: string;
-  orderDate: string;
-  expectedDelivery: string;
-  totalCost: number;
-  status: OrderStatus;
-}
+// (Outdated PurchaseOrder removed to fix duplicate declaration)
 
 export interface ProductReturn {
   id: string;

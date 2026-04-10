@@ -63,16 +63,9 @@ export function Layout() {
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: PackageSearch },
     { name: "Suppliers", path: "/suppliers", icon: Truck },
-    { name: "Orders", path: "/orders", icon: FileText },
-    { 
-      name: "Analytics", 
-      path: "/analytics",
-      icon: TrendingUp,
-      submenu: [
-        { name: "Forecasting", path: "/forecasting", icon: TrendingUp },
-        { name: "Stock Prediction", path: "/stock-prediction", icon: AlertTriangle }
-      ]
-    },
+    { name: "Orders and Return", path: "/orders", icon: FileText },
+    { name: "Forecasting", path: "/forecasting", icon: TrendingUp },
+    { name: "Stock Prediction", path: "/stock-prediction", icon: AlertTriangle },
     { name: "Reports", path: "/reports", icon: BarChart3 },
     { name: "Archive", path: "/archive", icon: Archive },
     { 
@@ -103,11 +96,11 @@ export function Layout() {
 
     // Direct module check using "View" action
     const nameMap: Record<string, string> = {
-      "Orders": "Orders",
+      "Orders and Return": "Orders",
       "Users & Roles": "User Management",
       "Audit Log": "Audit Log",
       "Archive": "Archive",
-      "Analytics": "Forecasting", // Analytics header depends on sub-modules
+      "Reports": "Reports",
       "Forecasting": "Forecasting",
       "Stock Prediction": "Stock Prediction"
     };
@@ -125,8 +118,8 @@ export function Layout() {
     }
     return item;
   }).filter(item => {
-    // If it's a top-level menu with submenus, hide if all submenus are hidden
-    if (item.submenu) return item.submenu.length > 0;
+    // If it's a top-level menu with submenus, hide if all submenus are hidden AND user lacks top-level permission
+    if (item.submenu) return item.submenu.length > 0 || hasPermission(item.name);
     
     // Check top-level permission
     return hasPermission(item.name);

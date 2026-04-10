@@ -561,7 +561,7 @@ def add_inventory_discrepancy(
                 title="Stock Adjusted",
                 message=f"Manual discrepancy adjustment of {qty_delta:+d} units. Reason: {payload.reason.strip()}",
                 link=f"/inventory?id={inventory_id}",
-                target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                target_roles=["Administrator", "Manager"]
             )
             
             if actual_after <= 0:
@@ -570,7 +570,7 @@ def add_inventory_discrepancy(
                     title="Out of Stock Alert",
                     message=f"Inventory item ID {inventory_id} has reached 0 or less stock.",
                     link=f"/inventory?id={inventory_id}",
-                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                    target_roles=["Administrator", "Manager"]
                 )
 
             conn.commit()

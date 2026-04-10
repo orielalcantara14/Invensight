@@ -282,7 +282,7 @@ export function Orders() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Purchase Orders</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Orders and Return</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage supplier purchase orders</p>
           </div>
           <div className="flex items-center gap-3">

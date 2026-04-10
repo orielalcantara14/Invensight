@@ -36,6 +36,13 @@ export function ViewInvoiceModal({ isOpen, onClose, invoice, loading }: ViewInvo
           </button>
         </div>
         <div className="p-6">
+          {/* Shop Branding Header */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-black tracking-tighter text-gray-900 mb-1">JonBrix</h1>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Motorcycle Parts & Accessories</p>
+            <div className="w-full border-b border-dashed border-gray-300 my-4" />
+          </div>
+
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-sm text-gray-500">Date</p>

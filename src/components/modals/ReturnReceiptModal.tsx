@@ -1,0 +1,140 @@
+import { X, Printer, CheckCircle2, RefreshCcw } from "lucide-react";
+import type { SaleDetail } from "@/types";
+import { format } from "date-fns";
+
+interface ReturnReceiptModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  invoice: SaleDetail | null;
+  rmaNumber: string;
+  returnType: "Refund" | "Exchange";
+  reason: string;
+  items: Array<{
+    product_id: number;
+    product_name: string;
+    quantity: number;
+    is_defective: boolean;
+    is_damaged: boolean;
+  }>;
+}
+
+export function ReturnReceiptModal({
+  isOpen,
+  onClose,
+  invoice,
+  rmaNumber,
+  returnType,
+  reason,
+  items
+}: ReturnReceiptModalProps) {
+  if (!isOpen || !invoice) return null;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm print:hidden" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:h-auto">
+
+        {/* Header (Hidden in Print if desired, but receipts usually have headers) */}
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 print:hidden">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            {returnType === "Exchange" ? <RefreshCcw className="w-5 h-5 text-blue-600" /> : <CheckCircle2 className="w-5 h-5 text-green-600" />}
+            {returnType === "Exchange" ? "Exchange Slip" : "Return Receipt"}
+          </h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Receipt Content */}
+        <div className="p-8 overflow-y-auto print:overflow-visible print:p-10 font-sans text-sm">
+          {/* Shop branding */}
+          <div className="text-center mb-10">
+            <div className="inline-block bg-black text-white px-4 py-2 rounded-xl mb-4">
+               <h1 className="text-2xl font-black tracking-tighter uppercase">JonBrix</h1>
+            </div>
+            <p className="text-xs font-black text-gray-900 uppercase tracking-widest border-y border-gray-100 py-2">Official {returnType} Slip</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-y-4 mb-10">
+            <div className="col-span-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">RMA Number</p>
+              <p className="text-sm font-black text-red-600">{rmaNumber}</p>
+            </div>
+            <div className="col-span-1 text-right">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Date Issued</p>
+              <p className="text-sm font-bold text-gray-900">{format(new Date(), "MMMM dd, yyyy")}</p>
+            </div>
+            <div className="col-span-1">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Type</p>
+              <p className={`text-sm font-black ${returnType === "Exchange" ? "text-blue-600" : "text-green-600"}`}>{returnType.toUpperCase()}</p>
+            </div>
+            <div className="col-span-1 text-right">
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Orig. Invoice</p>
+              <p className="text-sm font-bold text-gray-900 text-blue-600">#INV-{String(invoice.invoice_id).padStart(6, "0")}</p>
+            </div>
+          </div>
+
+          <div className="mb-10 p-4 bg-gray-50 rounded-xl border border-gray-100">
+             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Customer Info</p>
+             <p className="text-sm font-bold text-gray-900">{invoice.customer_info}</p>
+          </div>
+
+          <div className="space-y-4 mb-10">
+            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+               <span className="w-1.5 h-1.5 bg-black rounded-full" />
+               Items Processed
+            </h3>
+            <div className="space-y-4">
+              {items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-start gap-4 p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                  <div className="flex-1">
+                    <p className="font-black text-gray-900 text-xs">{item.product_name}</p>
+                    <div className="flex gap-2 mt-1">
+                      {item.is_defective && <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">Defective</span>}
+                      {item.is_damaged && <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-black uppercase">Damaged</span>}
+                      {(!item.is_defective && !item.is_damaged) && <span className="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-black uppercase">Good Condition</span>}
+                    </div>
+                  </div>
+                  <span className="font-black text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">x{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-12">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2">Internal Reason / Notes</p>
+            <div className="p-4 bg-blue-50/30 border border-blue-100/50 rounded-xl italic text-gray-700 text-xs leading-relaxed">
+              "{reason || "No specific reason logged"}"
+            </div>
+          </div>
+
+          <div className="mt-12 text-center border-t border-dashed border-gray-200 pt-8">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-2">Official Documentation</p>
+            <p className="text-[9px] text-gray-300 italic">Please keep this slip for your warranty records. Generated by JonBrix InvenSight CMS.</p>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 print:hidden">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            Close
+          </button>
+          <button
+            onClick={handlePrint}
+            className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
+          >
+            <Printer className="w-5 h-5" />
+            Print Receipt
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

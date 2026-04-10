@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Header
 import logging
+import json
 from pydantic import BaseModel
 from database import get_connection
 import psycopg2.extras
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
 
 router = APIRouter()
 log = logging.getLogger("invensight.reports")
@@ -13,6 +14,9 @@ class GenerateReportPayload(BaseModel):
     report_type: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    category_id: Optional[int] = None
+    supplier_id: Optional[int] = None
+    status: Optional[str] = None
 
 @router.get("/history")
 def get_report_history():
@@ -25,7 +29,8 @@ def get_report_history():
                        start_date,
                        end_date,
                        generated_by as "generatedBy",
-                       TO_CHAR(generated_at, 'YYYY-MM-DD HH12:MI AM') as "generatedDate"
+                       TO_CHAR(generated_at, 'YYYY-MM-DD HH12:MI AM') as "generatedDate",
+                       report_data as "reportData"
                 FROM generated_reports
                 ORDER BY generated_at DESC
             """)
@@ -41,7 +46,9 @@ def get_report_history():
                 type_map = {
                     "sales": "Sales Report",
                     "inventory": "Inventory Report",
-                    "supplier": "Supplier Performance"
+                    "supplier": "Supplier Performance",
+                    "product_category": "Product & Category Report",
+                    "orders_returns": "Orders & Returns Report"
                 }
                 row['reportType'] = type_map.get(row['reportType'], row['reportType'])
             
@@ -66,86 +73,211 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
             user_row = cur.fetchone()
             username = user_row["full_name"] if user_row else "System User"
 
-            # 2. Extract specific data
-            result_data = []
+            report_data = {}
 
             if payload.report_type == "sales":
-                if not payload.start_date or not payload.end_date:
-                    raise HTTPException(status_code=400, detail="Start and End date required for Sales report")
-                
+                # Detailed Sales Logic
                 cur.execute("""
                     SELECT 
-                        s.invoice_id AS "Invoice ID",
-                        TO_CHAR(s.transaction_timestamp, 'YYYY-MM-DD HH24:MI:SS') AS "Date",
-                        s.payment_method AS "Payment Method",
-                        s.payment_status AS "Status",
-                        (s.total_amount - COALESCE(s.tax_amount, 0) - COALESCE(s.service_charge, 0)) AS "Subtotal",
-                        s.tax_amount AS "Tax",
-                        s.service_charge AS "Service Charge",
-                        s.total_amount AS "Total Revenue",
-                        COALESCE(SUM(si.quantity), 0) AS "Total Items Sold"
-                    FROM sales s
-                    LEFT JOIN sold_items si ON s.invoice_id = si.invoice_id
+                        COALESCE(SUM(total_amount), 0) as total_revenue_gross,
+                        COALESCE(SUM(CASE WHEN payment_status NOT IN ('Refunded', 'Cancelled') THEN total_amount ELSE 0 END), 0) as total_revenue_net,
+                        COALESCE(SUM(CASE WHEN payment_status = 'Refunded' THEN total_amount ELSE 0 END), 0) as refunded_total
+                    FROM sales
+                    WHERE transaction_timestamp >= %s AND transaction_timestamp <= %s::timestamp + interval '1 day' - interval '1 second'
+                      AND (%s IS NULL OR payment_status = %s)
+                """, (payload.start_date, payload.end_date, payload.status, payload.status))
+                summary = cur.fetchone()
+
+                # Monthly breakdown for the selected year (using start_date year)
+                cur.execute("""
+                    SELECT 
+                        TO_CHAR(m, 'Mon') as month,
+                        COALESCE(SUM(s.total_amount), 0) as sales
+                    FROM generate_series(
+                        date_trunc('year', %s::date),
+                        date_trunc('year', %s::date) + interval '11 months',
+                        interval '1 month'
+                    ) AS m
+                    LEFT JOIN sales s ON date_trunc('month', s.transaction_timestamp) = m
+                       AND (%s IS NULL OR s.payment_status = %s)
+                    GROUP BY m
+                    ORDER BY m
+                """, (payload.start_date, payload.start_date, payload.status, payload.status))
+                annual_breakdown = cur.fetchall()
+
+                # Top products
+                cur.execute("""
+                    SELECT p.product_name, SUM(si.quantity) as units_sold, SUM(si.unit_price * si.quantity) as revenue
+                    FROM sold_items si
+                    JOIN products p ON si.product_id = p.product_id
+                    JOIN sales s ON si.invoice_id = s.invoice_id
                     WHERE s.transaction_timestamp >= %s AND s.transaction_timestamp <= %s::timestamp + interval '1 day' - interval '1 second'
-                    GROUP BY s.invoice_id
-                    ORDER BY s.transaction_timestamp DESC
-                """, (payload.start_date, payload.end_date))
-                result_data = cur.fetchall()
+                      AND (%s IS NULL OR s.payment_status = %s)
+                      AND (%s IS NULL OR p.category_id = %s)
+                    GROUP BY p.product_id, p.product_name
+                    ORDER BY 2 DESC
+                    LIMIT 10
+                """, (payload.start_date, payload.end_date, payload.status, payload.status, payload.category_id, payload.category_id))
+                top_products = cur.fetchall()
+
+                # Lowest products
+                cur.execute("""
+                    SELECT p.product_name, SUM(si.quantity) as units_sold
+                    FROM products p
+                    LEFT JOIN sold_items si ON p.product_id = si.product_id
+                    LEFT JOIN sales s ON si.invoice_id = s.invoice_id 
+                         AND s.transaction_timestamp >= %s AND s.transaction_timestamp <= %s::timestamp + interval '1 day' - interval '1 second'
+                         AND (%s IS NULL OR s.payment_status = %s)
+                    WHERE (%s IS NULL OR p.category_id = %s)
+                    GROUP BY p.product_id, p.product_name
+                    ORDER BY 2 ASC NULLS FIRST
+                    LIMIT 10
+                """, (payload.start_date, payload.end_date, payload.status, payload.status, payload.category_id, payload.category_id))
+                lowest_products = cur.fetchall()
+
+                report_data = {
+                    "summary": summary,
+                    "trends": { "annual": annual_breakdown },
+                    "top_products": top_products,
+                    "lowest_products": lowest_products
+                }
 
             elif payload.report_type == "inventory":
+                # Stock status breakdown
                 cur.execute("""
                     SELECT 
-                        p.sku AS "SKU",
-                        p.product_name AS "Product Name",
-                        COALESCE(c.category_name, 'Uncategorized') AS "Category",
-                        s.supplier_name AS "Primary Supplier",
-                        p.unit_price AS "Retail Price",
-                        i.quantity AS "Total Received",
-                        i.actual AS "Current Logical Stock",
-                        i.expected AS "Expected Stock",
-                        (i.actual - i.expected) AS "Discrepancy",
-                        CASE WHEN i.actual <= i.reorder_level THEN 'Restock Needed' ELSE 'Healthy' END AS "Stock Status",
-                        TO_CHAR(i.last_updated, 'YYYY-MM-DD') AS "Last Updated"
+                        CASE 
+                            WHEN i.actual <= 0 THEN 'Out of Stock'
+                            WHEN i.actual <= i.reorder_level THEN 'Low Stock'
+                            ELSE 'Normal'
+                        END as status,
+                        COUNT(*) as count
                     FROM inventory i
                     JOIN products p ON i.product_id = p.product_id
-                    LEFT JOIN categories c ON p.category_id = c.category_id
-                    LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
-                    ORDER BY p.product_name ASC
-                """)
-                result_data = cur.fetchall()
+                    WHERE (%s IS NULL OR p.category_id = %s)
+                    GROUP BY 1
+                    ORDER BY 2 ASC
+                """, (payload.category_id, payload.category_id))
+                stock_breakdown = cur.fetchall()
 
-            elif payload.report_type == "supplier":
-                if not payload.start_date or not payload.end_date:
-                    raise HTTPException(status_code=400, detail="Start and End date required for Supplier report")
-                
+                # Frequent OOS/Low (based on stock events)
+                cur.execute("""
+                    SELECT p.product_name, COUNT(*) as incident_count
+                    FROM inventory_stock_events e
+                    JOIN products p ON e.product_id = p.product_id
+                    WHERE (e.actual_after <= 0 OR e.actual_after <= e.expected_after * 0.2)
+                      AND (%s IS NULL OR p.category_id = %s)
+                    GROUP BY p.product_id, p.product_name
+                    ORDER BY 2 DESC
+                    LIMIT 10
+                """, (payload.category_id, payload.category_id))
+                critical_frequency = cur.fetchall()
+
+                # Full Inventory List with Diffs
                 cur.execute("""
                     SELECT 
-                        s.supplier_name AS "Supplier Name",
-                        s.status AS "Status",
-                        s.contact_number AS "Contact Number",
-                        s.email AS "Email",
-                        COUNT(DISTINCT po.order_id) AS "Total POs",
-                        COALESCE(SUM(pr.total_quantity), 0) AS "Total Items Returned"
+                        p.product_name, p.sku, i.expected, i.actual, 
+                        (i.actual - i.expected) as difference, i.reorder_level
+                    FROM inventory i
+                    JOIN products p ON i.product_id = p.product_id
+                    WHERE (%s IS NULL OR p.category_id = %s)
+                    ORDER BY i.actual ASC
+                """, (payload.category_id, payload.category_id))
+                detailed_inventory = cur.fetchall()
+
+                report_data = {
+                    "breakdown": stock_breakdown,
+                    "critical_frequency": critical_frequency,
+                    "detailed_inventory": detailed_inventory
+                }
+
+            elif payload.report_type == "product_category":
+                cur.execute("""
+                    SELECT 
+                        COALESCE(c.category_name, 'Uncategorized') as category,
+                        p.product_name, p.sku, p.unit_price as unit_cost, 
+                        p.pos_price as srp, i.actual as stock,
+                        (i.actual * p.unit_price) as total_cost
+                    FROM products p
+                    JOIN inventory i ON p.product_id = i.product_id
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    WHERE (%s IS NULL OR p.category_id = %s)
+                    ORDER BY 1, 2
+                """, (payload.category_id, payload.category_id))
+                product_list = cur.fetchall()
+
+                cur.execute("""
+                    SELECT 
+                        COALESCE(c.category_name, 'Uncategorized') as category,
+                        SUM(i.actual * p.unit_price) as total_category_cost
+                    FROM products p
+                    JOIN inventory i ON p.product_id = i.product_id
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    WHERE (%s IS NULL OR p.category_id = %s)
+                    GROUP BY 1
+                    ORDER BY 2 DESC
+                """, (payload.category_id, payload.category_id))
+                investment_summary = cur.fetchall()
+
+                report_data = {
+                    "products": product_list,
+                    "investment_summary": investment_summary
+                }
+
+            elif payload.report_type == "supplier":
+                cur.execute("""
+                    SELECT 
+                        s.supplier_name, s.status, s.contact_number, s.email,
+                        COUNT(po.order_id) as po_count,
+                        SUM(COALESCE((SELECT SUM(quantity * unit_price) FROM purchase_order_items WHERE order_id = po.order_id), 0)) as total_spent,
+                        AVG(CASE WHEN po.received_at IS NOT NULL THEN EXTRACT(DAY FROM (po.received_at - po.created_at)) ELSE NULL END) as avg_lead_time
                     FROM supplier s
-                    LEFT JOIN purchase_orders po ON s.supplier_id = po.supplier_id 
-                        AND po.created_at >= %s AND po.created_at <= %s::timestamp + interval '1 day' - interval '1 second'
-                    LEFT JOIN product_returns pr ON s.supplier_id = pr.supplier_id 
-                        AND pr.created_at >= %s AND pr.created_at <= %s::timestamp + interval '1 day' - interval '1 second'
+                    LEFT JOIN purchase_orders po ON s.supplier_id = po.supplier_id
+                    WHERE (%s IS NULL OR s.status = %s)
+                      AND (%s IS NULL OR s.supplier_id = %s)
                     GROUP BY s.supplier_id
-                    ORDER BY "Total POs" DESC
-                """, (payload.start_date, payload.end_date, payload.start_date, payload.end_date))
-                result_data = cur.fetchall()
-            
-            else:
-                raise HTTPException(status_code=400, detail="Invalid report type")
+                    ORDER BY 5 DESC
+                """, (payload.status, payload.status, payload.supplier_id, payload.supplier_id))
+                supplier_stats = cur.fetchall()
+
+                report_data = {
+                    "suppliers": supplier_stats
+                }
+
+            elif payload.report_type == "orders_returns":
+                cur.execute("""
+                    SELECT order_id, created_at, status, expected_delivery
+                    FROM purchase_orders
+                    WHERE (%s IS NULL OR status = %s)
+                      AND (%s IS NULL OR supplier_id = %s)
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                """, (payload.status, payload.status, payload.supplier_id, payload.supplier_id))
+                po_list = cur.fetchall()
+
+                cur.execute("""
+                    SELECT rma_number, sale_id, customer_name, return_type, reason
+                    FROM customer_returns
+                    WHERE (%s IS NULL OR return_type = %s)
+                    ORDER BY return_date DESC
+                    LIMIT 20
+                """, (payload.status, payload.status))
+                customer_returns = cur.fetchall()
+
+                report_data = {
+                    "purchase_orders": po_list,
+                    "customer_returns": customer_returns
+                }
 
             # 3. Log into generated_reports
             cur.execute("""
-                INSERT INTO generated_reports (report_type, start_date, end_date, generated_by)
-                VALUES (%s, %s, %s, %s)
-            """, (payload.report_type, payload.start_date, payload.end_date, username))
+                INSERT INTO generated_reports (report_type, start_date, end_date, generated_by, report_data)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING report_id
+            """, (payload.report_type, payload.start_date, payload.end_date, username, json.dumps(report_data, default=str)))
+            report_id = cur.fetchone()["report_id"]
 
-            return result_data
+            return {"report_id": report_id, "report_data": report_data}
 
     except Exception as e:
         log.error(f"Error generating report: {e}")

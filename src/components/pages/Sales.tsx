@@ -7,7 +7,9 @@ import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
 import { ProcessReturnModal } from "@/components/modals/ProcessReturnModal";
+import { ReturnReceiptModal } from "@/components/modals/ReturnReceiptModal";
 import { exportToExcel } from "@/utils/export";
+import { toast } from "sonner";
 type ViewMode = "daily" | "monthly" | "annual";
 
 export function Sales() {
@@ -20,11 +22,15 @@ export function Sales() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [returnDetails, setReturnDetails] = useState<any | null>(null);
+  const [showReturnReceipt, setShowReturnReceipt] = useState(false);
   const [salesStats, setSalesStats] = useState<{
     total_revenue: number;
     total_transactions: number;
     completed_sales: number;
     failed_payments: number;
+    refunded_sales: number;
     sales_performance: Array<{ label: string; revenue: number; transactions: number }>;
   } | null>(null);
   const [view, setView] = useState<ViewMode>("monthly");
@@ -45,6 +51,7 @@ export function Sales() {
           total_transactions: res.total_transactions,
           completed_sales: res.completed_sales,
           failed_payments: res.failed_payments,
+          refunded_sales: res.refunded_sales || 0,
           sales_performance: res.sales_performance,
         });
       })
@@ -98,21 +105,32 @@ export function Sales() {
       iconColor: "text-green-600",
     },
     {
-      label: "Failed Payments",
-      value: salesStats ? salesStats.failed_payments.toLocaleString() : "0",
-      icon: XCircle,
-      bgColor: "bg-red-50",
-      iconColor: "text-red-600",
+      label: "Refunded Sales",
+      value: salesStats ? salesStats.refunded_sales.toLocaleString() : "0",
+      icon: RotateCcw,
+      bgColor: "bg-orange-50",
+      iconColor: "text-orange-600",
     },
   ];
 
   const handleViewInvoice = async (invoiceId: number) => {
     setLoadingInvoice(true);
     try {
-      const detail = await api.getSale(invoiceId);
-      setSelectedInvoice(detail);
+      const sale = salesRecords.find(r => r.invoice_id === invoiceId);
+      if (sale && (sale.payment_status === "Refunded" || sale.payment_status === "Exchanged")) {
+        const ret = await api.getCustomerReturnBySaleId(invoiceId);
+        setReturnDetails(ret);
+        setShowReturnReceipt(true);
+        // We also fetch the invoice detail just in case we want to show it combined
+        const detail = await api.getSale(invoiceId);
+        setSelectedInvoice(detail);
+      } else {
+        const detail = await api.getSale(invoiceId);
+        setSelectedInvoice(detail);
+      }
     } catch (err) {
-      console.error("Failed to fetch sale details:", err);
+      console.error("Failed to fetch sale/return details:", err);
+      toast.error("Could not load receipt details");
     } finally {
       setLoadingInvoice(false);
     }
@@ -154,7 +172,9 @@ export function Sales() {
       (paymentMethodFilter === "Cash" && record.payment_method === "Cash") ||
       (paymentMethodFilter === "Cashless" && record.payment_method !== "Cash");
 
-    return matchesSearch && matchesDateFrom && matchesDateTo && matchesPaymentMethod;
+    const matchesStatus = statusFilter === "All" || record.payment_status === statusFilter;
+
+    return matchesSearch && matchesDateFrom && matchesDateTo && matchesPaymentMethod && matchesStatus;
   });
 
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -404,6 +424,16 @@ export function Sales() {
                 <option value="Cash">Cash</option>
                 <option value="Cashless">Cashless (GCash/PayMaya)</option>
               </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Paid">Paid</option>
+                <option value="Refunded">Refunded</option>
+                <option value="Exchanged">Exchanged</option>
+              </select>
               <button 
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -490,7 +520,8 @@ export function Sales() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         record.payment_status === "Paid" ? "bg-green-100 text-green-800" :
-                        record.payment_status === "Refunded" ? "bg-blue-100 text-blue-800" :
+                        record.payment_status === "Refunded" ? "bg-red-100 text-red-800" :
+                        record.payment_status === "Exchanged" ? "bg-blue-100 text-blue-800" :
                         "bg-yellow-100 text-yellow-800"
                       }`}>
                         {record.payment_status}
@@ -534,11 +565,27 @@ export function Sales() {
       </div>
 
       <ViewInvoiceModal
-        isOpen={!!selectedInvoice}
+        isOpen={!!selectedInvoice && !showReturnReceipt}
         onClose={() => setSelectedInvoice(null)}
         invoice={selectedInvoice}
         loading={loadingInvoice}
       />
+
+      {returnDetails && (
+        <ReturnReceiptModal
+          isOpen={showReturnReceipt}
+          onClose={() => {
+            setShowReturnReceipt(false);
+            setReturnDetails(null);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          rmaNumber={returnDetails.rma_number}
+          returnType={returnDetails.return_type}
+          reason={returnDetails.reason}
+          items={returnDetails.items}
+        />
+      )}
 
       <ProcessReturnModal
         isOpen={!!returnInvoice}
