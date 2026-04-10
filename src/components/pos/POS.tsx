@@ -285,16 +285,28 @@ export function POS() {
     }
   }, [isPartialPayment, grandTotal]);
 
+  const formatNumberWithCommas = (value: string | number) => {
+    const s = typeof value === "number" ? value.toString() : value;
+    if (!s) return "";
+    const parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  };
+
   const handlePartialCashChange = (val: string) => {
-    setPartialCash(val);
-    const cash = parseFloat(val) || 0;
+    const clean = val.replace(/,/g, "");
+    if (clean !== "" && !/^\d*\.?\d*$/.test(clean)) return;
+    setPartialCash(clean);
+    const cash = parseFloat(clean) || 0;
     const remaining = Math.max(0, grandTotal - cash);
     setPartialEWallet(remaining.toFixed(2));
   };
 
   const handlePartialEWalletChange = (val: string) => {
-    setPartialEWallet(val);
-    const ewallet = parseFloat(val) || 0;
+    const clean = val.replace(/,/g, "");
+    if (clean !== "" && !/^\d*\.?\d*$/.test(clean)) return;
+    setPartialEWallet(clean);
+    const ewallet = parseFloat(clean) || 0;
     const remaining = Math.max(0, grandTotal - ewallet);
     setPartialCash(remaining.toFixed(2));
   };
@@ -896,14 +908,14 @@ export function POS() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Cash Amount</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="number" value={partialCash} onChange={(e) => handlePartialCashChange(e.target.value)} onFocus={() => setNumpadTarget("partialCash")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialCash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  <input type="text" value={formatNumberWithCommas(partialCash)} onChange={(e) => handlePartialCashChange(e.target.value)} onFocus={() => setNumpadTarget("partialCash")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialCash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase">E-Wallet Amount</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="number" value={partialEWallet} onChange={(e) => handlePartialEWalletChange(e.target.value)} onFocus={() => setNumpadTarget("partialEWallet")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialEWallet" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  <input type="text" value={formatNumberWithCommas(partialEWallet)} onChange={(e) => handlePartialEWalletChange(e.target.value)} onFocus={() => setNumpadTarget("partialEWallet")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialEWallet" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
             </div>
@@ -913,7 +925,10 @@ export function POS() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Cash Received</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-black">₱</span>
-                  <input type="number" value={cashInput} onChange={(e) => setCashInput(e.target.value)} onFocus={() => setNumpadTarget("cash")} placeholder="0.00" className={`w-full bg-gray-100 border-2 rounded-xl py-3 pl-8 text-2xl font-black text-gray-900 outline-none transition-colors ${numpadTarget === "cash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  <input type="text" value={formatNumberWithCommas(cashInput)} onChange={(e) => {
+                    const val = e.target.value.replace(/,/g, "");
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) setCashInput(val);
+                  }} onFocus={() => setNumpadTarget("cash")} placeholder="0.00" className={`w-full bg-gray-100 border-2 rounded-xl py-3 pl-8 text-2xl font-black text-gray-900 outline-none transition-colors ${numpadTarget === "cash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="w-32">

@@ -609,6 +609,7 @@ export const api = {
   changePassword: (userId: number, payload: any) => requestWithUser<{ ok: boolean }>(userId, "/api/profile/change-password", { method: "POST", body: JSON.stringify(payload) }),
   getProfileActivity: (userId: number, limit = 10) => requestWithUser<ProfileActivityItem[]>(userId, `/api/profile/activity?limit=${limit}`),
 
+  getCustomerReturns: () => request<CustomerReturn[]>("/api/customer-returns/"),
   getCustomerReturnBySaleId: (saleId: number) => request<CustomerReturn>(`/api/customer-returns/sale/${saleId}`),
   createCustomerReturn: (payload: CreateCustomerReturnPayload) => request<{ ok: boolean; rma_number: string }>("/api/customer-returns/", { method: "POST", body: JSON.stringify(payload) }),
   markCustomerReturnToSupplier: (returnId: number) => request<{ ok: boolean }>(`/api/customer-returns/${returnId}/to-supplier`, { method: "PUT" }),
@@ -624,6 +625,8 @@ export const api = {
   }) => 
     request<{ report_id: number; report_data: any }>("/api/reports/generate", { method: "POST", body: JSON.stringify(payload) }),
   deleteReport: (reportId: number) => request<{ status: string }>(`/api/reports/${reportId}`, { method: "DELETE" }),
+  createPayMongoCheckoutSession: (payload: PayMongoCheckoutSessionPayload) => request<any>("/api/paymongo/checkout", { method: "POST", body: JSON.stringify(payload) }),
+  getPayMongoPaymentStatus: (sourceId: string) => request<any>(`/api/paymongo/status/${sourceId}`),
 };
 
 export interface GeneratedReport {

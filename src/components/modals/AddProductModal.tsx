@@ -173,6 +173,20 @@ export function AddProductModal({
     }
   };
 
+  const formatNumberWithCommas = (value: string) => {
+    if (!value) return "";
+    const parts = value.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  };
+
+  const handleNumericChange = (field: keyof typeof formData, value: string) => {
+    const cleanValue = value.replace(/,/g, "");
+    if (cleanValue === "" || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData((prev) => ({ ...prev, [field]: cleanValue }));
+    }
+  };
+
   const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
     cat.toLowerCase().includes(formData.specific_category.toLowerCase())
   );
@@ -319,11 +333,9 @@ export function AddProductModal({
               Unit Cost *
             </label>
             <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.unit_price}
-              onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+              type="text"
+              value={formatNumberWithCommas(formData.unit_price)}
+              onChange={(e) => handleNumericChange("unit_price", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0.00"
               required
@@ -334,11 +346,9 @@ export function AddProductModal({
               SRP {mode === "pos" ? "*" : ""}
             </label>
             <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.pos_price}
-              onChange={(e) => setFormData({ ...formData, pos_price: e.target.value })}
+              type="text"
+              value={formatNumberWithCommas(formData.pos_price)}
+              onChange={(e) => handleNumericChange("pos_price", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0.00"
               required={mode === "pos"}

@@ -2,10 +2,13 @@ import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTrian
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
 import { api, type DashboardStats } from "@/services/api";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +79,8 @@ export function Dashboard() {
   const kpis = [
     { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: DollarSign, color: "text-green-600" },
     { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-blue-600" },
-    { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600" },
-    { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600" },
+    { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600", path: "/inventory?status=Out%20of%20Stock" },
+    { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600", path: "/inventory?status=Low" },
   ];
 
   return (
@@ -112,7 +115,14 @@ export function Dashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <div 
+            key={kpi.label} 
+            onClick={() => kpi.path && navigate(kpi.path)}
+            className={cn(
+              "bg-white p-6 rounded-lg shadow border border-gray-200 transition-all duration-200",
+              kpi.path && "cursor-pointer hover:shadow-md hover:border-blue-200 hover:-translate-y-1 active:translate-y-0"
+            )}
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-600">{kpi.label}</span>
               <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
