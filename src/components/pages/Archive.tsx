@@ -70,7 +70,9 @@ export function ArchivePage() {
   const stage = (searchParams.get("stage") || "Archived") as "Archived" | "Deleted";
   const session = getSession();
   const actorId = session?.user_id ?? 0;
-  const isAuthorizedToDelete = ["rootadminnginamo", "Administrator"].includes((session?.role || session?.username || "").trim());
+  const role = (session?.role || "").trim().toLowerCase();
+  const username = (session?.username || "").trim().toLowerCase();
+  const isAuthorizedToDelete = username === "rootadminnginamo" || role === "administrator";
 
   const initialTab = (searchParams.get("tab") as ArchiveTab) || "inventory";
   const [activeTab, setActiveTab] = useState<ArchiveTab>(initialTab);

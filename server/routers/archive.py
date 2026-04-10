@@ -205,6 +205,13 @@ def permanent_delete_product(
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Safe Detach for Products
+            cur.execute("UPDATE sold_items SET product_id = NULL WHERE product_id = %s", (product_id,))
+            cur.execute("UPDATE purchase_order_items SET product_id = NULL WHERE product_id = %s", (product_id,))
+            cur.execute("UPDATE product_return_items SET product_id = NULL WHERE product_id = %s", (product_id,))
+            cur.execute("UPDATE customer_return_items SET product_id = NULL WHERE product_id = %s", (product_id,))
+            cur.execute("UPDATE product_price_history SET product_id = NULL WHERE product_id = %s", (product_id,))
+            
             cur.execute("DELETE FROM inventory WHERE product_id = %s", (product_id,))
             cur.execute("DELETE FROM products WHERE product_id = %s AND status = 'Deleted' RETURNING product_id", (product_id,))
             if not cur.fetchone():
@@ -260,12 +267,20 @@ def restore_supplier(supplier_id: int):
 def permanent_delete_supplier(supplier_id: int):
     conn = get_connection()
     try:
+        conn.autocommit = False
         with conn.cursor() as cur:
+            # Safe Detach Option 1: Unlink from related tables instead of cascading
+            cur.execute("UPDATE products SET supplier_id = NULL WHERE supplier_id = %s", (supplier_id,))
+            cur.execute("UPDATE purchase_orders SET supplier_id = NULL WHERE supplier_id = %s", (supplier_id,))
+            cur.execute("UPDATE product_returns SET supplier_id = NULL WHERE supplier_id = %s", (supplier_id,))
+            
             cur.execute("DELETE FROM supplier WHERE supplier_id = %s AND status = 'Deleted' RETURNING supplier_id", (supplier_id,))
             if not cur.fetchone(): raise HTTPException(status_code=404, detail="Not found in Trash")
             conn.commit()
             return {"ok": True}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: 
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally: conn.close()
 
 # ──────────────────────────── ORDERS ─────────────────────────────────────────
