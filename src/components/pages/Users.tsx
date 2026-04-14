@@ -118,7 +118,7 @@ export function Users() {
     setUserFormError(null);
     setSavingUser(true);
     try {
-      await api.createUser({
+      const newUser = await api.createUser({
         username: user.username.trim(),
         full_name: user.fullName.trim(),
         email: user.email.trim() || null,
@@ -127,10 +127,13 @@ export function Users() {
         permissions: user.permissions || {},
         is_active: user.status === "Active",
       }, session.user_id);
-      setIsAddUserModalOpen(false);
+      
+      // Do NOT close modal here; AddUserModal handles its own success step (Step 3)
       await refreshData();
+      return mapApiUser(newUser);
     } catch (e) {
       setUserFormError(e instanceof Error ? e.message : "Failed to create user");
+      throw e;
     } finally {
       setSavingUser(false);
     }

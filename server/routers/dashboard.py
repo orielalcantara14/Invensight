@@ -16,7 +16,35 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
     Full buckets for the chart (zeros where there were no sales) so bars/lines are not stretched
     across two lone points.
     """
-    if view == "daily":
+    if view == "7d":
+        # Last 7 days including today
+        cur.execute(
+            """
+            WITH days AS (
+                SELECT generate_series(
+                    CURRENT_DATE - INTERVAL '6 days',
+                    CURRENT_DATE,
+                    INTERVAL '1 day'
+                )::date AS d
+            ),
+            agg AS (
+                SELECT invoice_date::date AS d,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue,
+                       COUNT(*)::int AS cnt
+                FROM sales
+                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days'
+                  AND invoice_date::date <= CURRENT_DATE
+                GROUP BY 1
+            )
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue,
+                   COALESCE(agg.cnt, 0)::int AS transactions
+            FROM days
+            LEFT JOIN agg ON agg.d = days.d
+            ORDER BY days.d
+            """
+        )
+    elif view == "daily":
         # Month-to-date: first day of current month (e.g. 1 Apr 2026) through today, one point per day
         cur.execute(
             """
@@ -133,6 +161,36 @@ def _build_sales_trend_from_rows(labels: list[str], actuals: list[float], window
 
 
 def _fetch_sales_trend_series(cur, view: str) -> list[SalesTrendItem]:
+    if view == "7d":
+        cur.execute(
+            """
+            WITH days AS (
+                SELECT generate_series(
+                    CURRENT_DATE - INTERVAL '6 days',
+                    CURRENT_DATE,
+                    INTERVAL '1 day'
+                )::date AS d
+            ),
+            agg AS (
+                SELECT invoice_date::date AS d,
+                       COALESCE(SUM(total_amount), 0)::float AS revenue
+                FROM sales
+                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days'
+                  AND invoice_date::date <= CURRENT_DATE
+                GROUP BY 1
+            )
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
+                   COALESCE(agg.revenue, 0)::float AS revenue
+            FROM days
+            LEFT JOIN agg ON agg.d = days.d
+            ORDER BY days.d
+            """
+        )
+        rows = cur.fetchall()
+        labels = [str(r["label"]).strip() for r in rows]
+        actuals = [float(r["revenue"]) for r in rows]
+        return _build_sales_trend_from_rows(labels, actuals, window=3)
+
     if view == "daily":
         cur.execute(
             """
@@ -259,12 +317,18 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
             cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Refunded'")
             refunded_sales = cur.fetchone()['count']
 
-            # Stock counts
-            cur.execute("SELECT COUNT(*) as count FROM inventory WHERE status = 'Out of Stock'")
-            out_of_stock_count = cur.fetchone()['count']
-
-            cur.execute("SELECT COUNT(*) as count FROM inventory WHERE status = 'Low'")
-            low_stock_count = cur.fetchone()['count']
+            # Stock counts: Calculated based on actual levels vs reorder level, excluding archived products
+            cur.execute("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE i.actual <= 0) as out_of_stock,
+                    COUNT(*) FILTER (WHERE i.actual > 0 AND i.actual <= i.reorder_level) as low_stock
+                FROM inventory i
+                JOIN products p ON i.product_id = p.product_id
+                WHERE i.status = 'Active' AND p.status = 'Active'
+            """)
+            stock_stats = cur.fetchone()
+            out_of_stock_count = stock_stats['out_of_stock']
+            low_stock_count = stock_stats['low_stock']
 
             sales_performance = _fetch_sales_performance_series(cur, view)
 

@@ -1,4 +1,5 @@
-import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive, Trash2 } from "lucide-react";
+import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive, Trash2, Download } from "lucide-react";
+import { exportToExcel } from "@/utils/export";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
@@ -21,6 +22,9 @@ export function ProductReturns() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<ProductReturn | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; displayId: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
@@ -41,7 +45,7 @@ export function ProductReturns() {
     try {
       setLoading(true);
       const [returnsRes, suppliersRes, productsRes] = await Promise.all([
-        api.getProductReturns(),
+        api.getProductReturns(dateFrom || undefined, dateTo || undefined),
         api.getSuppliers(),
         api.getProducts(),
       ]);
@@ -58,7 +62,7 @@ export function ProductReturns() {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(returns.length / itemsPerPage));
   const paginatedReturns = returns.slice(
@@ -200,28 +204,63 @@ export function ProductReturns() {
     }
   };
 
+  const handleExport = () => {
+    if (returns.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    setExporting(true);
+    try {
+      const { exportToExcel } = require("@/utils/export");
+      const data = returns.map((r) => ({
+        "Return ID": formatReturnId(r.return_id),
+        "Supplier": r.supplier_name || "N/A",
+        "Status": r.status,
+        "Created At": r.created_at ? new Date(r.created_at).toLocaleString() : "N/A",
+        "Reason": r.reason || "N/A",
+        "Total Quantity": r.total_quantity,
+      }));
+      exportToExcel(data, `Supplier_Returns_${new Date().toISOString().split('T')[0]}`);
+      toast.success("Data exported to Excel");
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Failed to export data");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Supplier Returns</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Allocate damaged/defective items for return to supplier</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/archive?stage=Archived&tab=product-returns"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+            />
+            <span className="text-gray-400">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+            />
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
           >
-            <Archive className="w-4 h-4" />
-            Archive
-          </Link>
-          <Link
-            to="/archive?stage=Deleted&tab=product-returns"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-            Trash
-          </Link>
+            <Download className="w-4 h-4" />
+            {exporting ? "Exporting..." : "Export"}
+          </button>
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

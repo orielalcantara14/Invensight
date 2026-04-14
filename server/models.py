@@ -287,6 +287,9 @@ class LoginResponse(BaseModel):
     role: str
     email: Optional[str] = None
     permissions: Optional[Dict[str, List[str]]] = None
+    mfa_required: bool = False
+    must_change_password: bool = False
+    otp: Optional[str] = None
 
 
 class ProfileResponse(BaseModel):
@@ -337,9 +340,27 @@ class ChangePasswordRequest(BaseModel):
             raise ValueError("New password is required")
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
-        if len(v) > 200:
-            raise ValueError("Password exceeds maximum length")
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r'[a-z]', v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r'\d', v):
+            raise ValueError("Password must contain at least one number")
+        if not re.search(r'[!@#$%^&*]', v):
+            raise ValueError("Password must contain at least one special character (!@#$%^&*)")
         return v
+
+class VerifyOTPRequest(BaseModel):
+    user_id: int
+    otp: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
 
 
 class ActivityItem(BaseModel):

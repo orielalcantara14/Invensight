@@ -1,4 +1,4 @@
-import { Search, Eye, Package, X, RotateCcw, Truck } from "lucide-react";
+import { Search, Eye, Package, X, RotateCcw, Truck, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type CustomerReturn, type CustomerReturnItem } from "@/services/api";
 import { toast } from "sonner";
@@ -11,6 +11,9 @@ export function CustomerReturns() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
   
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<CustomerReturn | null>(null);
@@ -21,7 +24,7 @@ export function CustomerReturns() {
   const fetchReturns = async () => {
     try {
       setLoading(true);
-      const res = await api.getCustomerReturns();
+      const res = await api.getCustomerReturns(dateFrom || undefined, dateTo || undefined);
       setReturns(res);
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch returns");
@@ -32,7 +35,7 @@ export function CustomerReturns() {
 
   useEffect(() => {
     fetchReturns();
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const handleViewInvoice = async (invoiceId: number) => {
     setLoadingInvoice(true);
@@ -63,6 +66,33 @@ export function CustomerReturns() {
     String(r.sale_id).includes(searchTerm)
   );
 
+  const handleExport = () => {
+    if (returns.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    setExporting(true);
+    try {
+      const { exportToExcel } = require("@/utils/export");
+      const data = filteredReturns.map((r) => ({
+        "RMA Number": r.rma_number,
+        "Invoice": `INV-${String(r.sale_id).padStart(6, "0")}`,
+        "Customer": r.customer_name || "N/A",
+        "Return Date": new Date(r.return_date).toLocaleString(),
+        "Type": r.return_type,
+        "Status": r.status,
+        "Reason": r.reason || "N/A",
+      }));
+      exportToExcel(data, `Customer_Returns_${new Date().toISOString().split('T')[0]}`);
+      toast.success("Data exported to Excel");
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Failed to export data");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(filteredReturns.length / itemsPerPage));
   const paginatedReturns = filteredReturns.slice(
     (currentPage - 1) * itemsPerPage,
@@ -80,20 +110,45 @@ export function CustomerReturns() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Customer Product Returns</h2>
           <p className="text-gray-600 mt-1">Manage product returns and exchanges from customers</p>
         </div>
-        <div className="relative w-64">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-           <input 
-             type="text" 
-             placeholder="Search RMA or Customer..."
-             value={searchTerm}
-             onChange={(e) => setSearchTerm(e.target.value)}
-             className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-           />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0"
+            />
+            <span className="text-gray-400">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0"
+            />
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? "Exporting..." : "Export"}
+          </button>
+          <div className="relative w-64">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+             <input 
+               type="text" 
+               placeholder="Search RMA or Customer..."
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+             />
+          </div>
         </div>
       </div>
 

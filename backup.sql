@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bDVwRS81JHC7ed53jUZIf3cNwZ7LNkrgUH32DPF5JKTxhdRLbaYy91Q61gBmtjz
+\restrict RFjhvUzyRDwnpoBN1FVV48yls81oqcJ8N6KOYgzMzWcjQqi7gCUATpdDRFe1VAc
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -831,7 +831,10 @@ CREATE TABLE public.users (
     permissions_json jsonb DEFAULT '{}'::jsonb,
     email character varying(255),
     address text,
-    password_changed_at date
+    password_changed_at date,
+    must_change_password boolean DEFAULT true,
+    mfa_code character varying(6),
+    mfa_expiry timestamp without time zone
 );
 
 
@@ -1745,6 +1748,12 @@ COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestam
 34	\N	LOGIN	user	6	2026-04-08 04:33:34.311869	User signed in: Totoyz
 35	\N	LOGIN	user	6	2026-04-08 05:10:27.365789	User signed in: Totoyz
 36	\N	LOGIN	user	6	2026-04-08 05:12:06.362719	User signed in: Totoyz
+38	10	VERIFY_OTP	user	10	2026-04-15 03:07:39.562012	OTP verified successfully
+39	10	VERIFY_OTP	user	10	2026-04-15 03:09:40.516411	OTP verified successfully
+40	10	CHANGE_PASSWORD	user	10	2026-04-15 03:12:31.811102	User rovhic changed their password
+41	10	LOGIN	user	10	2026-04-15 03:17:17.925513	User logged in (MFA Bypassed)
+42	10	RESET_PASSWORD	user	10	2026-04-15 03:18:03.087371	Password reset via OTP successful
+43	10	LOGIN	user	10	2026-04-15 03:18:35.907708	User logged in (MFA Bypassed)
 \.
 
 
@@ -3867,11 +3876,12 @@ COPY public.user_settings (user_id, setting_key, setting_value, updated_at) FROM
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at) FROM stdin;
-8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N
-7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N
-9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N
-2	2	$2b$12$z3O/RxsHXq3TFxiwuhCLcuknlIJycGBavWVBzAdTi42VGTebxjuJq	ROBEK!	administrator	t	2026-03-25	2026-04-11	rootadminnginamo	{}	\N	\N	\N
+COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at, must_change_password, mfa_code, mfa_expiry) FROM stdin;
+8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N	t	\N	\N
+7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N	t	\N	\N
+9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N	t	\N	\N
+2	2	$2b$12$pCZv5IRTKNVu/G30ExqhSum4crRfM3JlxRIgttRNlzoBoia4KtiFK	ROBEK!	administrator	t	2026-03-25	2026-04-15	rootadminnginamo	{}	\N	\N	\N	t	\N	\N
+10	10	$2b$12$o.OFhThqhW9a4P3Aq/LzX.4k3gpxSFekZci288KYdp07TB6g49kN.	Sohitado, John Rovhic A	Administrator	t	2026-04-15	2026-04-15	rovhic	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	rovhicsohitado@gmail.com	\N	\N	f	\N	\N
 \.
 
 
@@ -3886,7 +3896,7 @@ SELECT pg_catalog.setval('public.analytics_model_runs_run_id_seq', 768, true);
 -- Name: auditlog_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.auditlog_log_id_seq', 37, true);
+SELECT pg_catalog.setval('public.auditlog_log_id_seq', 43, true);
 
 
 --
@@ -4204,6 +4214,14 @@ ALTER TABLE ONLY public.system_settings
 
 
 --
+-- Name: users unique_user_email; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT unique_user_email UNIQUE (email);
+
+
+--
 -- Name: user_settings user_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4445,5 +4463,5 @@ ALTER TABLE ONLY public.user_settings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bDVwRS81JHC7ed53jUZIf3cNwZ7LNkrgUH32DPF5JKTxhdRLbaYy91Q61gBmtjz
+\unrestrict RFjhvUzyRDwnpoBN1FVV48yls81oqcJ8N6KOYgzMzWcjQqi7gCUATpdDRFe1VAc
 

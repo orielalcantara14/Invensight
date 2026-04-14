@@ -57,7 +57,14 @@ export function Layout() {
     return () => clearInterval(inv);
   }, []);
 
-  const navigation = [
+  interface NavigationItem {
+    name: string;
+    path: string;
+    icon: any;
+    submenu?: NavigationItem[];
+  }
+
+  const navigation: NavigationItem[] = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Sales", path: "/sales", icon: ShoppingCart },
     { name: "Inventory", path: "/inventory", icon: Package },
@@ -68,15 +75,8 @@ export function Layout() {
     { name: "Stock Prediction", path: "/stock-prediction", icon: AlertTriangle },
     { name: "Reports", path: "/reports", icon: BarChart3 },
     { name: "Archive", path: "/archive", icon: Archive },
-    { 
-      name: "User Management", 
-      path: "/user-management",
-      icon: Users,
-      submenu: [
-        { name: "Users & Roles", path: "/users", icon: Users },
-        { name: "Audit Log", path: "/audit-log", icon: Settings },
-      ]
-    },
+    { name: "Users & Roles", path: "/users", icon: Users },
+    { name: "Audit Log", path: "/audit-log", icon: History },
   ];
 
   const hasPermission = (menuName: string) => {
@@ -111,19 +111,18 @@ export function Layout() {
     return actions?.some(a => a.toLowerCase() === "view") || false;
   };
 
-  const filteredNavigation = navigation.map(item => {
-    if (item.submenu) {
-      const filteredSub = item.submenu.filter(sub => hasPermission(sub.name));
-      return { ...item, submenu: filteredSub };
-    }
-    return item;
-  }).filter(item => {
-    // If it's a top-level menu with submenus, hide if all submenus are hidden AND user lacks top-level permission
-    if (item.submenu) return item.submenu.length > 0 || hasPermission(item.name);
-    
-    // Check top-level permission
-    return hasPermission(item.name);
-  });
+  const filteredNavigation = navigation
+    .map((item) => {
+      if (item.submenu) {
+        const filteredSub = item.submenu.filter((sub) => hasPermission(sub.name));
+        return { ...item, submenu: filteredSub };
+      }
+      return item;
+    })
+    .filter((item) => {
+      if (item.submenu) return item.submenu.length > 0 || hasPermission(item.name);
+      return hasPermission(item.name);
+    });
 
   const toggleMenu = (menuName: string) => {
     setExpandedMenus(prev => 

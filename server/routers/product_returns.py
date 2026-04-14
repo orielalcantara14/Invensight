@@ -3,6 +3,7 @@ from database import get_connection
 from models import CreateProductReturnRequest
 import psycopg2.extras
 from datetime import date, datetime
+from typing import Optional
 import logging
 
 logger = logging.getLogger("invensight.product_returns")
@@ -19,12 +20,11 @@ def _serialize_datetime_fields(row: dict) -> dict:
 
 
 @router.get("/")
-def get_product_returns():
+def get_product_returns(start_date: Optional[str] = None, end_date: Optional[str] = None):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
+            query = """
                 SELECT
                     pr.return_id,
                     pr.supplier_id,
@@ -39,6 +39,16 @@ def get_product_returns():
                 LEFT JOIN product_return_items pri ON pri.return_id = pr.return_id
                 LEFT JOIN supplier s ON pr.supplier_id = s.supplier_id
                 WHERE pr.status != 'Archived'
+            """
+            params = []
+            if start_date:
+                query += " AND pr.created_at >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND pr.created_at <= %s::timestamp + interval '1 day' - interval '1 second'"
+                params.append(end_date)
+            
+            query += """
                 GROUP BY
                     pr.return_id,
                     pr.supplier_id,
@@ -49,8 +59,9 @@ def get_product_returns():
                     pr.rejected_at,
                     pr.reason
                 ORDER BY pr.created_at DESC
-                """
-            )
+            """
+            
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
             return [_serialize_datetime_fields(dict(row)) for row in rows]
     except Exception as e:

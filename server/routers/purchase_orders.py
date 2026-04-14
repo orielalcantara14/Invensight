@@ -5,6 +5,7 @@ import psycopg2.extras
 from utils.audit import add_audit_log
 from routers.notifications import dispatch_notification
 from datetime import date, datetime, timedelta
+from typing import Optional
 import random
 import string
 
@@ -50,11 +51,11 @@ def _generate_order_id():
 
 
 @router.get("/", response_model=list)
-def get_purchase_orders():
+def get_purchase_orders(start_date: Optional[str] = None, end_date: Optional[str] = None):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
+            query = """
                 SELECT 
                     po.order_id,
                     po.supplier_id,
@@ -69,8 +70,18 @@ def get_purchase_orders():
                 FROM purchase_orders po
                 LEFT JOIN supplier s ON po.supplier_id = s.supplier_id
                 WHERE po.status != 'Archived'
-                ORDER BY po.created_at DESC
-            """)
+            """
+            params = []
+            if start_date:
+                query += " AND po.created_at >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND po.created_at <= %s::timestamp + interval '1 day' - interval '1 second'"
+                params.append(end_date)
+                
+            query += " ORDER BY po.created_at DESC"
+            
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
             result = []
             for row in rows:
@@ -328,7 +339,10 @@ def mark_order_as_received(
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT order_id, supplier_id, status FROM purchase_orders WHERE order_id = %s
+                SELECT po.order_id, po.supplier_id, s.supplier_name, po.status 
+                FROM purchase_orders po
+                JOIN supplier s ON po.supplier_id = s.supplier_id
+                WHERE po.order_id = %s
             """, (order_id,))
             order_row = cur.fetchone()
             if not order_row:

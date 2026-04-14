@@ -64,7 +64,8 @@ export function Sales() {
   }, []);
 
   useEffect(() => {
-    api.getSales()
+    setLoading(true);
+    api.getSales(dateFrom || undefined, dateTo || undefined)
       .then((res) => {
         setSalesRecords(res.sales);
       })
@@ -72,7 +73,7 @@ export function Sales() {
         console.error("Failed to fetch sales:", err);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     fetchSalesStats(view);

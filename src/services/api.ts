@@ -348,6 +348,8 @@ export interface LoginResult {
   role: string;
   email?: string | null;
   permissions?: Record<string, string[]>;
+  mfa_required?: boolean;
+  must_change_password?: boolean;
 }
 
 export interface Profile {
@@ -529,7 +531,13 @@ export const api = {
   deletePosProduct: (posId: number) => request<{ ok: boolean }>(`/api/pos-products/${posId}`, { method: "DELETE" }),
 
   createSale: (payload: CreateSalePayload) => request<SaleResult>("/api/sales", { method: "POST", body: JSON.stringify(payload) }),
-  getSales: () => request<{ sales: any[] }>("/api/sales"),
+  getSales: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString();
+    return request<{ sales: any[] }>(`/api/sales${query ? `?${query}` : ""}`);
+  },
   getSale: (invoiceId: number) => request<any>(`/api/sales/${invoiceId}`),
 
   getUsers: () => request<ApiUser[]>("/api/users"),
@@ -558,7 +566,13 @@ export const api = {
   addInventoryDiscrepancy: (inventoryId: number, payload: InventoryDiscrepancyPayload) => request<{ ok: boolean }>(`/api/inventory/${inventoryId}/discrepancy/`, { method: "POST", body: JSON.stringify(payload) }),
   deleteInventoryItem: (inventoryId: number) => request<{ message: string }>(`/api/inventory/${inventoryId}/`, { method: "DELETE" }),
 
-  getPurchaseOrders: () => request<any[]>("/api/purchase-orders/"),
+  getPurchaseOrders: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString();
+    return request<any[]>(`/api/purchase-orders/${query ? `?${query}` : ""}`);
+  },
   getPurchaseOrder: (orderId: string) => request<any>(`/api/purchase-orders/${orderId}`),
   getUpcomingDeliveries: () => request<{ deliveries: any[]; count: number }>("/api/purchase-orders/upcoming-deliveries"),
   createPurchaseOrder: (payload: any) => request<any>("/api/purchase-orders/", { method: "POST", body: JSON.stringify(payload) }),
@@ -566,7 +580,14 @@ export const api = {
   deletePurchaseOrder: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, { method: "DELETE" }),
   archivePurchaseOrder: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/archive`, { method: "PUT" }),
 
-  getProductReturns: () => request<ProductReturn[]>("/api/product-returns/"),
+  getProductReturns: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString();
+    return request<ProductReturn[]>(`/api/product-returns/${query ? `?${query}` : ""}`);
+  },
+  getProductReturn: (returnId: number) => request<ProductReturn>(`/api/product-returns/${returnId}`),
   createProductReturn: (payload: CreateProductReturnPayload) => request<{ ok: boolean; return_id: number }>("/api/product-returns/", { method: "POST", body: JSON.stringify(payload) }),
   approveProductReturn: (returnId: number) => request<{ ok: boolean }>(`/api/product-returns/${returnId}/approve`, { method: "PUT" }),
   rejectProductReturn: (returnId: number) => request<{ ok: boolean }>(`/api/product-returns/${returnId}/reject`, { method: "PUT" }),
@@ -603,13 +624,23 @@ export const api = {
   permanentDeleteProductReturn: (returnId: number) => request<{ ok: boolean }>(`/api/archive/product-returns/${returnId}/permanent`, { method: "DELETE" }),
 
   login: (payload: LoginPayload) => request<LoginResult>("/api/login", { method: "POST", body: JSON.stringify(payload) }),
+  verifyOTP: (payload: { user_id: number; otp: string }) => request<LoginResult>("/api/verify-otp", { method: "POST", body: JSON.stringify(payload) }),
+  changePassword: (payload: { current_password?: string; new_password: string }, userId: number) => 
+    requestWithUser<{ ok: boolean }>(userId, "/api/change-password", { method: "POST", body: JSON.stringify(payload) }),
+  forgotPassword: (email: string) => request<{ ok: boolean; user_id?: number; username?: string; otp?: string }>("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (payload: any) => request<{ ok: boolean }>("/api/reset-password", { method: "POST", body: JSON.stringify(payload) }),
   verifySession: (userId: number) => requestWithUser<{ ok: boolean; user: any }>(userId, "/api/auth/verify"),
   getProfile: (userId: number) => requestWithUser<Profile>(userId, "/api/profile"),
   updateProfile: (userId: number, payload: ProfileUpdatePayload) => requestWithUser<Profile>(userId, "/api/profile", { method: "PATCH", body: JSON.stringify(payload) }),
-  changePassword: (userId: number, payload: any) => requestWithUser<{ ok: boolean }>(userId, "/api/profile/change-password", { method: "POST", body: JSON.stringify(payload) }),
   getProfileActivity: (userId: number, limit = 10) => requestWithUser<ProfileActivityItem[]>(userId, `/api/profile/activity?limit=${limit}`),
 
-  getCustomerReturns: () => request<CustomerReturn[]>("/api/customer-returns/"),
+  getCustomerReturns: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const query = params.toString();
+    return request<CustomerReturn[]>(`/api/customer-returns/${query ? `?${query}` : ""}`);
+  },
   getCustomerReturnBySaleId: (saleId: number) => request<CustomerReturn>(`/api/customer-returns/sale/${saleId}`),
   createCustomerReturn: (payload: CreateCustomerReturnPayload) => request<{ ok: boolean; rma_number: string }>("/api/customer-returns/", { method: "POST", body: JSON.stringify(payload) }),
   markCustomerReturnToSupplier: (returnId: number) => request<{ ok: boolean }>(`/api/customer-returns/${returnId}/to-supplier`, { method: "PUT" }),
@@ -702,6 +733,14 @@ export interface OrdersReturnsReportData {
     customer_name: string;
     return_type: string;
     reason: string;
+  }>;
+  supplier_returns?: Array<{
+    return_id: number;
+    supplier_name: string;
+    status: string;
+    created_at: string;
+    reason: string;
+    total_quantity: number;
   }>;
 }
 

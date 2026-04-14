@@ -369,16 +369,23 @@ def create_user(
             cur.execute("SELECT COALESCE(MAX(employee_id), 0) AS n FROM users")
             next_eid = cur.fetchone()["n"] + 1
             perms_json = json.dumps(requested_permissions_for_storage)
+            email_val = (body.email or "").strip().lower() or None
+            if email_val:
+                cur.execute("SELECT 1 FROM users WHERE LOWER(email) = %s", (email_val,))
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail="Email already in use")
+
+            # Use the temporary password as generated and shown by the frontend
             pwd_hash = _hash_password(body.password)
-            email_val = (body.email or "").strip() or None
 
             cur.execute(
                 """
                 INSERT INTO users (
                     user_id, employee_id, password_hash, full_name, role,
-                    is_active, created_date, last_login, username, permissions_json, email
+                    is_active, created_date, last_login, username, permissions_json, email,
+                    must_change_password
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL, %s, %s::jsonb, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL, %s, %s::jsonb, %s, TRUE)
                 RETURNING user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                 """,
                 (
@@ -500,6 +507,12 @@ def update_user(
             )
             if cur.fetchone():
                 raise HTTPException(status_code=409, detail="Username already taken")
+
+            email_val = (body.email or "").strip().lower() or None
+            if email_val:
+                cur.execute("SELECT 1 FROM users WHERE LOWER(email) = %s AND user_id <> %s", (email_val, user_id))
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail="Email already in use")
 
             cur.execute(
                 "SELECT 1 FROM roles WHERE user_id IS NULL AND LOWER(role_name) = LOWER(%s)",

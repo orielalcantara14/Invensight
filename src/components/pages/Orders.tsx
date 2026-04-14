@@ -1,4 +1,5 @@
 import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archive, Download } from "lucide-react";
+import { exportToExcel } from "@/utils/export";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/services/api";
@@ -47,6 +48,9 @@ export function Orders() {
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; displayId: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const [newOrder, setNewOrder] = useState({
     supplier_id: 0,
@@ -57,13 +61,13 @@ export function Orders() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const [ordersRes, suppliersRes, productsRes, returnsRes] = await Promise.all([
-        api.getPurchaseOrders(),
+        api.getPurchaseOrders(dateFrom || undefined, dateTo || undefined),
         api.getSuppliers(),
         api.getProducts(),
         api.getCustomerReturns(),
@@ -84,6 +88,10 @@ export function Orders() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [dateFrom, dateTo]);
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -261,6 +269,32 @@ export function Orders() {
     }
   };
 
+  const handleExport = () => {
+    if (orders.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    setExporting(true);
+    try {
+      const data = filteredOrders.map((o) => ({
+        "Order ID": formatOrderId(o.order_id),
+        "Supplier": o.supplier_name,
+        "Status": o.status,
+        "Created At": o.created_at ? new Date(o.created_at).toLocaleString() : "N/A",
+        "Expected Delivery": o.expected_delivery || "N/A",
+        "Total Items": o.total_items,
+        "Notes": o.notes || "N/A",
+      }));
+      exportToExcel(data, `Purchase_Orders_${new Date().toISOString().split('T')[0]}`);
+      toast.success("Data exported to Excel");
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Failed to export data");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Pending":
@@ -388,8 +422,33 @@ export function Orders() {
       {activeTab === "orders" && (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">All Orders</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+                />
+              </div>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? "Exporting..." : "Export"}
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />

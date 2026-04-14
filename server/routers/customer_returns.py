@@ -3,6 +3,7 @@ from database import get_connection
 from models import CreateCustomerReturnRequest, CustomerReturnResponse, CustomerReturnItemResponse
 import psycopg2.extras
 from datetime import date, datetime
+from typing import Optional
 import logging
 from utils.audit import add_audit_log
 
@@ -15,17 +16,28 @@ def _serialize_date_fields(row: dict) -> dict:
     return row
 
 @router.get("/", response_model=list[CustomerReturnResponse])
-def get_customer_returns():
+def get_customer_returns(start_date: Optional[str] = None, end_date: Optional[str] = None):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
+            query = """
                 SELECT 
                     cr.return_id, cr.rma_number, cr.sale_id, cr.customer_name, 
                     cr.contact_number, cr.return_date, cr.return_type, cr.status, cr.reason
                 FROM customer_returns cr
-                ORDER BY cr.created_at DESC
-            """)
+                WHERE 1=1
+            """
+            params = []
+            if start_date:
+                query += " AND cr.created_at >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND cr.created_at <= %s::timestamp + interval '1 day' - interval '1 second'"
+                params.append(end_date)
+                
+            query += " ORDER BY cr.created_at DESC"
+            
+            cur.execute(query, tuple(params))
             returns = cur.fetchall()
             
             results = []

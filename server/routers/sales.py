@@ -3,6 +3,7 @@ from database import get_connection
 from models import CreateSaleRequest
 import psycopg2.extras
 from datetime import datetime, date
+from typing import Optional
 import json
 import base64
 import urllib.request
@@ -131,11 +132,11 @@ def verify_paymongo_payment_intent(payment_intent_id: str) -> dict:
 
 
 @router.get("/sales")
-def get_sales():
+def get_sales(start_date: Optional[str] = None, end_date: Optional[str] = None):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
+            query = """
                 SELECT
                     s.invoice_id,
                     s.invoice_date,
@@ -163,8 +164,19 @@ def get_sales():
                         ), '[]'
                     ) as items
                 FROM sales s
-                ORDER BY s.invoice_id DESC
-            """)
+                WHERE 1=1
+            """
+            params = []
+            if start_date:
+                query += " AND s.invoice_date >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND s.invoice_date <= %s"
+                params.append(end_date)
+            
+            query += " ORDER BY s.invoice_id DESC"
+            
+            cur.execute(query, tuple(params))
             sales = cur.fetchall()
             result = []
             for sale in sales:
