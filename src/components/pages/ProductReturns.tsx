@@ -1,5 +1,6 @@
 import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive, Trash2, Download } from "lucide-react";
 import { exportToExcel } from "@/utils/export";
+import { ExportPreviewModal } from "@/components/modals/ExportPreviewModal";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
@@ -28,6 +29,7 @@ export function ProductReturns() {
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; displayId: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [newReturn, setNewReturn] = useState<{
     supplier_id: number;
@@ -204,31 +206,7 @@ export function ProductReturns() {
     }
   };
 
-  const handleExport = () => {
-    if (returns.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
-    setExporting(true);
-    try {
-      const { exportToExcel } = require("@/utils/export");
-      const data = returns.map((r) => ({
-        "Return ID": formatReturnId(r.return_id),
-        "Supplier": r.supplier_name || "N/A",
-        "Status": r.status,
-        "Created At": r.created_at ? new Date(r.created_at).toLocaleString() : "N/A",
-        "Reason": r.reason || "N/A",
-        "Total Quantity": r.total_quantity,
-      }));
-      exportToExcel(data, `Supplier_Returns_${new Date().toISOString().split('T')[0]}`);
-      toast.success("Data exported to Excel");
-    } catch (err) {
-      console.error("Export failed:", err);
-      toast.error("Failed to export data");
-    } finally {
-      setExporting(false);
-    }
-  };
+
 
   return (
     <div>
@@ -254,12 +232,11 @@ export function ProductReturns() {
             />
           </div>
           <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             <Download className="w-4 h-4" />
-            {exporting ? "Exporting..." : "Export"}
+            Export Supplier Returns
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -280,6 +257,9 @@ export function ProductReturns() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Return ID
                 </th>
@@ -318,7 +298,10 @@ export function ProductReturns() {
                 </tr>
               ) : (
                 paginatedReturns.map((r) => (
-                  <tr key={r.return_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={r.return_id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {formatReturnId(r.return_id)}
                     </td>
@@ -709,6 +692,22 @@ export function ProductReturns() {
           </div>
         </div>
       )}
+      {/* Export Preview Modal */}
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Supplier Returns"
+        filename={`InvenSight_SupplierReturns_${new Date().toISOString().split('T')[0]}`}
+        data={returns.map(r => ({
+          id: r.return_id,
+          "Return ID": formatReturnId(r.return_id),
+          "Supplier": r.supplier_name || "N/A",
+          "Status": r.status,
+          "Created At": r.created_at, // Field for date filtering
+          "Reason": r.reason || "N/A",
+          "Total Quantity": r.total_quantity
+        }))}
+      />
     </div>
   );
 }

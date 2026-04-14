@@ -8,7 +8,7 @@ interface EditSupplierModalProps {
   onClose: () => void;
   onSuccess: () => void;
   supplier: Supplier | null;
-  existingSuppliers: Supplier[];
+  existingSuppliers?: Supplier[];
 }
 
 export function EditSupplierModal({
@@ -55,7 +55,7 @@ export function EditSupplierModal({
       toast.error("Supplier name is required");
       return;
     }
-    const isDuplicate = existingSuppliers.some(
+    const isDuplicate = existingSuppliers?.some(
       (s) => s.supplier_id !== supplier.supplier_id && 
              s.supplier_name.toLowerCase() === formData.supplier_name.toLowerCase()
     );

@@ -1,5 +1,6 @@
 import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archive, Download } from "lucide-react";
 import { exportToExcel } from "@/utils/export";
+import { ExportPreviewModal } from "@/components/modals/ExportPreviewModal";
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/services/api";
@@ -50,7 +51,7 @@ export function Orders() {
   const [archiving, setArchiving] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [exporting, setExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [newOrder, setNewOrder] = useState({
     supplier_id: 0,
@@ -270,29 +271,7 @@ export function Orders() {
   };
 
   const handleExport = () => {
-    if (orders.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
-    setExporting(true);
-    try {
-      const data = filteredOrders.map((o) => ({
-        "Order ID": formatOrderId(o.order_id),
-        "Supplier": o.supplier_name,
-        "Status": o.status,
-        "Created At": o.created_at ? new Date(o.created_at).toLocaleString() : "N/A",
-        "Expected Delivery": o.expected_delivery || "N/A",
-        "Total Items": o.total_items,
-        "Notes": o.notes || "N/A",
-      }));
-      exportToExcel(data, `Purchase_Orders_${new Date().toISOString().split('T')[0]}`);
-      toast.success("Data exported to Excel");
-    } catch (err) {
-      console.error("Export failed:", err);
-      toast.error("Failed to export data");
-    } finally {
-      setExporting(false);
-    }
+    setIsExportModalOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -442,11 +421,10 @@ export function Orders() {
               </div>
               <button
                 onClick={handleExport}
-                disabled={exporting}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" />
-                {exporting ? "Exporting..." : "Export"}
+                Export Orders
               </button>
             </div>
           </div>
@@ -469,6 +447,9 @@ export function Orders() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Order ID
                 </th>
@@ -509,7 +490,10 @@ export function Orders() {
                 </tr>
               ) : (
                 paginatedOrders.map((order) => (
-                  <tr key={order.order_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={order.order_id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {formatOrderId(order.order_id)}
                     </td>
@@ -791,7 +775,7 @@ export function Orders() {
                   Order Items
                 </label>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                  <table className="w-full">
+                  <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -894,12 +878,30 @@ export function Orders() {
                     <Archive className="w-4 h-4" />
                     Archive Order
                   </>
-                )}
-              </button>
+                )}               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Export Preview Modal */}
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Orders"
+        filename={`InvenSight_Orders_${new Date().toISOString().split('T')[0]}`}
+        data={orders.map(o => ({
+          id: o.order_id,
+          "Order ID": formatOrderId(o.order_id),
+          "Supplier": o.supplier_name,
+          "Status": o.status,
+          "Created At": o.created_at, // Field for date filtering
+          "Expected Delivery": o.expected_delivery || "-",
+          "Total Items": o.total_items,
+          "Notes": o.notes || "-"
+        }))}
+      />
     </div>
   );
 }
+

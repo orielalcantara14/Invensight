@@ -16,7 +16,11 @@ def _serialize_date_fields(row: dict) -> dict:
     return row
 
 @router.get("/", response_model=list[CustomerReturnResponse])
-def get_customer_returns(start_date: Optional[str] = None, end_date: Optional[str] = None):
+def get_customer_returns(
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None,
+    status: Optional[str] = None
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -34,6 +38,13 @@ def get_customer_returns(start_date: Optional[str] = None, end_date: Optional[st
             if end_date:
                 query += " AND cr.created_at <= %s::timestamp + interval '1 day' - interval '1 second'"
                 params.append(end_date)
+            
+            # Filter by status if provided, else exclude archived/deleted
+            if status:
+                query += " AND cr.status = %s"
+                params.append(status)
+            else:
+                query += " AND cr.status NOT IN ('Archived', 'Deleted')"
                 
             query += " ORDER BY cr.created_at DESC"
             
@@ -291,6 +302,77 @@ def mark_as_returned_to_supplier(
     except Exception as e:
         conn.rollback()
         logger.error("Error marking as returned to supplier: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.put("/{return_id}/archive")
+def archive_customer_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE customer_returns SET status = 'Archived' WHERE return_id = %s RETURNING return_id", (return_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Return not found")
+            
+            if x_actor_user_id:
+                add_audit_log(cur, int(x_actor_user_id), "ARCHIVE_CUSTOMER_RETURN", "customer_returns", return_id, f"Archived customer return ID {return_id}")
+                
+            conn.commit()
+            return {"ok": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.put("/{return_id}/move-to-trash")
+def move_customer_return_to_trash(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE customer_returns SET status = 'Deleted' WHERE return_id = %s RETURNING return_id", (return_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Return not found")
+            
+            if x_actor_user_id:
+                add_audit_log(cur, int(x_actor_user_id), "TRASH_CUSTOMER_RETURN", "customer_returns", return_id, f"Moved customer return ID {return_id} to trash")
+                
+            conn.commit()
+            return {"ok": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.put("/{return_id}/restore")
+def restore_customer_return(
+    return_id: int,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Restore to Pending or Approved based on data? Usually just 'Pending' is safe or keep old status. 
+            # For simplicity, we restore to 'Pending'.
+            cur.execute("UPDATE customer_returns SET status = 'Pending' WHERE return_id = %s AND (status = 'Archived' OR status = 'Deleted') RETURNING return_id", (return_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Archived/Deleted return not found")
+            
+            if x_actor_user_id:
+                add_audit_log(cur, int(x_actor_user_id), "RESTORE_CUSTOMER_RETURN", "customer_returns", return_id, f"Restored customer return ID {return_id}")
+                
+            conn.commit()
+            return {"ok": True}
+    except Exception as e:
+        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

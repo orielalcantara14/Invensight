@@ -326,8 +326,8 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 overflow-y-auto backdrop-blur-sm print:bg-white print:p-0 p-4 flex justify-center">
-      <div className="bg-white w-full max-w-[210mm] min-h-[297mm] shadow-2xl relative my-8 print:my-0 print:shadow-none flex flex-col rounded-xl overflow-hidden min-w-[800px]">
+    <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm print:bg-white print:p-0 p-4 flex justify-center items-center">
+      <div className="bg-white w-full max-w-[1000px] max-h-[90vh] shadow-2xl relative print:my-0 print:shadow-none flex flex-col rounded-xl overflow-hidden min-w-[300px]">
         {/* Report Controls (Hidden during print) */}
         <div className="bg-gray-900 text-white px-8 py-4 flex justify-between items-center sticky top-0 z-[60] print:hidden">
           <div className="flex items-center gap-4">
@@ -353,7 +353,7 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
         </div>
 
         {/* The Printable Document */}
-        <div className="flex-1 p-[20mm] bg-white text-gray-900 print:text-black">
+        <div className="flex-1 p-[20mm] bg-white text-gray-900 print:text-black overflow-y-auto">
           {/* Header */}
           <header className="flex justify-between items-start border-b-4 border-gray-900 pb-6 mb-8">
             <div className="flex items-center gap-6">

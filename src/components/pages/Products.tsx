@@ -9,6 +9,7 @@ import { AddProductModal } from "../modals/AddProductModal";
 import { EditProductModal } from "../modals/EditProductModal";
 import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import { exportToExcel } from "@/utils/export";
 
 export function Products() {
@@ -33,6 +34,7 @@ export function Products() {
   const [deleteCategoryModalOpen, setDeleteCategoryModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -284,13 +286,13 @@ export function Products() {
                 ))}
               </select>
               <ProtectedAction module="Products" action="Export">
-                <button 
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all shadow-sm"
-                >
-                  <Download className="w-4 h-4 text-gray-500" />
-                  Export
-                </button>
+                  <button 
+                    onClick={() => setIsExportModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-all shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Products
+                  </button>
               </ProtectedAction>
             </div>
           </div>
@@ -310,6 +312,9 @@ export function Products() {
           <table className="w-full min-w-[1500px]">
             <thead>
               <tr className="bg-gray-50/50">
+                <th className="px-6 py-4 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="min-w-[320px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
                 <th className="w-[130px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SKU</th>
                 <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Category</th>
@@ -329,7 +334,7 @@ export function Products() {
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-16 text-center">
+                  <td colSpan={11} className="px-6 py-16 text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Package className="w-8 h-8 text-gray-200" />
                     </div>
@@ -340,6 +345,9 @@ export function Products() {
               ) : (
                 paginatedProducts.map((product) => (
                   <tr key={product.pos_id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td
                       className="px-6 py-4 max-w-[320px] truncate text-sm font-bold text-gray-900"
                       title={product.product_name}
@@ -475,6 +483,24 @@ export function Products() {
         message="Are you sure you want to delete this category? It will only delete if no products are using it."
         itemName={categoryToDelete?.name}
         isDeleting={isDeletingCategory}
+      />
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Products"
+        filename={`InvenSight_Products_${new Date().toISOString().split('T')[0]}`}
+        data={products.map(p => ({
+          id: p.pos_id,
+          "Product": p.product_name,
+          "SKU": p.sku,
+          "Category": p.category,
+          "Specific Category": p.specific_category || "-",
+          "Unit Price": p.unit_price,
+          "POS Price": p.pos_price,
+          "Stock": p.stock,
+          "Date Added": p.date_added // Field for date filtering
+        }))}
       />
     </div>
   );

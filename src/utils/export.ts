@@ -12,14 +12,21 @@ export function exportToExcel(data: any[], filename: string) {
   }
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(data);
+  
+  // Create a clean copy without 'id' fields for the actual file
+  const cleanData = data.map(item => {
+    const { id, ...rest } = item;
+    return rest;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(cleanData);
   
   // Auto-size columns roughly based on content
   const colWidths = [];
-  const keys = Object.keys(data[0]);
+  const keys = cleanData.length > 0 ? Object.keys(cleanData[0]) : [];
   for (const key of keys) {
     let max = key.length;
-    for (const row of data) {
+    for (const row of cleanData) {
       const val = row[key] !== null && row[key] !== undefined ? String(row[key]) : "";
       if (val.length > max) max = val.length;
     }

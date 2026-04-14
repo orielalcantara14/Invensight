@@ -8,6 +8,7 @@ import { InventoryTraceModal } from "../modals/InventoryTraceModal";
 import { DeleteConfirmationModal } from "../modals/DeleteConfirmationModal";
 import { toast } from "sonner";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import { exportToExcel } from "@/utils/export";
 
 export function Inventory() {
@@ -25,6 +26,7 @@ export function Inventory() {
   const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmationMode, setConfirmationMode] = useState<"archive" | "trash">("archive");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   const [searchParams] = useSearchParams();
 
@@ -255,11 +257,11 @@ export function Inventory() {
               </select>
               <ProtectedAction module="Inventory" action="Export">
                 <button 
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Export
+                  Export Inventory
                 </button>
               </ProtectedAction>
             </div>
@@ -279,6 +281,9 @@ export function Inventory() {
           <table className="w-full">
             <thead className="bg-[#F8F9FA] dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
+                <th className="px-6 py-4 text-left">
+                  {/* Removed checkbox for export */}
+                </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Product Name
                 </th>
@@ -339,7 +344,15 @@ export function Inventory() {
                 </tr>
               ) : (
                 paginatedItems.map((item) => (
-                  <tr key={item.inventory_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                  <tr 
+                    key={item.inventory_id} 
+                    className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Empty cell for layout consistency if needed, but we can just remove it */}
+                    </td>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       <div className="max-w-[260px] truncate" title={item.product_name}>
                         {item.product_name}
@@ -483,6 +496,25 @@ export function Inventory() {
         }
         itemName={itemToDelete?.name}
         isDeleting={isDeleting}
+      />
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Inventory"
+        filename={`InvenSight_Inventory_${new Date().toISOString().split('T')[0]}`}
+        data={items.map(i => ({
+          id: i.inventory_id,
+          "Product": i.product_name,
+          "SKU": i.sku,
+          "Supplier": i.supplier_name || "-",
+          "Category": i.category_name,
+          "Cost": i.unit_price,
+          "Qty": i.quantity,
+          "Actual": i.actual,
+          "Status": i.status,
+          "Last Updated": i.last_updated // Using available last_updated field
+        }))}
       />
     </div>
   );

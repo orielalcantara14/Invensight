@@ -8,6 +8,7 @@ import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
 import { ProcessReturnModal } from "@/components/modals/ProcessReturnModal";
 import { ReturnReceiptModal } from "@/components/modals/ReturnReceiptModal";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import { exportToExcel } from "@/utils/export";
 import { toast } from "sonner";
 type ViewMode = "daily" | "monthly" | "annual";
@@ -37,6 +38,7 @@ export function Sales() {
   const [chartLoading, setChartLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -436,11 +438,11 @@ export function Sales() {
                 <option value="Exchanged">Exchanged</option>
               </select>
               <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => setIsExportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" />
-                Export
+                Export Sales
               </button>
             </div>
           </div>
@@ -459,6 +461,9 @@ export function Sales() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
@@ -499,7 +504,10 @@ export function Sales() {
                 </tr>
               ) : (
                 paginatedRecords.map((record) => (
-                  <tr key={record.invoice_id} className="hover:bg-gray-50">
+                  <tr key={record.invoice_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(record.invoice_date).toLocaleDateString()}
                     </td>
@@ -593,6 +601,22 @@ export function Sales() {
         onClose={() => setReturnInvoice(null)}
         invoice={returnInvoice}
         onSuccess={handleReturnSuccess}
+      />
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Sales Transactions"
+        filename={`InvenSight_Sales_${new Date().toISOString().split('T')[0]}`}
+        data={salesRecords.map(r => ({
+          id: r.invoice_id,
+          "Invoice": `INV-${String(r.invoice_id).padStart(6, "0")}`,
+          "Invoice Date": r.invoice_date, // Field for date filtering
+          "Customer": r.customer_info,
+          "Total": r.total_amount,
+          "Paid Via": r.payment_method,
+          "Status": r.payment_status
+        }))}
       />
     </div>
   );

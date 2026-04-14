@@ -7,7 +7,7 @@ interface AddSupplierModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  existingSuppliers: Supplier[];
+  existingSuppliers?: Supplier[];
 }
 
 export function AddSupplierModal({
@@ -40,7 +40,7 @@ export function AddSupplierModal({
       toast.error("Supplier name is required");
       return;
     }
-    const isDuplicate = existingSuppliers.some(
+    const isDuplicate = existingSuppliers?.some(
       (s) => s.supplier_name.toLowerCase() === formData.supplier_name.toLowerCase()
     );
     if (isDuplicate) {

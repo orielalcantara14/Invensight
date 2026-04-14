@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/services/api";
 import { ProtectedAction } from "../ProtectedAction";
-import type { Supplier } from "@/types";
+import { Supplier } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { AddSupplierModal } from "@/components/modals/AddSupplierModal";
 import { EditSupplierModal } from "@/components/modals/EditSupplierModal";
 import { toast } from "sonner";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import { exportToExcel } from "@/utils/export";
 import { SupplierDetailsModal } from "@/components/modals/SupplierDetailsModal";
 
@@ -22,6 +23,7 @@ export function Suppliers() {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const fetchSuppliers = async () => {
     setIsLoading(true);
@@ -201,11 +203,11 @@ export function Suppliers() {
               </div>
               <ProtectedAction module="Suppliers" action="Export">
                 <button
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Export
+                  Export Suppliers
                 </button>
               </ProtectedAction>
             </div>
@@ -216,6 +218,9 @@ export function Suppliers() {
           <table className="w-full">
             <thead className="bg-[#F8F9FA] border-b border-gray-200 dark:bg-gray-900/50 dark:border-gray-700">
               <tr>
+                <th className="px-6 py-4 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Supplier Name
                 </th>
@@ -241,7 +246,7 @@ export function Suppliers() {
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 font-medium">No suppliers found</p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add your first supplier to get started</p>
@@ -250,6 +255,9 @@ export function Suppliers() {
               ) : (
                 paginatedSuppliers.map((supplier) => (
                   <tr key={supplier.supplier_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {supplier.supplier_name}
@@ -314,7 +322,6 @@ export function Suppliers() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={fetchSuppliers}
-        existingSuppliers={suppliers}
       />
 
       <EditSupplierModal
@@ -322,7 +329,6 @@ export function Suppliers() {
         onClose={() => setEditingSupplier(null)}
         onSuccess={fetchSuppliers}
         supplier={editingSupplier}
-        existingSuppliers={suppliers}
       />
 
       <SupplierDetailsModal
@@ -380,6 +386,23 @@ export function Suppliers() {
           </div>
         </div>
       )}
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Suppliers"
+        filename={`InvenSight_Suppliers_${new Date().toISOString().split('T')[0]}`}
+        data={suppliers.map(s => ({
+          id: s.supplier_id,
+          "Name": s.supplier_name,
+          "Address": s.address || "-",
+          "Email": s.email || "-",
+          "Contact": s.contact_number || "-",
+          "Products Supplied": s.product_supplied || "-",
+          "Total Orders": s.total_orders || 0,
+          "Status": s.status || "Active"
+        }))}
+      />
     </div>
   );
 }

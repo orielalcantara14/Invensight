@@ -1,4 +1,5 @@
 import { Search, Eye, Package, X, RotateCcw, Truck, Download } from "lucide-react";
+import { ExportPreviewModal } from "@/components/modals/ExportPreviewModal";
 import { useEffect, useState } from "react";
 import { api, type CustomerReturn, type CustomerReturnItem } from "@/services/api";
 import { toast } from "sonner";
@@ -13,7 +14,7 @@ export function CustomerReturns() {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [exporting, setExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<CustomerReturn | null>(null);
@@ -67,30 +68,7 @@ export function CustomerReturns() {
   );
 
   const handleExport = () => {
-    if (returns.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
-    setExporting(true);
-    try {
-      const { exportToExcel } = require("@/utils/export");
-      const data = filteredReturns.map((r) => ({
-        "RMA Number": r.rma_number,
-        "Invoice": `INV-${String(r.sale_id).padStart(6, "0")}`,
-        "Customer": r.customer_name || "N/A",
-        "Return Date": new Date(r.return_date).toLocaleString(),
-        "Type": r.return_type,
-        "Status": r.status,
-        "Reason": r.reason || "N/A",
-      }));
-      exportToExcel(data, `Customer_Returns_${new Date().toISOString().split('T')[0]}`);
-      toast.success("Data exported to Excel");
-    } catch (err) {
-      console.error("Export failed:", err);
-      toast.error("Failed to export data");
-    } finally {
-      setExporting(false);
-    }
+    setIsExportModalOpen(true);
   };
 
   const totalPages = Math.max(1, Math.ceil(filteredReturns.length / itemsPerPage));
@@ -133,11 +111,10 @@ export function CustomerReturns() {
           </div>
           <button
             onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             <Download className="w-4 h-4" />
-            {exporting ? "Exporting..." : "Export"}
+            Export Customer Returns
           </button>
           <div className="relative w-64">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -156,6 +133,7 @@ export function CustomerReturns() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-medium">
             <tr>
+                {/* Header checkbox removed */}
               <th className="px-6 py-4 text-left">RMA Number</th>
               <th className="px-6 py-4 text-left">Invoice</th>
               <th className="px-6 py-4 text-left">Customer</th>
@@ -178,6 +156,9 @@ export function CustomerReturns() {
             ) : (
                 paginatedReturns.map((r) => (
                     <tr key={r.return_id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {/* Row selection handled in Export Wizard */}
+                      </td>
                       <td className="px-6 py-4 font-bold text-blue-600">{r.rma_number}</td>
                       <td className="px-6 py-4">
                         <button 
@@ -313,6 +294,24 @@ export function CustomerReturns() {
         onClose={() => setSelectedInvoice(null)}
         invoice={selectedInvoice}
         loading={loadingInvoice}
+      />
+
+      {/* Export Preview Modal */}
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Customer Returns"
+        filename={`InvenSight_CustomerReturns_${new Date().toISOString().split('T')[0]}`}
+        data={returns.map(r => ({
+          id: r.return_id,
+          "RMA Number": r.rma_number,
+          "Invoice": `INV-${String(r.sale_id).padStart(6, "0")}`,
+          "Customer": r.customer_name || "N/A",
+          "Return Date": r.return_date, // Field for date filtering
+          "Type": r.return_type,
+          "Status": r.status,
+          "Reason": r.reason || "N/A"
+        }))}
       />
     </div>
   );

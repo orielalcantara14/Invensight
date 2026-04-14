@@ -265,11 +265,19 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
                 customer_returns = cur.fetchall()
 
                 cur.execute("""
-                    SELECT pr.return_id, s.supplier_name, pr.status, pr.created_at, pr.reason, pr.total_quantity
+                    SELECT 
+                        pr.return_id, 
+                        s.supplier_name, 
+                        pr.status, 
+                        pr.created_at, 
+                        pr.reason, 
+                        COALESCE(SUM(pri.quantity), 0) AS total_quantity
                     FROM product_returns pr
                     JOIN supplier s ON pr.supplier_id = s.supplier_id
+                    LEFT JOIN product_return_items pri ON pr.return_id = pri.return_id
                     WHERE (%s IS NULL OR pr.status = %s)
                       AND (%s IS NULL OR pr.supplier_id = %s)
+                    GROUP BY pr.return_id, s.supplier_name, pr.status, pr.created_at, pr.reason
                     ORDER BY pr.created_at DESC
                     LIMIT 20
                 """, (payload.status, payload.status, payload.supplier_id, payload.supplier_id))

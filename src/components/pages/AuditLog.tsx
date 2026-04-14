@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { AuditLogEntry } from "@/services/api";
 import { api } from "@/services/api";
 import { getSession } from "@/auth/session";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import { exportToExcel } from "@/utils/export";
 
 export function AuditLog() {
@@ -16,6 +17,7 @@ export function AuditLog() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isClearing, setIsClearing] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const session = getSession();
 
   useEffect(() => {
@@ -185,11 +187,11 @@ export function AuditLog() {
                 <option value="Cashier">Cashier</option>
               </select>
               <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => setIsExportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" />
-                Export
+                Export Audit Log
               </button>
               {canClearLogs && (
                 <button 
@@ -217,6 +219,9 @@ export function AuditLog() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  {/* Header checkbox removed */}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Timestamp
                 </th>
@@ -249,7 +254,7 @@ export function AuditLog() {
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-gray-500 font-medium">No audit logs available</p>
                     <p className="text-sm text-gray-400 mt-1">System activities will be tracked here</p>
@@ -257,7 +262,10 @@ export function AuditLog() {
                 </tr>
               ) : (
                 paginatedLogs.map((log) => (
-                  <tr key={log.log_id} className="hover:bg-gray-50">
+                  <tr key={log.log_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {/* Row selection handled in Export Wizard */}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                       {new Date(log.timestamp).toLocaleString(undefined, {
                         year: 'numeric',
@@ -356,6 +364,23 @@ export function AuditLog() {
           </div>
         )}
       </div>
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Audit Log"
+        filename={`InvenSight_AuditLog_${new Date().toISOString().split('T')[0]}`}
+        data={auditLogs.map(log => ({
+          id: log.log_id,
+          "Timestamp": log.timestamp, // Field for date filtering
+          "User": log.username,
+          "Role": log.role || "System",
+          "Action": log.action,
+          "Entity Type": log.entity_type,
+          "Entity ID": log.entity_id || "-",
+          "Details": log.details || ""
+        }))}
+      />
     </div>
   );
 }

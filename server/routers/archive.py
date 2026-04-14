@@ -391,3 +391,57 @@ def permanent_delete_product_return(return_id: int):
             return {"ok": True}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
     finally: conn.close()
+
+# ──────────────────────── CUSTOMER RETURNS ───────────────────────────────────
+
+@router.get("/customer-returns")
+def get_archived_customer_returns(stage: str = Query("Archived")):
+    validate_stage(stage)
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT return_id, rma_number, sale_id, customer_name, return_type, status, reason, created_at
+                FROM customer_returns
+                WHERE status = %s
+                ORDER BY created_at DESC
+            """, (stage,))
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    finally: conn.close()
+
+@router.put("/customer-returns/{return_id}/move-to-trash")
+def move_customer_return_to_trash(return_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE customer_returns SET status = 'Deleted' WHERE return_id = %s AND status IN ('Active', 'Archived', 'Pending', 'Returned to Supplier') RETURNING return_id", (return_id,))
+            if not cur.fetchone(): raise HTTPException(status_code=404, detail="Active/Archived return not found")
+            conn.commit()
+            return {"ok": True}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    finally: conn.close()
+
+@router.put("/customer-returns/{return_id}/restore")
+def restore_customer_return(return_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE customer_returns SET status = 'Pending' WHERE return_id = %s AND (status = 'Archived' OR status = 'Deleted') RETURNING return_id", (return_id,))
+            if not cur.fetchone(): raise HTTPException(status_code=404, detail="Not found in Archive/Trash")
+            conn.commit()
+            return {"ok": True}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    finally: conn.close()
+
+@router.delete("/customer-returns/{return_id}/permanent")
+def permanent_delete_customer_return(return_id: int):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM customer_returns WHERE return_id = %s AND status = 'Deleted' RETURNING return_id", (return_id,))
+            if not cur.fetchone(): raise HTTPException(status_code=404, detail="Not found in Trash")
+            conn.commit()
+            return {"ok": True}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    finally: conn.close()

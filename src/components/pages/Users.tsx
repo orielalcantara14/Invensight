@@ -5,6 +5,7 @@ import { AddRoleModal } from "../modals/AddRoleModal";
 import { EditRoleModal } from "../modals/EditRoleModal";
 import { EditUserModal } from "../modals/EditUserModal";
 import { ViewRoleUsersModal } from "../modals/ViewRoleUsersModal";
+import { ExportPreviewModal } from "../modals/ExportPreviewModal";
 import type { User, Role } from "@/types";
 import { api, type ApiUser, type ApiRole, type UpdateUserPayload } from "@/services/api";
 import { getSession } from "@/auth/session";
@@ -64,6 +65,7 @@ export function Users() {
   const [savingEditRole, setSavingEditRole] = useState(false);
   const [pendingNewUser, setPendingNewUser] = useState<PendingNewUser | null>(null);
   const [savingPermissionsStep, setSavingPermissionsStep] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const session = getSession();
   const currentRole = (session?.role ?? "").trim().toLowerCase();
   const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadminnginamo";
@@ -356,10 +358,16 @@ export function Users() {
           <>
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
-                <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
+                  {/* Selection counter removed */}
+                </div>
+                <button 
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
                   <Download className="w-4 h-4" />
-                  Export
+                  Export Users
                 </button>
               </div>
               <div className="relative">
@@ -377,6 +385,9 @@ export function Users() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="px-6 py-3 text-left">
+                      {/* Header checkbox removed */}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       User ID
                     </th>
@@ -406,13 +417,13 @@ export function Users() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                         Loading users…
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center">
+                      <td colSpan={9} className="px-6 py-12 text-center">
                         <UsersIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">No users available</p>
                         <p className="text-sm text-gray-400 mt-1">Add users to manage system access</p>
@@ -421,6 +432,9 @@ export function Users() {
                   ) : (
                     filteredUsers.map((user) => (
                       <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {/* Row selection handled in Export Wizard */}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {user.username || "—"}
@@ -605,6 +619,23 @@ export function Users() {
         onClose={() => setViewUsersForRole(null)}
         roleName={viewUsersForRole?.name ?? ""}
         users={viewUsersForRole ? users.filter((u) => u.role === viewUsersForRole.name) : []}
+      />
+
+      <ExportPreviewModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Export Users"
+        filename={`InvenSight_Users_${new Date().toISOString().split('T')[0]}`}
+        data={users.map(u => ({
+          id: u.id,
+          "Employee ID": u.employeeId,
+          "Username": u.username,
+          "Full Name": u.fullName,
+          "Email": u.email,
+          "Role": u.role,
+          "Status": u.status,
+          "Last Login": u.lastLogin // Used for date filtering inside modal
+        }))}
       />
     </div>
   );
