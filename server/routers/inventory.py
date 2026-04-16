@@ -323,12 +323,16 @@ def update_inventory_item(
             
             # Application Logic based on Reason for Adjustment
             if payload.reason_adjustment == "Restock":
+                if new_quantity <= current_quantity:
+                    raise HTTPException(status_code=400, detail=f"Restock must increase the total quantity (Current: {current_quantity})")
                 # Editing quantity automatically updates actual and expected
                 new_actual = new_quantity
                 # Change in quantity is added to expected
                 qty_delta = new_quantity - current_quantity
                 new_expected = current_expected + qty_delta
             elif payload.reason_adjustment in ["Lost", "Damaged"]:
+                if new_actual >= current_actual:
+                    raise HTTPException(status_code=400, detail=f"{payload.reason_adjustment} must decrease the total quantity (Current: {current_actual})")
                 # Editing actual automatically updates quantity (expected remains same)
                 new_quantity = new_actual
             elif payload.reason_adjustment == "Correction":
@@ -344,8 +348,6 @@ def update_inventory_item(
                     reorder_level = %s, 
                     last_updated = %s,
                     reason_adjustment = %s,
-                    serial_start = %s,
-                    serial_end = %s,
                     expiry_date = %s
                 WHERE inventory_id = %s
                 """,
@@ -356,15 +358,47 @@ def update_inventory_item(
                     payload.reorder_level,
                     date.today(),
                     payload.reason_adjustment,
-                    payload.serial_start,
-                    payload.serial_end,
                     payload.expiry_date,
                     inventory_id
                 ),
             )
             
-            # Inventory reference removed from pos_management as table is dropped
-            
+            # 4. Log Stock Event for traceability
+            qty_delta = new_quantity - current_quantity
+            expected_delta = new_expected - current_expected
+            actual_delta = new_actual - current_actual
+
+            if qty_delta != 0 or expected_delta != 0 or actual_delta != 0:
+                event_type = "ADJUSTMENT"
+                if payload.reason_adjustment == "Restock":
+                    event_type = "RESTOCK"
+                elif payload.reason_adjustment in ["Lost", "Damaged"]:
+                    event_type = payload.reason_adjustment.upper()
+                
+                diff_before = current_actual - current_expected
+                diff_after = new_actual - new_expected
+
+                cur.execute(
+                    """
+                    INSERT INTO inventory_stock_events (
+                        inventory_id, product_id, event_type,
+                        quantity_before, quantity_after, quantity_delta,
+                        expected_before, expected_after, expected_delta,
+                        actual_before, actual_after, actual_delta,
+                        difference_before, difference_after,
+                        reference_type, reference_id, reason
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        inventory_id, product_id, event_type,
+                        current_quantity, new_quantity, qty_delta,
+                        current_expected, new_expected, expected_delta,
+                        current_actual, new_actual, actual_delta,
+                        int(diff_before), int(diff_after),
+                        "inventory", str(inventory_id), payload.reason_adjustment
+                    )
+                )
+
             # --- Audit log ---
             if x_actor_user_id:
                 add_audit_log(
@@ -373,7 +407,7 @@ def update_inventory_item(
                     "UPDATE_INVENTORY",
                     "inventory",
                     inventory_id,
-                    f"Updated inventory item: {payload.product_name} (Current Qty: {new_quantity})"
+                    f"Updated inventory item: {payload.product_name} (Reason: {payload.reason_adjustment}, New Qty: {new_quantity})"
                 )
 
             conn.commit()

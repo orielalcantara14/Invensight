@@ -360,7 +360,7 @@ def create_sale(
                 item_subtotal = round(item.unit_price * item.quantity, 2)
 
                 cur.execute(
-                    "SELECT inventory_id, quantity, actual FROM inventory WHERE product_id = %s",
+                    "SELECT inventory_id, quantity, expected, actual FROM inventory WHERE product_id = %s FOR UPDATE",
                     (item.product_id,)
                 )
                 inv_row = cur.fetchone()
@@ -369,8 +369,9 @@ def create_sale(
                         status_code=400,
                         detail=f"Product ID {item.product_id} has no inventory record."
                     )
-                physical_stock = inv_row["quantity"]
-                sellable_stock = inv_row["actual"]
+                quantity_before = inv_row["quantity"]
+                expected_before = inv_row["expected"]
+                actual_before = inv_row["actual"]
                 inv_id = inv_row["inventory_id"]
 
                 cur.execute(
@@ -389,20 +390,20 @@ def create_sale(
                         detail=f"Product '{prod_row['product_name']}' is archived and cannot be sold."
                     )
 
-                if sellable_stock < item.quantity:
+                if actual_before < item.quantity:
                     raise HTTPException(
                         status_code=400,
                         detail=(
                             f"Insufficient sellable stock for product ID {item.product_id}. "
-                            f"Available (Actual): {sellable_stock}, Requested: {item.quantity}"
+                            f"Available (Actual): {actual_before}, Requested: {item.quantity}"
                         ),
                     )
-                if physical_stock < item.quantity:
+                if quantity_before < item.quantity:
                     raise HTTPException(
                         status_code=400,
                         detail=(
                             f"Insufficient physical stock for product ID {item.product_id}. "
-                            f"Available (Quantity): {physical_stock}, Requested: {item.quantity}"
+                            f"Available (Quantity): {quantity_before}, Requested: {item.quantity}"
                         ),
                     )
 
@@ -424,19 +425,50 @@ def create_sale(
 
                 # --- Update stock in inventory (only if paid) ---
                 if (sale.payment_status or "Paid").lower() == "paid":
+                    # Calculate new values
+                    quantity_after = quantity_before - item.quantity
+                    expected_after = expected_before - item.quantity
+                    actual_after = actual_before - item.quantity
+
                     cur.execute(
                         """
                         UPDATE inventory
-                        SET quantity = quantity - %s,
-                            expected = GREATEST(expected - %s, actual - %s),
-                            actual = actual - %s,
+                        SET quantity = %s,
+                            expected = %s,
+                            actual = %s,
                             last_updated = %s
                         WHERE product_id = %s
                         RETURNING actual
                         """,
-                        (item.quantity, item.quantity, item.quantity, item.quantity, today, item.product_id)
+                        (quantity_after, expected_after, actual_after, today, item.product_id)
                     )
                     updated_actual = cur.fetchone()["actual"]
+
+                    # Log Stock Event
+                    cur.execute(
+                        """
+                        INSERT INTO inventory_stock_events (
+                            inventory_id, product_id, event_type,
+                            quantity_before, quantity_after,
+                            expected_before, expected_after,
+                            actual_before, actual_after,
+                            quantity_delta, expected_delta, actual_delta,
+                            difference_before, difference_after,
+                            reference_type, reference_id, reason
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            inv_id, item.product_id, "SALE",
+                            quantity_before, quantity_after,
+                            expected_before, expected_after,
+                            actual_before, actual_after,
+                            -item.quantity, -item.quantity, -item.quantity,
+                            int(actual_before - expected_before), int(actual_after - expected_after),
+                            "sales", invoice_id, f"POS Sale (Invoice {invoice_number})"
+                        )
+                    )
+
                     if updated_actual <= 0:
                         dispatch_notification(
                             type="out_of_stock",

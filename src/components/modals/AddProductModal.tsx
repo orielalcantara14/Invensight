@@ -65,7 +65,6 @@ export function AddProductModal({
     pos_price: "",
     stock: "0",
     status: "Active" as "Active" | "Archived",
-    serial_start: "0001",
     expiry_date: "",
   });
 
@@ -152,8 +151,6 @@ export function AddProductModal({
         pos_price: posPrice,
         stock,
         status: formData.status,
-        serial_start: formData.serial_start || undefined,
-        serial_end: formData.serial_start ? String(parseInt(formData.serial_start) + stock - 1).padStart(4, '0') : undefined,
         expiry_date: formData.expiry_date || undefined,
       });
       toast.success("Product added successfully");
@@ -168,7 +165,6 @@ export function AddProductModal({
         pos_price: "",
         stock: "0",
         status: "Active",
-        serial_start: "0001",
         expiry_date: "",
       });
       onSuccess();
@@ -395,7 +391,7 @@ export function AddProductModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Status
@@ -408,26 +404,6 @@ export function AddProductModal({
               <option value="Active">Active</option>
               <option value="Archived">Archived</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Initial Serial No. (S/N)
-            </label>
-            <input
-              type="text"
-              value={formData.serial_start}
-              onChange={(e) => {
-                const val = e.target.value;
-                // Auto-pad with zeros if it's just a number
-                if (/^\d+$/.test(val) && val.length <= 4) {
-                   setFormData({ ...formData, serial_start: val.padStart(4, '0') });
-                } else {
-                   setFormData({ ...formData, serial_start: val });
-                }
-              }}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="0001"
-            />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">

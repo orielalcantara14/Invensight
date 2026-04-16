@@ -51,8 +51,6 @@ export function EditInventoryModal({
     reorder_level: "0",
     actual: "0",
     reason_adjustment: "",
-    serial_start: "",
-    serial_end: "",
     expiry_date: "",
   });
 
@@ -99,35 +97,11 @@ export function EditInventoryModal({
         reorder_level: String(item.reorder_level),
         actual: String(item.actual),
         reason_adjustment: "Lost",
-        serial_start: item.serial_start || "",
-        serial_end: item.serial_end || "",
         expiry_date: item.expiry_date || "",
       });
     }
   }, [item]);
 
-  useEffect(() => {
-    if (formData.reason_adjustment === "Restock" && item) {
-       // Fetch existing items for this SKU to find max serial
-       api.getInventoryItems().then(items => {
-         const skuItems = items.filter(i => i.sku === item.sku);
-         let maxSerial = 0;
-         skuItems.forEach(i => {
-           const end = i.serial_end ? parseInt(i.serial_end) : 0;
-           if (end > maxSerial) maxSerial = end;
-         });
-         const nextStart = maxSerial + 1;
-         const qty = parseInt(formData.quantity) || 0;
-         const nextEnd = nextStart + qty - 1;
-         
-         setFormData(prev => ({
-           ...prev,
-           serial_start: String(nextStart).padStart(4, '0'),
-           serial_end: String(nextEnd).padStart(4, '0')
-         }));
-       }).catch(console.error);
-    }
-  }, [formData.reason_adjustment, formData.quantity, item]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,21 +121,37 @@ export function EditInventoryModal({
         reorder_level: parseInt(formData.reorder_level),
         actual: parseInt(formData.actual),
         reason_adjustment: formData.reason_adjustment,
-        serial_start: formData.serial_start || undefined,
-        serial_end: formData.serial_end || undefined,
         expiry_date: formData.expiry_date || undefined,
         unit_price: item.unit_price,
         pos_price: item.pos_price,
       };
 
       if (formData.reason_adjustment === "Restock") {
-        // Create a NEW batch instead of updating the current one
+        const inputQty = parseInt(formData.quantity);
+        if (inputQty <= item.quantity) {
+          toast.error(`Restock must be higher than current quantity (${item.quantity}). Enter the new total.`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Create a NEW batch with the DIFFERENCE
+        const addedQty = inputQty - item.quantity;
         await api.addInventoryItem({
            ...payload,
+           quantity: addedQty,
+           actual: addedQty,
+           expected: addedQty,
            product_id: item.product_id
         });
-        toast.success("New batch (Restock) added successfully");
+        toast.success(`Restock successful: Added ${addedQty} items as a new batch`);
       } else {
+        const inputActual = parseInt(formData.actual);
+        if (inputActual >= item.quantity) {
+          toast.error(`Deduction must be lower than current quantity (${item.quantity}). Enter the new physical count.`);
+          setIsSubmitting(false);
+          return;
+        }
+
         await api.updateInventoryItem(item.inventory_id, payload);
         toast.success("Inventory updated successfully");
       }
@@ -350,7 +340,11 @@ export function EditInventoryModal({
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Physical Count (Actual) {formData.reason_adjustment === "Restock" && <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Quantity)</span>}
+              Physical Count (Actual) {formData.reason_adjustment === "Restock" ? (
+                <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Quantity)</span>
+              ) : (
+                <span className="text-xs text-red-500 font-normal">(Must be less than {item?.quantity || 0})</span>
+              )}
             </label>
             <input
               type="number"
@@ -375,7 +369,11 @@ export function EditInventoryModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Quantity {(formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") && <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Actual)</span>}
+              Quantity {formData.reason_adjustment === "Restock" ? (
+                <span className="text-xs text-green-600 font-normal">(Must be more than {item?.quantity || 0})</span>
+              ) : (
+                <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Actual)</span>
+              )}
             </label>
             <input
               type="number"
@@ -437,29 +435,7 @@ export function EditInventoryModal({
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Serial No. Range
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Start"
-                className="w-1/2 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-muted/20"
-                value={formData.serial_start}
-                onChange={(e) => setFormData({ ...formData, serial_start: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="End"
-                className="w-1/2 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-muted/20"
-                value={formData.serial_end}
-                readOnly={formData.reason_adjustment === "Restock"}
-                onChange={(e) => setFormData({ ...formData, serial_end: e.target.value })}
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Expiry Date
@@ -486,7 +462,7 @@ export function EditInventoryModal({
             disabled={isSubmitting}
             className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? "Updating..." : "Edit Item"}
+            {isSubmitting ? "Processing..." : "Confirm Adjustment"}
           </button>
         </div>
       </form>

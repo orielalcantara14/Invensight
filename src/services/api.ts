@@ -73,7 +73,6 @@ export interface PosProductPayload {
   unit_of_measurement?: string;
   stock: number;
   status: "Active" | "Archived";
-  serial_start?: string | null;
   expiry_date?: string | null;
 }
 
@@ -229,8 +228,6 @@ export interface InventoryItem {
   status: 'Normal' | 'Low' | 'Out of Stock' | 'Archived' | 'Deleted' | 'Active';
   last_updated: string;
   reason_adjustment: string;
-  serial_start?: string | null;
-  serial_end?: string | null;
   expiry_date?: string | null;
 }
 
@@ -264,8 +261,6 @@ export interface InventoryPayload {
   quantity: number;
   expected: number;
   reorder_level: number;
-  serial_start?: string | null;
-  serial_end?: string | null;
   expiry_date?: string | null;
   unit_price: number;
   pos_price?: number;
@@ -283,8 +278,6 @@ export interface UpdateInventoryPayload {
   reorder_level: number;
   actual: number;
   reason_adjustment: string;
-  serial_start?: string | null;
-  serial_end?: string | null;
   expiry_date?: string | null;
   unit_price: number;
   pos_price?: number;

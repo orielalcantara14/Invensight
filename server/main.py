@@ -303,6 +303,15 @@ def init_database_schema():
                     quantity INTEGER NOT NULL
                 )
             """)
+            # Migration: Add bypass_inventory to product_returns
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='product_returns' AND column_name='bypass_inventory') THEN
+                        ALTER TABLE product_returns ADD COLUMN bypass_inventory BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;
+            """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS inventory_stock_events (
                     event_id SERIAL PRIMARY KEY,

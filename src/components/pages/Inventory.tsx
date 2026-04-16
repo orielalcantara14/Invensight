@@ -130,6 +130,7 @@ export function Inventory() {
       "Quantity": item.quantity,
       "Expected": item.expected,
       "Actual": item.actual,
+      "Expiry Date": item.expiry_date || "-",
       "Reorder Level": item.reorder_level,
       "Status": item.status,
       "Difference": item.difference
@@ -300,12 +301,6 @@ export function Inventory() {
                   Product Name (Batch ID)
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-muted-foreground/70 dark:text-muted-foreground uppercase tracking-wider">
-                  S/N Range
-                </th>
-                <th className="px-6 py-4 text-left text-[10px] font-bold text-muted-foreground/70 dark:text-muted-foreground uppercase tracking-wider">
-                  Expiry Date
-                </th>
-                <th className="px-6 py-4 text-left text-[10px] font-bold text-muted-foreground/70 dark:text-muted-foreground uppercase tracking-wider">
                   SKU
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-muted-foreground/70 dark:text-muted-foreground uppercase tracking-wider">
@@ -346,7 +341,7 @@ export function Inventory() {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                     </div>
@@ -354,7 +349,7 @@ export function Inventory() {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-muted-foreground" />
                     <p className="text-muted-foreground dark:text-muted-foreground/70 font-medium">No inventory items found</p>
                     <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground mt-1">Add items to start managing your inventory</p>
@@ -375,28 +370,6 @@ export function Inventory() {
                       <div className="max-w-[260px] truncate" title={item.product_name}>
                         {item.product_name} <span className="text-xs font-normal text-muted-foreground ml-1">(ID: {item.inventory_id})</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-muted-foreground/70">
-                      {item.serial_start ? `${item.serial_start} - ${item.serial_end}` : "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {item.expiry_date ? (
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
-                            new Date(item.expiry_date) < new Date() 
-                              ? "bg-red-100 text-red-700 border border-red-200" 
-                              : (new Date(item.expiry_date).getTime() - new Date().getTime()) < 30 * 24 * 60 * 60 * 1000
-                              ? "bg-orange-100 text-orange-700 border border-orange-200"
-                              : (new Date(item.expiry_date).getTime() - new Date().getTime()) < 90 * 24 * 60 * 60 * 1000
-                              ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                              : "bg-green-50 text-green-700 border border-green-200"
-                          }`}>
-                            {item.expiry_date}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground/50">—</span>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-muted-foreground/70 font-mono">
                       {item.sku}
@@ -552,8 +525,9 @@ export function Inventory() {
           "Cost": i.unit_price,
           "Qty": i.quantity,
           "Actual": i.actual,
+          "Expiry": i.expiry_date || "-",
           "Status": i.status,
-          "Last Updated": i.last_updated // Using available last_updated field
+          "Last Updated": i.last_updated
         }))}
       />
       <AddProductModal 

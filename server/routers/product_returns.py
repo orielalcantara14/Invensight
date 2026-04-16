@@ -34,6 +34,7 @@ def get_product_returns(start_date: Optional[str] = None, end_date: Optional[str
                     pr.approved_at,
                     pr.rejected_at,
                     pr.reason,
+                    pr.bypass_inventory,
                     COALESCE(SUM(pri.quantity), 0) AS total_quantity
                 FROM product_returns pr
                 LEFT JOIN product_return_items pri ON pri.return_id = pr.return_id
@@ -312,7 +313,7 @@ def approve_product_return(
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT return_id, status
+                SELECT return_id, status, bypass_inventory
                 FROM product_returns
                 WHERE return_id = %s
                 FOR UPDATE
@@ -331,102 +332,105 @@ def approve_product_return(
 
             today = date.today()
             reference_type = "product_returns"
-            for item in items:
-                cur.execute(
-                    """
-                    SELECT
-                        inventory_id,
-                        quantity,
-                        expected,
-                        actual
-                    FROM inventory
-                    WHERE product_id = %s
-                    FOR UPDATE
-                    """,
-                    (item["product_id"],),
-                )
-                inv = cur.fetchone()
-                if not inv:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Product ID {item['product_id']} not found in inventory",
+            if not return_row["bypass_inventory"]:
+                for item in items:
+                    cur.execute(
+                        """
+                        SELECT
+                            inventory_id,
+                            quantity,
+                            expected,
+                            actual
+                        FROM inventory
+                        WHERE product_id = %s
+                        FOR UPDATE
+                        """,
+                        (item["product_id"],),
+                    )
+                    inv = cur.fetchone()
+                    if not inv:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Product ID {item['product_id']} not found in inventory",
+                        )
+
+                    quantity_before = inv["quantity"]
+                    expected_before = inv["expected"]
+                    actual_before = inv["actual"]
+
+                    if quantity_before < item["quantity"]:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Cannot remove returned quantity for product ID {item['product_id']}. "
+                                f"Available (Quantity): {quantity_before}, Requested: {item['quantity']}"
+                            ),
+                        )
+
+                    quantity_after = quantity_before - item["quantity"]
+                    expected_after = expected_before
+                    actual_after = actual_before
+
+                    difference_before = (2 * actual_before) - quantity_before - expected_before
+                    difference_after = (2 * actual_after) - quantity_after - expected_after
+
+                    cur.execute(
+                        """
+                        UPDATE inventory
+                        SET
+                            quantity = quantity - %s,
+                            last_updated = %s,
+                            reason_adjustment = %s
+                        WHERE product_id = %s
+                        """,
+                        (item["quantity"], today, f"Return removed: #{return_id}", item["product_id"]),
                     )
 
-                quantity_before = inv["quantity"]
-                expected_before = inv["expected"]
-                actual_before = inv["actual"]
-
-                if quantity_before < item["quantity"]:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Cannot remove returned quantity for product ID {item['product_id']}. "
-                            f"Available (Quantity): {quantity_before}, Requested: {item['quantity']}"
+                    cur.execute(
+                        """
+                        INSERT INTO inventory_stock_events (
+                            inventory_id,
+                            product_id,
+                            event_type,
+                            quantity_before,
+                            quantity_after,
+                            expected_before,
+                            expected_after,
+                            actual_before,
+                            actual_after,
+                            quantity_delta,
+                            expected_delta,
+                            actual_delta,
+                            difference_before,
+                            difference_after,
+                            reference_type,
+                            reference_id,
+                            reason
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            inv["inventory_id"],
+                            item["product_id"],
+                            "RETURN_APPROVED",
+                            quantity_before,
+                            quantity_after,
+                            expected_before,
+                            expected_after,
+                            actual_before,
+                            actual_after,
+                            quantity_after - quantity_before,
+                            expected_after - expected_before,
+                            actual_after - actual_before,
+                            int(difference_before),
+                            int(difference_after),
+                            reference_type,
+                            str(return_id),
+                            "",
                         ),
                     )
-
-                quantity_after = quantity_before - item["quantity"]
-                expected_after = expected_before
-                actual_after = actual_before
-
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
-
-                cur.execute(
-                    """
-                    UPDATE inventory
-                    SET
-                        quantity = quantity - %s,
-                        last_updated = %s,
-                        reason_adjustment = %s
-                    WHERE product_id = %s
-                    """,
-                    (item["quantity"], today, f"Return removed: #{return_id}", item["product_id"]),
-                )
-
-                cur.execute(
-                    """
-                    INSERT INTO inventory_stock_events (
-                        inventory_id,
-                        product_id,
-                        event_type,
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_delta,
-                        expected_delta,
-                        actual_delta,
-                        difference_before,
-                        difference_after,
-                        reference_type,
-                        reference_id,
-                        reason
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inv["inventory_id"],
-                        item["product_id"],
-                        "RETURN_APPROVED",
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_after - quantity_before,
-                        expected_after - expected_before,
-                        actual_after - actual_before,
-                        int(difference_before),
-                        int(difference_after),
-                        reference_type,
-                        str(return_id),
-                        "",
-                    ),
-                )
+            else:
+                logger.info(f"Bypassing inventory update for return #{return_id} (Damaged on arrival case)")
 
             cur.execute(
                 """
@@ -471,7 +475,7 @@ def reject_product_return(
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT return_id, status
+                SELECT return_id, status, bypass_inventory
                 FROM product_returns
                 WHERE return_id = %s
                 FOR UPDATE
@@ -490,95 +494,98 @@ def reject_product_return(
 
             today = date.today()
             reference_type = "product_returns"
-            # Release the allocation back to Expected + Actual (sellable), but keep physical Quantity unchanged.
-            for item in items:
-                cur.execute(
-                    """
-                    SELECT
-                        inventory_id,
-                        quantity,
-                        expected,
-                        actual
-                    FROM inventory
-                    WHERE product_id = %s
-                    FOR UPDATE
-                    """,
-                    (item["product_id"],),
-                )
-                inv = cur.fetchone()
-                if not inv:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Product ID {item['product_id']} not found in inventory",
+            if not return_row["bypass_inventory"]:
+                # Release the allocation back to Expected + Actual (sellable), but keep physical Quantity unchanged.
+                for item in items:
+                    cur.execute(
+                        """
+                        SELECT
+                            inventory_id,
+                            quantity,
+                            expected,
+                            actual
+                        FROM inventory
+                        WHERE product_id = %s
+                        FOR UPDATE
+                        """,
+                        (item["product_id"],),
+                    )
+                    inv = cur.fetchone()
+                    if not inv:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Product ID {item['product_id']} not found in inventory",
+                        )
+
+                    quantity_before = inv["quantity"]
+                    expected_before = inv["expected"]
+                    actual_before = inv["actual"]
+
+                    cur.execute(
+                        """
+                        UPDATE inventory
+                        SET
+                            expected = expected + %s,
+                            actual = actual + %s,
+                            last_updated = %s,
+                            reason_adjustment = %s
+                        WHERE product_id = %s
+                        """,
+                        (item["quantity"], item["quantity"], today, f"Return rejected: #{return_id}", item["product_id"]),
                     )
 
-                quantity_before = inv["quantity"]
-                expected_before = inv["expected"]
-                actual_before = inv["actual"]
+                    quantity_after = quantity_before
+                    expected_after = expected_before + item["quantity"]
+                    actual_after = actual_before + item["quantity"]
 
-                cur.execute(
-                    """
-                    UPDATE inventory
-                    SET
-                        expected = expected + %s,
-                        actual = actual + %s,
-                        last_updated = %s,
-                        reason_adjustment = %s
-                    WHERE product_id = %s
-                    """,
-                    (item["quantity"], item["quantity"], today, f"Return rejected: #{return_id}", item["product_id"]),
-                )
+                    difference_before = (2 * actual_before) - quantity_before - expected_before
+                    difference_after = (2 * actual_after) - quantity_after - expected_after
 
-                quantity_after = quantity_before
-                expected_after = expected_before + item["quantity"]
-                actual_after = actual_before + item["quantity"]
-
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
-
-                cur.execute(
-                    """
-                    INSERT INTO inventory_stock_events (
-                        inventory_id,
-                        product_id,
-                        event_type,
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_delta,
-                        expected_delta,
-                        actual_delta,
-                        difference_before,
-                        difference_after,
-                        reference_type,
-                        reference_id,
-                        reason
+                    cur.execute(
+                        """
+                        INSERT INTO inventory_stock_events (
+                            inventory_id,
+                            product_id,
+                            event_type,
+                            quantity_before,
+                            quantity_after,
+                            expected_before,
+                            expected_after,
+                            actual_before,
+                            actual_after,
+                            quantity_delta,
+                            expected_delta,
+                            actual_delta,
+                            difference_before,
+                            difference_after,
+                            reference_type,
+                            reference_id,
+                            reason
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            inv["inventory_id"],
+                            item["product_id"],
+                            "RETURN_REJECTED",
+                            quantity_before,
+                            quantity_after,
+                            expected_before,
+                            expected_after,
+                            actual_before,
+                            actual_after,
+                            quantity_after - quantity_before,
+                            expected_after - expected_before,
+                            actual_after - actual_before,
+                            int(difference_before),
+                            int(difference_after),
+                            reference_type,
+                            str(return_id),
+                            "",
+                        ),
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inv["inventory_id"],
-                        item["product_id"],
-                        "RETURN_REJECTED",
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_after - quantity_before,
-                        expected_after - expected_before,
-                        actual_after - actual_before,
-                        int(difference_before),
-                        int(difference_after),
-                        reference_type,
-                        str(return_id),
-                        "",
-                    ),
-                )
+            else:
+                logger.info(f"Bypassing inventory release for rejected return #{return_id}")
 
             cur.execute(
                 """

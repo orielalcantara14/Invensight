@@ -545,7 +545,7 @@ export function Sales() {
                           <Eye className="w-4 h-4" />
                           View Invoice
                         </button>
-                        {record.payment_status !== "Refunded" && (
+                        {record.payment_status !== "Refunded" && record.payment_status !== "Exchanged" && (
                           <button
                             onClick={() => handleProcessReturn(record.invoice_id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg font-bold transition-all border border-orange-100 shadow-sm"

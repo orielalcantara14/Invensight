@@ -13,6 +13,9 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 import random
 import string
+import logging
+
+logger = logging.getLogger("invensight.purchase_orders")
 
 router = APIRouter()
 
@@ -283,6 +286,7 @@ def mark_order_as_received(
 
             # Create a lookup for damage counts from payload
             damage_lookup = {item.product_id: item.damage_count for item in payload.items}
+            damage_map = {} # Track damages for auto-return
 
             cur.execute("""
                 SELECT product_id, quantity FROM purchase_order_items WHERE order_id = %s
@@ -301,7 +305,9 @@ def mark_order_as_received(
                     SET damage_count = %s 
                     WHERE order_id = %s AND product_id = %s
                 """, (item_damage, order_id, pid))
+                damage_map[pid] = item_damage
 
+                # Update Inventory Stock
                 cur.execute("""
                     SELECT inventory_id, quantity, expected, actual
                     FROM inventory WHERE product_id = %s FOR UPDATE
@@ -314,23 +320,22 @@ def mark_order_as_received(
                 expected_before = inv_row["expected"]
                 actual_before = inv_row["actual"]
                 
-                # Reconciliation Logic: Add net quantity to all counts
+                # Only add net_qty (good items) to all inventory counts
                 quantity_after = quantity_before + net_qty
                 expected_after = expected_before + net_qty
                 actual_after = actual_before + net_qty
 
-                # Difference is actual - expected (new daily logic resets difference to 0 at start of day)
                 difference_before = actual_before - expected_before
                 difference_after = actual_after - expected_after
 
                 cur.execute("""
                     UPDATE inventory
-                    SET quantity = quantity + %s,
-                        expected = expected + %s,
-                        actual = actual + %s,
+                    SET quantity = %s,
+                        expected = %s,
+                        actual = %s,
                         last_updated = %s
                     WHERE product_id = %s
-                """, (net_qty, net_qty, net_qty, date.today(), pid))
+                """, (quantity_after, expected_after, actual_after, date.today(), pid))
 
                 cur.execute(
                     """
@@ -352,9 +357,36 @@ def mark_order_as_received(
                         actual_before, actual_after,
                         net_qty, net_qty, net_qty,
                         int(difference_before), int(difference_after),
-                        "purchase_orders", order_id, f"Received with {item_damage} items damage"
+                        "purchase_orders", order_id, f"Received {net_qty} good items (Damages: {item_damage})"
                     ),
                 )
+
+            # --- 2. Handle Automated Damages Return ---
+            # Group damaged items for a single return record
+            damaged_items = [
+                {"product_id": pid, "quantity": item_damage}
+                for pid, item_damage in damage_map.items()
+                if item_damage > 0
+            ]
+
+            if damaged_items:
+                cur.execute(
+                    """
+                    INSERT INTO product_returns (supplier_id, status, reason, bypass_inventory)
+                    VALUES (%s, 'Pending', %s, TRUE)
+                    RETURNING return_id
+                    """,
+                    (order_row["supplier_id"], f"Damaged on arrival (PO {order_id})")
+                )
+                new_return_id = cur.fetchone()["return_id"]
+
+                for di in damaged_items:
+                    cur.execute(
+                        "INSERT INTO product_return_items (return_id, product_id, quantity) VALUES (%s, %s, %s)",
+                        (new_return_id, di["product_id"], di["quantity"])
+                    )
+
+                logger.info(f"Auto-generated product return #{new_return_id} for damages in PO {order_id}")
 
             # Update Order Status
             cur.execute("""

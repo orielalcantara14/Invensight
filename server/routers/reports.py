@@ -178,7 +178,7 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
                     SELECT 
                         p.product_name, p.sku, i.expected, i.actual, 
                         (i.actual - i.expected) as difference, i.reorder_level,
-                        i.serial_start, i.serial_end, i.expiry_date::text as expiry_date
+                        i.expiry_date::text as expiry_date
                     FROM inventory i
                     JOIN products p ON i.product_id = p.product_id
                     WHERE (%s IS NULL OR p.category_id = %s)

@@ -764,6 +764,20 @@ export function Orders() {
                     {selectedOrder.received_at ? new Date(selectedOrder.received_at).toLocaleDateString() : "-"}
                   </p>
                 </div>
+                {selectedOrder.status === "Received" && (
+                  <>
+                    <div className="bg-muted/30 p-2 rounded border border-border/50">
+                      <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Receipt/Invoice #</label>
+                      <p className="font-bold text-primary">{selectedOrder.receipt_number || "-"}</p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-100 dark:border-red-900/30">
+                      <label className="text-sm text-red-600 dark:text-red-400">Total Damages</label>
+                      <p className="font-bold text-red-700 dark:text-red-300">
+                        {selectedOrder.items?.reduce((sum: number, item: any) => sum + (item.damage_count || 0), 0)}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {selectedOrder.notes && (
@@ -790,6 +804,11 @@ export function Orders() {
                         <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70">
                           Unit Price
                         </th>
+                        {selectedOrder.status === "Received" && (
+                          <th className="px-4 py-2 text-center text-xs font-medium text-red-600">
+                            Damages
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border dark:divide-gray-700">
@@ -800,6 +819,11 @@ export function Orders() {
                           <td className="px-4 py-2 text-sm text-foreground text-foreground">
                             {item.unit_price ? `₱${item.unit_price.toFixed(2)}` : "-"}
                           </td>
+                          {selectedOrder.status === "Received" && (
+                            <td className="px-4 py-2 text-sm text-center text-red-600 font-bold">
+                              {item.damage_count || 0}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

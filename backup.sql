@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GdFDx6Qb0B2cnjuCaCkPFPwxDanYieUcF5OoHGGRcQf6aw4UXYF35XHMVA5DSMh
+\restrict 9eFnbVa9AgrCS8OnJmcLkkib1bzVfSfVRT2n77hI74fxDLwg5jGPZNHBJbQDKUh
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -647,7 +647,8 @@ CREATE TABLE public.product_returns (
     notes text,
     approved_at timestamp without time zone,
     rejected_at timestamp without time zone,
-    supplier_id integer
+    supplier_id integer,
+    bypass_inventory boolean DEFAULT false
 );
 
 
@@ -1960,10 +1961,9 @@ COPY public.generated_reports (report_id, report_type, start_date, end_date, gen
 --
 
 COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, quantity, expected, actual, reason_adjustment, status, serial_start, serial_end, expiry_date) FROM stdin;
-315	315	5	2026-04-17	7	7	7	Manual Count	Active	\N	\N	\N
-466	467	5	2026-04-17	15	15	15	Initial stock	Active	0001	\N	2026-04-24
-7	7	5	2026-04-17	13	14	13	Lost	Active	\N	\N	\N
-467	468	5	2026-04-17	20	15	20	Initial stock	Active	0001	0020	2026-04-29
+315	315	5	2026-04-17	4	7	4	nanakaw	Active	\N	\N	\N
+466	467	5	2026-04-17	15	15	15	Lost	Active	\N	\N	2026-04-24
+7	7	5	2026-04-17	18	19	18	Lost	Active	\N	\N	\N
 1	1	5	2026-04-06	5	5	5	Initial stock	Active	\N	\N	\N
 2	2	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
 3	3	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
@@ -1984,7 +1984,6 @@ COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, qu
 405	405	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
 18	18	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
 19	19	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
-20	20	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
 15	15	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
 13	13	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
 17	17	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
@@ -2078,6 +2077,7 @@ COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, qu
 111	111	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
 112	112	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
 113	113	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+20	20	5	2026-04-17	12	12	12	Initial stock	Active	\N	\N	\N
 114	114	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
 115	115	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
 116	116	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
@@ -2425,7 +2425,7 @@ COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, qu
 442	442	5	2026-04-08	12	12	12	RET-2026-004	Active	\N	\N	\N
 60	60	5	2026-04-10	8	8	9	RET-2026-010	Active	\N	\N	\N
 465	465	5	2026-04-17	14	14	14	Initial stock	Active	\N	\N	\N
-324	324	5	2026-04-17	3	3	3	RET-2026-009	Active	\N	\N	\N
+324	324	5	2026-04-17	4	3	4	Lost	Deleted	\N	\N	\N
 \.
 
 
@@ -2464,6 +2464,13 @@ COPY public.inventory_stock_events (event_id, inventory_id, product_id, event_ty
 45	60	60	CUSTOMER_RETURN_EXCHANGE	9	8	10	10	9	9	-1	0	0	-1	0	customer_returns	10	RET-2026-010	2026-04-10 23:11:48.998755
 46	465	465	PO_RECEIVED	10	14	10	14	10	14	4	4	4	0	0	purchase_orders	PO-QQ21ZGV5	Received with 1 items damage	2026-04-17 00:33:59.635432
 47	7	7	PO_RECEIVED	9	13	10	14	9	13	4	4	4	-1	-1	purchase_orders	PO-OUPBX7P2	Received with 1 items damage	2026-04-17 00:46:44.741589
+48	466	467	LOST	14	15	15	15	14	15	1	0	1	-1	0	inventory	466	Lost	2026-04-17 03:52:29.421162
+49	324	324	LOST	5	4	3	3	5	4	-1	0	-1	2	1	inventory	324	Lost	2026-04-17 03:52:53.893931
+50	315	315	LOST	7	6	7	7	7	6	-1	0	-1	0	-1	inventory	315	Lost	2026-04-17 03:53:15.329266
+51	315	315	DAMAGED	6	5	7	7	6	5	-1	0	-1	-1	-2	inventory	315	Damaged	2026-04-17 03:53:27.854274
+52	315	315	MANUAL_DISCREPANCY	5	4	7	7	5	4	-1	0	-1	-2	-3	inventory	315	nanakaw	2026-04-17 03:54:00.735642
+53	7	7	PO_RECEIVED	13	18	14	19	13	18	5	5	5	-1	-1	purchase_orders	PO-IESIO4QA	Received with 0 items damage	2026-04-17 03:56:29.224315
+56	20	20	PO_RECEIVED	9	12	9	12	9	12	3	3	3	0	0	purchase_orders	PO-4WGBF1ZU	Received 3 good items (Damages: 2)	2026-04-17 04:28:21.107303
 \.
 
 
@@ -2749,6 +2756,7 @@ COPY public.product_return_items (item_id, return_id, product_id, quantity) FROM
 4	4	307	1
 5	7	126	1
 6	8	324	1
+9	11	20	2
 \.
 
 
@@ -2756,11 +2764,12 @@ COPY public.product_return_items (item_id, return_id, product_id, quantity) FROM
 -- Data for Name: product_returns; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.product_returns (return_id, reason, status, created_at, processed_at, notes, approved_at, rejected_at, supplier_id) FROM stdin;
-3	damaged	Approved	2026-04-06 16:43:12.705736	\N	\N	2026-04-06 17:16:41.181198	\N	4
-7	CANOLA OIL	Approved	2026-04-06 17:19:40.637063	\N	\N	2026-04-06 17:20:22.930613	\N	6
-4	CANOLA OIL	Rejected	2026-04-06 17:18:11.339341	\N	\N	\N	2026-04-06 17:20:26.365089	1
-8	DAMAGED	Approved	2026-04-06 17:20:53.619378	\N	\N	2026-04-06 17:21:58.248938	\N	2
+COPY public.product_returns (return_id, reason, status, created_at, processed_at, notes, approved_at, rejected_at, supplier_id, bypass_inventory) FROM stdin;
+3	damaged	Approved	2026-04-06 16:43:12.705736	\N	\N	2026-04-06 17:16:41.181198	\N	4	f
+7	CANOLA OIL	Approved	2026-04-06 17:19:40.637063	\N	\N	2026-04-06 17:20:22.930613	\N	6	f
+4	CANOLA OIL	Rejected	2026-04-06 17:18:11.339341	\N	\N	\N	2026-04-06 17:20:26.365089	1	f
+8	DAMAGED	Approved	2026-04-06 17:20:53.619378	\N	\N	2026-04-06 17:21:58.248938	\N	2	f
+11	Damaged on arrival (PO PO-4WGBF1ZU)	Approved	2026-04-17 04:28:21.107303	\N	\N	2026-04-17 04:29:38.93867	\N	2	t
 \.
 
 
@@ -3232,11 +3241,11 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 384	1	\N	ADD OIL PETRON / RACERX 200M	319.11	L-A-AO2M	2026-04-06	Bottle	Additive	433.34	Active	\N	0.00
 465	2	4	Yamaha Breakpad Nmax	2000.50	S-YA-BRN	2026-04-08	Piece	Brake Pad	2000.00	Active	\N	0.00
 7	1	3	HONDA RED 1L	238.00	L-HO-RE1L-001	2026-04-06	Liter	Engine Oil	275.00	Active	\N	0.00
+466	4	\N	ABETA GREY	90.00	O-AB-G-001	2026-04-17	Piece	Others	\N	Active	\N	0.00
+468	3	3	BETA GREY	50.00	A-BE-G-001	2026-04-17	Set	Accessory	\N	Active	\N	0.00
+467	3	3	BETA GREY	50.00	A-BE-G	2026-04-17	Set	Accessory	63.00	Active	\N	0.00
 324	4	\N	A6300	25.00	O-A6	2026-04-06	Piece	Others	110.00	Active	\N	0.00
 315	2	3	ABEARING KOYO 6303	25.00	S-AB-KO6	2026-04-06	Piece	Bearing	80.00	Active	\N	0.00
-466	4	\N	ABETA GREY	90.00	O-AB-G-001	2026-04-17	Piece	Others	\N	Active	\N	0.00
-467	3	3	BETA GREY	50.00	A-BE-G	2026-04-17	Set	Accessory	63.00	Active	\N	0.00
-468	3	3	BETA GREY	50.00	A-BE-G-001	2026-04-17	Set	Accessory	\N	Active	\N	0.00
 \.
 
 
@@ -3248,6 +3257,7 @@ COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_
 4	PO-QQ21ZGV5	465	5	2000.50	0	\N	1
 5	PO-OUPBX7P2	7	5	238.00	0	\N	1
 6	PO-IESIO4QA	7	5	238.00	0	\N	0
+7	PO-4WGBF1ZU	20	5	30.00	0	\N	2
 \.
 
 
@@ -3259,7 +3269,8 @@ COPY public.purchase_orders (order_id, supplier_id, user_id, status, expected_de
 PO-MXBZ23VT	1	\N	Received	2026-04-07	2026-04-04 08:36:36.89	2026-04-04 08:36:57.940004	10	\N	\N
 PO-QQ21ZGV5	4	\N	Received	2026-04-20	2026-04-17 00:22:57.309549	2026-04-17 00:33:59.635432	5	One damage	NO-A-36572
 PO-OUPBX7P2	3	\N	Received	2026-04-18	2026-04-17 00:42:29.983979	2026-04-17 00:46:44.741589	5	one damage	NO-A-36578
-PO-IESIO4QA	3	\N	Pending	2026-04-18	2026-04-17 00:59:57.976463	\N	5	\N	\N
+PO-IESIO4QA	3	\N	Received	2026-04-18	2026-04-17 00:59:57.976463	2026-04-17 03:56:29.224315	5	\N	NO-A-36753
+PO-4WGBF1ZU	2	\N	Received	2026-04-30	2026-04-17 04:16:40.234702	2026-04-17 04:28:21.107303	5	\N	NO-B-61231
 \.
 
 
@@ -3994,11 +4005,11 @@ COPY public.sold_items (sold_item_id, invoice_id, product_id, return_id, quantit
 
 COPY public.supplier (supplier_id, supplier_name, address, email, contact_number, product_supplied, total_orders, status, completed_orders) FROM stdin;
 1	Oils and tires	Bagumbong Dulo Caloocan City	sohitado@gmail.com	09388347797	Transmission & Drivetrain	1	Active	1
-2	Jvt and cworks products	68 7th ave, Corner C. Cordero St, Grace Park West, Caloocan, 1402 Metro Manila	jvtscooterphil@gmail.com	09178368680	Spareparts	0	Active	0
 6	Corsa Tires: JKSS tire center	Valenzuela, Philippines, 1440	jksstrading@yahoo.com	09230836830	CORSA MOTORCYCLE TIRES,AMARON MOTORCYCLE Battery,Mobil Lubricants	0	Active	0
 5	Dunlop tires: Tireshackk Inc	347 Ortigas Avenue, Greenhills East, Mandaluyong, Philippines, 1554	ti.tireshakk.mktg@gmail.com	09175406116	Tires	0	Active	0
 4	 PS Cycle Center	Speedtrail Cycle Center, 18 Miller Avenue, Barangay Bungad, Quezon City, Philippines, 1105	\N	09988870858	Spareparts	1	Active	1
-3	Al Cycle and Lube Center	15 Rainbow Ave, Caloocan, Metro Manila	\N	\N	spare parts and accessories like brake pads, brake shoe, brake and clutch cables etc	2	Active	1
+3	Al Cycle and Lube Center	15 Rainbow Ave, Caloocan, Metro Manila	\N	\N	spare parts and accessories like brake pads, brake shoe, brake and clutch cables etc	2	Active	2
+2	Jvt and cworks products	68 7th ave, Corner C. Cordero St, Grace Park West, Caloocan, 1402 Metro Manila	jvtscooterphil@gmail.com	09178368680	Spareparts	1	Active	1
 \.
 
 
@@ -4030,7 +4041,7 @@ COPY public.users (user_id, employee_id, password_hash, full_name, role, is_acti
 8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N	t	\N	\N	0
 7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N	t	\N	\N	0
 9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N	t	\N	\N	0
-2	2	$2b$12$LjenydrbnnXgGY34BXbIhuvE5p0swHfd12ujkpcXjXJZ1zT1TJfbS	ROBEK!	administrator	t	2026-03-25	2026-04-17	rootadminnginamo	{}	\N	\N	\N	t	\N	\N	0
+2	2	$2b$12$y1C5EM7eaA8i6IrtGFwi1exduxc6QcF5f8FMuE15smgp6lBqMcr8m	ROBEK!	administrator	t	2026-03-25	2026-04-17	rootadminnginamo	{}	\N	\N	\N	t	\N	\N	0
 10	10	$2b$12$o.OFhThqhW9a4P3Aq/LzX.4k3gpxSFekZci288KYdp07TB6g49kN.	Sohitado, John Rovhic A	Administrator	t	2026-04-15	2026-04-17	rovhic	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	rovhicsohitado@gmail.com	\N	\N	f	\N	\N	0
 11	11	$2b$12$tgmEW4lHZhG0InByGxli0.AJDuPSJWb0IZyKlOVzg2Jn66OxL1gMq	SOHITADO, JOHN REIMARC A	Administrator	t	2026-04-16	2026-04-16	reimarc	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	registercash9@gmail.com	\N	\N	f	\N	\N	4
 \.
@@ -4075,7 +4086,7 @@ SELECT pg_catalog.setval('public.generated_reports_report_id_seq', 30, true);
 -- Name: inventory_stock_events_event_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 47, true);
+SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 56, true);
 
 
 --
@@ -4110,21 +4121,21 @@ SELECT pg_catalog.setval('public.product_price_history_history_id_seq', 41, true
 -- Name: product_return_items_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.product_return_items_item_id_seq', 6, true);
+SELECT pg_catalog.setval('public.product_return_items_item_id_seq', 9, true);
 
 
 --
 -- Name: product_returns_return_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.product_returns_return_id_seq', 8, true);
+SELECT pg_catalog.setval('public.product_returns_return_id_seq', 11, true);
 
 
 --
 -- Name: purchase_order_items_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.purchase_order_items_item_id_seq', 6, true);
+SELECT pg_catalog.setval('public.purchase_order_items_item_id_seq', 7, true);
 
 
 --
@@ -4614,5 +4625,5 @@ ALTER TABLE ONLY public.user_settings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GdFDx6Qb0B2cnjuCaCkPFPwxDanYieUcF5OoHGGRcQf6aw4UXYF35XHMVA5DSMh
+\unrestrict 9eFnbVa9AgrCS8OnJmcLkkib1bzVfSfVRT2n77hI74fxDLwg5jGPZNHBJbQDKUh
 
