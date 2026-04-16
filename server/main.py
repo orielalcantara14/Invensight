@@ -260,7 +260,8 @@ def init_database_schema():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     received_at TIMESTAMP,
                     notes TEXT,
-                    total_items INTEGER DEFAULT 0
+                    total_items INTEGER DEFAULT 0,
+                    receipt_number VARCHAR(100)
                 )
             """)
             cur.execute("""
@@ -269,7 +270,8 @@ def init_database_schema():
                     order_id VARCHAR(50) REFERENCES purchase_orders(order_id) ON DELETE CASCADE,
                     product_id INTEGER REFERENCES products(product_id),
                     quantity INTEGER NOT NULL,
-                    unit_price DECIMAL(10, 2)
+                    unit_price DECIMAL(10, 2),
+                    damage_count INTEGER DEFAULT 0
                 )
             """)
             cur.execute("""
@@ -632,6 +634,15 @@ def run_migrations():
 
             # 6. Clean up obsolete tables
             cur.execute("DROP TABLE IF EXISTS pos_management CASCADE")
+
+            # 7. Inventory & PO Reconciliation Schema Updates
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS damage_count INTEGER DEFAULT 0")
+            cur.execute("""
+                INSERT INTO system_settings (setting_key, setting_value, description)
+                VALUES ('last_expected_reset', '', 'Last date the inventory expected count was reset')
+                ON CONFLICT (setting_key) DO NOTHING
+            """)
 
         log.info("Schema migrations completed successfully.")
     except Exception as e:

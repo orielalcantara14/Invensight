@@ -486,9 +486,10 @@ class PurchaseOrderItemResponse(BaseModel):
     product_name: Optional[str] = None
     quantity: int
     unit_price: Optional[float] = None
+    damage_count: int = 0
 
 
-class PurchaseOrderResponse(BaseModel):
+class     PurchaseOrderResponse(BaseModel):
     order_id: str
     supplier_id: int
     supplier_name: Optional[str] = None
@@ -499,7 +500,18 @@ class PurchaseOrderResponse(BaseModel):
     received_at: Optional[str] = None
     total_items: int
     notes: Optional[str] = None
+    receipt_number: Optional[str] = None
     items: Optional[List[PurchaseOrderItemResponse]] = None
+
+
+class MarkOrderReceivedItem(BaseModel):
+    product_id: int
+    damage_count: int = 0
+
+class MarkOrderReceivedRequest(BaseModel):
+    receipt_number: str
+    notes: Optional[str] = None
+    items: List[MarkOrderReceivedItem]
 
 
 class ProductReturnItemRequest(BaseModel):

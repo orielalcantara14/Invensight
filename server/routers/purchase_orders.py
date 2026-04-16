@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
-from models import CreatePurchaseOrderRequest, PurchaseOrderResponse, PurchaseOrderItemResponse
+from models import (
+    CreatePurchaseOrderRequest, 
+    PurchaseOrderResponse, 
+    PurchaseOrderItemResponse,
+    MarkOrderReceivedRequest
+)
 import psycopg2.extras
 from utils.audit import add_audit_log
 from routers.notifications import dispatch_notification
@@ -66,7 +71,8 @@ def get_purchase_orders(start_date: Optional[str] = None, end_date: Optional[str
                     po.created_at,
                     po.received_at,
                     po.total_items,
-                    po.notes
+                    po.notes,
+                    po.receipt_number
                 FROM purchase_orders po
                 LEFT JOIN supplier s ON po.supplier_id = s.supplier_id
                 WHERE po.status != 'Archived'
@@ -116,7 +122,8 @@ def get_purchase_order(order_id: str):
                     po.created_at,
                     po.received_at,
                     po.total_items,
-                    po.notes
+                    po.notes,
+                    po.receipt_number
                 FROM purchase_orders po
                 LEFT JOIN supplier s ON po.supplier_id = s.supplier_id
                 WHERE po.order_id = %s
@@ -139,7 +146,8 @@ def get_purchase_order(order_id: str):
                     poi.product_id,
                     p.product_name,
                     poi.quantity,
-                    poi.unit_price
+                    poi.unit_price,
+                    poi.damage_count
                 FROM purchase_order_items poi
                 LEFT JOIN products p ON poi.product_id = p.product_id
                 WHERE poi.order_id = %s
@@ -223,84 +231,6 @@ def create_purchase_order(
                     VALUES (%s, %s, %s, %s)
                 """, (order_id, item.product_id, item.quantity, item.unit_price))
 
-                cur.execute("""
-                    SELECT
-                        inventory_id,
-                        quantity,
-                        expected,
-                        actual
-                    FROM inventory
-                    WHERE product_id = %s
-                    FOR UPDATE
-                """, (item.product_id,))
-                inv = cur.fetchone()
-                if not inv:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Product ID {item.product_id} not found in inventory",
-                    )
-
-                quantity_before = inv["quantity"]
-                expected_before = inv["expected"]
-                actual_before = inv["actual"]
-                expected_after = expected_before + item.quantity
-                quantity_after = quantity_before
-                actual_after = actual_before
-
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
-
-                cur.execute("""
-                    UPDATE inventory
-                    SET expected = expected + %s,
-                        last_updated = %s
-                    WHERE product_id = %s
-                """, (item.quantity, today, item.product_id))
-
-                cur.execute(
-                    """
-                    INSERT INTO inventory_stock_events (
-                        inventory_id,
-                        product_id,
-                        event_type,
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_delta,
-                        expected_delta,
-                        actual_delta,
-                        difference_before,
-                        difference_after,
-                        reference_type,
-                        reference_id,
-                        reason
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inv["inventory_id"],
-                        item.product_id,
-                        "PO_PENDING",
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_after - quantity_before,
-                        expected_after - expected_before,
-                        actual_after - actual_before,
-                        int(difference_before),
-                        int(difference_after),
-                        reference_type,
-                        order_id,
-                        payload.notes or "",
-                    ),
-                )
-
             cur.execute("""
                 UPDATE supplier
                 SET total_orders = total_orders + 1
@@ -333,6 +263,7 @@ def create_purchase_order(
 @router.put("/{order_id}/receive")
 def mark_order_as_received(
     order_id: str,
+    payload: MarkOrderReceivedRequest,
     x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
 ):
     conn = get_connection()
@@ -350,94 +281,90 @@ def mark_order_as_received(
             if order_row["status"] == "Received":
                 raise HTTPException(status_code=400, detail="Order is already received")
 
+            # Create a lookup for damage counts from payload
+            damage_lookup = {item.product_id: item.damage_count for item in payload.items}
+
             cur.execute("""
                 SELECT product_id, quantity FROM purchase_order_items WHERE order_id = %s
             """, (order_id,))
             items = cur.fetchall()
 
             for item in items:
+                pid = item["product_id"]
+                ordered_qty = item["quantity"]
+                item_damage = damage_lookup.get(pid, 0)
+                net_qty = ordered_qty - item_damage
+                
+                # Update item record with damage count
                 cur.execute("""
-                    SELECT
-                        inventory_id,
-                        quantity,
-                        expected,
-                        actual
-                    FROM inventory
-                    WHERE product_id = %s
-                    FOR UPDATE
-                """, (item["product_id"],))
+                    UPDATE purchase_order_items 
+                    SET damage_count = %s 
+                    WHERE order_id = %s AND product_id = %s
+                """, (item_damage, order_id, pid))
+
+                cur.execute("""
+                    SELECT inventory_id, quantity, expected, actual
+                    FROM inventory WHERE product_id = %s FOR UPDATE
+                """, (pid,))
                 inv_row = cur.fetchone()
                 if not inv_row:
-                    raise HTTPException(status_code=400, detail=f"Product ID {item['product_id']} not found in inventory")
+                    raise HTTPException(status_code=400, detail=f"Product ID {pid} not found in inventory")
 
-                qty = item["quantity"]
                 quantity_before = inv_row["quantity"]
                 expected_before = inv_row["expected"]
                 actual_before = inv_row["actual"]
-                quantity_after = quantity_before + qty
-                expected_after = expected_before
-                actual_after = actual_before + qty
+                
+                # Reconciliation Logic: Add net quantity to all counts
+                quantity_after = quantity_before + net_qty
+                expected_after = expected_before + net_qty
+                actual_after = actual_before + net_qty
 
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
+                # Difference is actual - expected (new daily logic resets difference to 0 at start of day)
+                difference_before = actual_before - expected_before
+                difference_after = actual_after - expected_after
 
                 cur.execute("""
                     UPDATE inventory
                     SET quantity = quantity + %s,
+                        expected = expected + %s,
                         actual = actual + %s,
                         last_updated = %s
                     WHERE product_id = %s
-                """, (qty, qty, date.today(), item["product_id"]))
+                """, (net_qty, net_qty, net_qty, date.today(), pid))
 
                 cur.execute(
                     """
                     INSERT INTO inventory_stock_events (
-                        inventory_id,
-                        product_id,
-                        event_type,
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_delta,
-                        expected_delta,
-                        actual_delta,
-                        difference_before,
-                        difference_after,
-                        reference_type,
-                        reference_id,
-                        reason
+                        inventory_id, product_id, event_type,
+                        quantity_before, quantity_after,
+                        expected_before, expected_after,
+                        actual_before, actual_after,
+                        quantity_delta, expected_delta, actual_delta,
+                        difference_before, difference_after,
+                        reference_type, reference_id, reason
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
-                        inv_row["inventory_id"],
-                        item["product_id"],
-                        "PO_RECEIVED",
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_after - quantity_before,
-                        expected_after - expected_before,
-                        actual_after - actual_before,
-                        int(difference_before),
-                        int(difference_after),
-                        "purchase_orders",
-                        order_id,
-                        "",
+                        inv_row["inventory_id"], pid, "PO_RECEIVED",
+                        quantity_before, quantity_after,
+                        expected_before, expected_after,
+                        actual_before, actual_after,
+                        net_qty, net_qty, net_qty,
+                        int(difference_before), int(difference_after),
+                        "purchase_orders", order_id, f"Received with {item_damage} items damage"
                     ),
                 )
 
+            # Update Order Status
             cur.execute("""
                 UPDATE purchase_orders
-                SET status = 'Received', received_at = CURRENT_TIMESTAMP
+                SET status = 'Received', 
+                    received_at = CURRENT_TIMESTAMP,
+                    receipt_number = %s,
+                    notes = %s
                 WHERE order_id = %s
-            """, (order_id,))
+            """, (payload.receipt_number, payload.notes or order_row.get("notes"), order_id))
 
             cur.execute("""
                 UPDATE supplier
@@ -445,24 +372,19 @@ def mark_order_as_received(
                 WHERE supplier_id = %s
             """, (order_row["supplier_id"],))
 
-            # --- Notification ---
+            # Notification and Audit Log
             dispatch_notification(
                 type="order_completed",
                 title="Purchase Order Received",
-                message=f"Purchase order {order_id} has been received and stock updated.",
+                message=f"Purchase order {order_id} received. Receipt: {payload.receipt_number}",
                 link=f"/orders?id={order_id}",
                 target_roles=["Administrator", "Manager"]
             )
 
-            # --- Audit log ---
             if x_actor_user_id:
                 add_audit_log(
-                    cur,
-                    int(x_actor_user_id),
-                    "RECEIVE_ORDER",
-                    "order",
-                    0, # Using 0 as entity_id since order_id is string
-                    f"Received purchase order: {order_id} (Supplier: {order_row['supplier_name']})"
+                    cur, int(x_actor_user_id), "RECEIVE_ORDER", "order", 0,
+                    f"Received PO: {order_id} (Receipt: {payload.receipt_number})"
                 )
 
             conn.commit()
@@ -486,7 +408,7 @@ def delete_purchase_order(
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT order_id, supplier_id, status FROM purchase_orders WHERE order_id = %s
+                SELECT order_id, status FROM purchase_orders WHERE order_id = %s
             """, (order_id,))
             order_row = cur.fetchone()
             if not order_row:
@@ -494,94 +416,8 @@ def delete_purchase_order(
             if order_row["status"] == "Received":
                 raise HTTPException(status_code=400, detail="Cannot delete a received order")
 
-            cur.execute("""
-                SELECT product_id, quantity FROM purchase_order_items WHERE order_id = %s
-            """, (order_id,))
-            items = cur.fetchall()
-
-            for item in items:
-                cur.execute("""
-                    SELECT
-                        inventory_id,
-                        quantity,
-                        expected,
-                        actual
-                    FROM inventory
-                    WHERE product_id = %s
-                    FOR UPDATE
-                """, (item["product_id"],))
-                inv = cur.fetchone()
-                if not inv:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Product ID {item['product_id']} not found in inventory",
-                    )
-
-                qty = item["quantity"]
-                quantity_before = inv["quantity"]
-                expected_before = inv["expected"]
-                actual_before = inv["actual"]
-                quantity_after = quantity_before
-                expected_after = max(expected_before - qty, actual_before)
-                actual_after = actual_before
-
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
-
-                cur.execute("""
-                    UPDATE inventory
-                    SET expected = GREATEST(expected - %s, actual),
-                        last_updated = %s
-                    WHERE product_id = %s
-                """, (qty, date.today(), item["product_id"]))
-
-                cur.execute(
-                    """
-                    INSERT INTO inventory_stock_events (
-                        inventory_id,
-                        product_id,
-                        event_type,
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_delta,
-                        expected_delta,
-                        actual_delta,
-                        difference_before,
-                        difference_after,
-                        reference_type,
-                        reference_id,
-                        reason
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inv["inventory_id"],
-                        item["product_id"],
-                        "PO_CANCELLED_PENDING",
-                        quantity_before,
-                        quantity_after,
-                        expected_before,
-                        expected_after,
-                        actual_before,
-                        actual_after,
-                        quantity_after - quantity_before,
-                        expected_after - expected_before,
-                        actual_after - actual_before,
-                        int(difference_before),
-                        int(difference_after),
-                        "purchase_orders",
-                        order_id,
-                        "",
-                    ),
-                )
-
-            cur.execute("UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s AND status != 'Archived' RETURNING order_id", (order_id,))
-            if cur.rowcount == 0:
-                raise HTTPException(status_code=404, detail="Active order not found")
+            # Since Pending orders no longer affect inventory stocks, we just archive the order record.
+            cur.execute("UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s", (order_id,))
 
             # --- Audit log ---
             if x_actor_user_id:

@@ -10,6 +10,8 @@ import type { PurchaseOrder, PurchaseOrderItem } from "@/types";
 import { ProductReturns } from "./ProductReturns";
 import { CustomerReturns } from "./CustomerReturns";
 import { ProtectedAction } from "@/components/ProtectedAction";
+import { ReceiveOrderModal } from "@/components/modals/ReceiveOrderModal";
+import { cn } from "@/lib/utils";
 
 interface OrderItemInput {
   product_id: number;
@@ -52,6 +54,8 @@ export function Orders() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [orderToReceive, setOrderToReceive] = useState<PurchaseOrder | null>(null);
 
   const [newOrder, setNewOrder] = useState({
     supplier_id: 0,
@@ -230,12 +234,11 @@ export function Orders() {
 
   const handleMarkAsReceived = async (orderId: string) => {
     try {
-      await api.markOrderAsReceived(orderId);
-      toast.success("Order marked as received");
-      setShowViewModal(false);
-      loadData();
+      const order = await api.getPurchaseOrder(orderId);
+      setOrderToReceive(order);
+      setShowReceiveModal(true);
     } catch (error: any) {
-      toast.error(error.message || "Failed to mark order as received");
+      toast.error(error.message || "Failed to load order details for receiving");
     }
   };
 
@@ -900,6 +903,19 @@ export function Orders() {
           "Total Items": o.total_items,
           "Notes": o.notes || "-"
         }))}
+      />
+
+      <ReceiveOrderModal
+        isOpen={showReceiveModal}
+        onClose={() => {
+          setShowReceiveModal(false);
+          setOrderToReceive(null);
+        }}
+        onSuccess={() => {
+          setShowViewModal(false);
+          loadData();
+        }}
+        order={orderToReceive}
       />
     </div>
   );

@@ -306,6 +306,15 @@ export interface CreateProductReturnPayload {
   reason?: string;
 }
 
+export interface MarkOrderReceivedPayload {
+  receipt_number: string;
+  notes?: string;
+  items: Array<{
+    product_id: number;
+    damage_count: number;
+  }>;
+}
+
 export interface CustomerReturnItem {
   item_id: number;
   product_id: number;
@@ -576,7 +585,8 @@ export const api = {
   getPurchaseOrder: (orderId: string) => request<any>(`/api/purchase-orders/${orderId}`),
   getUpcomingDeliveries: () => request<{ deliveries: any[]; count: number }>("/api/purchase-orders/upcoming-deliveries"),
   createPurchaseOrder: (payload: any) => request<any>("/api/purchase-orders/", { method: "POST", body: JSON.stringify(payload) }),
-  markOrderAsReceived: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/receive`, { method: "PUT" }),
+  markOrderAsReceived: (orderId: string, payload: MarkOrderReceivedPayload) => 
+    request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/receive`, { method: "PUT", body: JSON.stringify(payload) }),
   deletePurchaseOrder: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, { method: "DELETE" }),
   archivePurchaseOrder: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/archive`, { method: "PUT" }),
 

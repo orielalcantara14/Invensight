@@ -94,14 +94,14 @@ def login(body: LoginRequest):
                 if username_val.strip().lower() == root_uname or username_val.strip().lower() == "rootadmin":
                     is_root = True
 
-            # Bypass MFA for rootadmin OR users who have already completed their first-time setup (must_change_password is False)
-            if is_root or not row.get("must_change_password", False):
+            # Bypass MFA ONLY for rootadmin. Standard users will always require MFA.
+            if is_root:
                 # Bypass MFA: directly update last login and record session
                 cur.execute(
                     "UPDATE users SET mfa_code = NULL, mfa_expiry = NULL, last_login = CURRENT_DATE WHERE user_id = %s",
                     (row["user_id"],),
                 )
-                add_audit_log(cur, row["user_id"], "LOGIN", "user", row["user_id"], "User logged in (MFA Bypassed)")
+                add_audit_log(cur, row["user_id"], "LOGIN", "user", row["user_id"], "User logged in (Root Admin MFA Bypass)")
                 conn.commit()
 
                 perms = None

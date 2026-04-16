@@ -305,13 +305,24 @@ export function EditInventoryModal({
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Physical Count (Actual)
+              Physical Count (Actual) {formData.reason_adjustment === "Restock" && <span className="text-xs text-gray-400 font-normal">(Synced with Quantity)</span>}
             </label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className={cn(
+                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none",
+                (formData.reason_adjustment === "Restock") ? "bg-gray-50 border-gray-200" : "border-gray-300"
+              )}
               value={formData.actual}
-              onChange={(e) => setFormData({ ...formData, actual: e.target.value })}
+              readOnly={formData.reason_adjustment === "Restock"}
+              onChange={(e) => {
+                const val = e.target.value;
+                const update = { ...formData, actual: val };
+                if (formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") {
+                  update.quantity = val;
+                }
+                setFormData(update);
+              }}
             />
           </div>
         </div>
@@ -319,13 +330,24 @@ export function EditInventoryModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quantity
+              Quantity {(formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") && <span className="text-xs text-gray-400 font-normal">(Synced with Actual)</span>}
             </label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className={cn(
+                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none",
+                (formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") ? "bg-gray-50 border-gray-200" : "border-gray-300"
+              )}
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              readOnly={formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged"}
+              onChange={(e) => {
+                const val = e.target.value;
+                const update = { ...formData, quantity: val };
+                if (formData.reason_adjustment === "Restock") {
+                  update.actual = val;
+                }
+                setFormData(update);
+              }}
             />
           </div>
           <div>
@@ -348,13 +370,21 @@ export function EditInventoryModal({
           <select
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             value={formData.reason_adjustment}
-            onChange={(e) => setFormData({ ...formData, reason_adjustment: e.target.value })}
+            onChange={(e) => {
+              const reason = e.target.value;
+              const update = { ...formData, reason_adjustment: reason };
+              if (reason === "Restock") {
+                update.actual = formData.quantity;
+              } else if (reason === "Lost" || reason === "Damaged") {
+                update.quantity = formData.actual;
+              }
+              setFormData(update);
+            }}
           >
             <option value="">Select Reason</option>
             <option value="Lost">Lost</option>
             <option value="Damaged">Damaged</option>
             <option value="Restock">Restock</option>
-            <option value="Correction">Correction</option>
           </select>
         </div>
 

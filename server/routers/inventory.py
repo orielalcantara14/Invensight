@@ -28,9 +28,7 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
             COALESCE(i.quantity, 0) AS quantity,
             COALESCE(i.expected, 0) AS expected,
             COALESCE(i.actual, 0) AS actual,
-            (
-                (2 * COALESCE(i.actual, 0)) - COALESCE(i.quantity, 0) - COALESCE(i.expected, 0)
-            )::int AS difference,
+            COALESCE(i.actual, 0) - COALESCE(i.expected, 0) AS difference,
             COALESCE(i.reorder_level, 10) AS reorder_level,
             COALESCE(p.unit_price::float, 0.0) AS unit_price,
             CASE
@@ -54,11 +52,33 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
         raise HTTPException(status_code=404, detail="Inventory item not found")
     return dict(row)
 
+def check_daily_reset(cur: psycopg2.extras.RealDictCursor):
+    """Resets expected count to equal quantity count at the start of each day."""
+    cur.execute("SELECT setting_value FROM system_settings WHERE setting_key = 'last_expected_reset'")
+    row = cur.fetchone()
+    last_reset = row["setting_value"] if row else ""
+    today_str = date.today().isoformat()
+
+    if last_reset != today_str:
+        # Perform reset: Set expected = quantity for ALL active inventory
+        cur.execute("UPDATE inventory SET expected = quantity WHERE status = 'Active'")
+        
+        # Update last reset date
+        cur.execute(
+            "UPDATE system_settings SET setting_value = %s WHERE setting_key = 'last_expected_reset'",
+            (today_str,)
+        )
+        logger.info(f"Daily inventory expected count reset performed for {today_str}")
+
 @router.get("/")
 def get_inventory():
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Check for daily reset before fetching
+            check_daily_reset(cur)
+            conn.commit()
+            
             cur.execute(
                 """
                 SELECT
@@ -74,9 +94,7 @@ def get_inventory():
                     COALESCE(i.quantity, 0) AS quantity,
                     COALESCE(i.expected, 0) AS expected,
                     COALESCE(i.actual, 0) AS actual,
-                    (
-                        (2 * COALESCE(i.actual, 0)) - COALESCE(i.quantity, 0) - COALESCE(i.expected, 0)
-                    )::int AS difference,
+                    COALESCE(i.actual, 0) - COALESCE(i.expected, 0) AS difference,
                     COALESCE(i.reorder_level, 10) AS reorder_level,
                     COALESCE(p.unit_price::float, 0.0) AS unit_price,
                     CASE
@@ -279,14 +297,29 @@ def update_inventory_item(
             # we assume they are doing a stock audit and want to update the live quantity.
             # Otherwise, we just update the fields as provided.
             
-            cur.execute("SELECT quantity FROM inventory WHERE inventory_id = %s", (inventory_id,))
-            current_quantity = cur.fetchone()["quantity"]
+            cur.execute("SELECT quantity, expected, actual FROM inventory WHERE inventory_id = %s", (inventory_id,))
+            current_row = cur.fetchone()
+            current_quantity = current_row["quantity"]
+            current_expected = current_row["expected"]
+            current_actual = current_row["actual"]
             
             new_quantity = payload.quantity
-            if payload.actual != current_quantity and payload.reason_adjustment:
-                # A physical count was performed and a reason was given.
-                # Update the live quantity to match the actual count.
-                new_quantity = payload.actual
+            new_actual = payload.actual
+            new_expected = payload.expected
+            
+            # Application Logic based on Reason for Adjustment
+            if payload.reason_adjustment == "Restock":
+                # Editing quantity automatically updates actual and expected
+                new_actual = new_quantity
+                # Change in quantity is added to expected
+                qty_delta = new_quantity - current_quantity
+                new_expected = current_expected + qty_delta
+            elif payload.reason_adjustment in ["Lost", "Damaged"]:
+                # Editing actual automatically updates quantity (expected remains same)
+                new_quantity = new_actual
+            elif payload.reason_adjustment == "Correction":
+                # Manual sync of all fields
+                pass
 
             cur.execute(
                 """
@@ -301,8 +334,8 @@ def update_inventory_item(
                 """,
                 (
                     new_quantity,
-                    payload.expected, # Update expected with the provided value
-                    payload.actual,   # Update actual with the provided value
+                    new_expected,
+                    new_actual,
                     payload.reorder_level,
                     date.today(),
                     payload.reason_adjustment,
@@ -485,8 +518,8 @@ def add_inventory_discrepancy(
                     detail="Discrepancy cannot reduce stock below zero.",
                 )
 
-            difference_before = (2 * actual_before) - quantity_before - expected_before
-            difference_after = (2 * actual_after) - quantity_after - expected_after
+            difference_before = actual_before - expected_before
+            difference_after = actual_after - expected_before # Expected doesn't change on manual adjustment
 
             cur.execute(
                 """

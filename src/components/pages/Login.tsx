@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import emailjs from "@emailjs/browser";
 
 // EmailJS Configuration - Use environment variables in production
-const EMAILJS_SERVICE_ID = "service_kzur8un"; // Placeholder - please confirm or add to .env
-const EMAILJS_TEMPLATE_ID = "template_nn7zdgv"; // Placeholder - please confirm or add to .env
+const EMAILJS_SERVICE_ID = "service_kzur8un";
+const EMAILJS_AUTH_TEMPLATE_ID = "template_nn7zdgv"; // For credentials
+const EMAILJS_OTP_TEMPLATE_ID = "template_3a3keqi";  // For OTP only
 const EMAILJS_PUBLIC_KEY = "ZnEuZEpNlMgItPEBG";
 
 export function Login() {
@@ -73,7 +74,7 @@ export function Login() {
     try {
       await emailjs.send(
         EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
+        EMAILJS_OTP_TEMPLATE_ID,
         {
           Username: res.username,
           Password: password, // The temp pass they just used
@@ -153,7 +154,7 @@ export function Login() {
         // Send OTP via EmailJS
         await emailjs.send(
           EMAILJS_SERVICE_ID,
-          EMAILJS_TEMPLATE_ID,
+          EMAILJS_OTP_TEMPLATE_ID,
           {
             Username: res.username || "User",
             Password: "---", // Only OTP for forgot pass

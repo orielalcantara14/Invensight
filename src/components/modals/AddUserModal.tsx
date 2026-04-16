@@ -120,6 +120,28 @@ export function AddUserModal({
       if (newUser) {
         setGeneratedTempPass(tempPass);
         setGeneratedEmployeeId(newUser.employeeId);
+
+        // Send email if email address is provided
+        if (formData.email.trim()) {
+           try {
+             await emailjs.send(
+               EMAILJS_SERVICE_ID,
+               EMAILJS_TEMPLATE_ID,
+               {
+                 Username: formData.username.trim(),
+                 Password: tempPass,
+                 full_name: fullName,
+                 email: formData.email.trim()
+               },
+               EMAILJS_PUBLIC_KEY
+             );
+             toast.success("Credentials sent to user's email");
+           } catch (emailErr) {
+             console.error("EmailJS Error:", emailErr);
+             toast.error("Account created, but failed to send email.");
+           }
+        }
+
         setStep(3);
       }
     } catch (err) {

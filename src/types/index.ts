@@ -161,6 +161,7 @@ export interface PurchaseOrderItem {
   product_name: string;
   quantity: number;
   unit_price: number | null;
+  damage_count: number;
 }
 
 export interface PurchaseOrder {
@@ -174,5 +175,6 @@ export interface PurchaseOrder {
   received_at: string | null;
   total_items: number;
   notes: string | null;
+  receipt_number: string | null;
   items?: PurchaseOrderItem[];
 }
