@@ -914,7 +914,8 @@ def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-A
                         a.details
                     FROM auditlog a
                     LEFT JOIN users u ON a.user_id = u.user_id
-                    WHERE u.username IS NULL OR LOWER(TRIM(u.username)) <> %s
+                    WHERE (u.username IS NULL OR (LOWER(TRIM(u.username)) <> %s AND LOWER(TRIM(u.username)) <> 'rootadmin'))
+                      AND (u.role IS NULL OR LOWER(TRIM(u.role)) <> 'root admin')
                     ORDER BY a.timestamp DESC
                     LIMIT 400
                     """,

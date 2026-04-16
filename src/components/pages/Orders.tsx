@@ -280,13 +280,13 @@ export function Orders() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
       case "Received":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
       case "Cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground bg-card dark:text-muted-foreground/70";
     }
   };
 
@@ -298,8 +298,8 @@ export function Orders() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Orders and Return</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage supplier purchase orders</p>
+            <h1 className="text-3xl font-bold text-foreground">Orders and Return</h1>
+            <p className="text-muted-foreground mt-1">Track and manage supplier purchase orders</p>
           </div>
           <div className="flex items-center gap-3">
             <ProtectedAction module="Archive" action="View">
@@ -323,7 +323,7 @@ export function Orders() {
             <ProtectedAction module="Orders" action="Add">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 New Order
@@ -334,21 +334,21 @@ export function Orders() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Orders</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{orders.length}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Total Orders</div>
+          <div className="text-2xl font-bold text-foreground">{orders.length}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pending Orders</div>
-          <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Pending Orders</div>
+          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{pendingCount}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Received Orders</div>
-          <div className="text-2xl font-bold text-green-600">{receivedCount}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Received Orders</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-500">{receivedCount}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Customer Returns</div>
-          <div className="text-2xl font-bold text-purple-600">{customerReturnsCount}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Customer Returns</div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-500">{customerReturnsCount}</div>
         </div>
       </div>
 
@@ -363,8 +363,8 @@ export function Orders() {
           }}
           className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
             activeTab === "orders"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+              ? "bg-primary text-white border-primary"
+              : "bg-card bg-card text-muted-foreground dark:text-gray-300 border-border border-border hover:bg-muted/50 dark:hover:bg-gray-700"
           }`}
         >
           Order List
@@ -378,8 +378,8 @@ export function Orders() {
           }}
           className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
             activeTab === "returns"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+              ? "bg-primary text-white border-primary"
+              : "bg-card bg-card text-muted-foreground dark:text-gray-300 border-border border-border hover:bg-muted/50 dark:hover:bg-gray-700"
           }`}
         >
           Supplier Returns
@@ -393,8 +393,8 @@ export function Orders() {
           }}
           className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
             activeTab === "customer_returns"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+              ? "bg-primary text-white border-primary"
+              : "bg-card bg-card text-muted-foreground dark:text-gray-300 border-border border-border hover:bg-muted/50 dark:hover:bg-gray-700"
           }`}
         >
           Customer Returns
@@ -402,29 +402,29 @@ export function Orders() {
       </div>
 
       {activeTab === "orders" && (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-card rounded-lg shadow border border-border">
+        <div className="p-6 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">All Orders</h2>
+            <h2 className="text-lg font-semibold text-foreground">All Orders</h2>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 bg-muted/50 dark:bg-gray-700/50 p-2 rounded-lg border border-border border-border">
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+                  className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
                 />
-                <span className="text-gray-400">to</span>
+                <span className="text-muted-foreground/70">to</span>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="bg-transparent border-none text-sm focus:ring-0 dark:text-white"
+                  className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
                 />
               </div>
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 Export Orders
@@ -432,7 +432,7 @@ export function Orders() {
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
             <input
               type="text"
               placeholder="Search by order ID, supplier, or status..."
@@ -441,45 +441,45 @@ export function Orders() {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+              className="w-full pl-10 pr-4 py-2 border border-border dark:border-gray-600 bg-card dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-foreground"
             />
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <thead className="bg-muted/50 border-b border-border">
               <tr>
                 <th className="px-6 py-3 text-left">
                   {/* Header checkbox removed */}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Order ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Supplier
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Created Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Expected Delivery
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Total Items
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-card divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     Loading orders...
                   </td>
                 </tr>
@@ -487,29 +487,29 @@ export function Orders() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No orders available</p>
-                    <p className="text-sm text-gray-400 mt-1">Create a new order to start tracking purchases</p>
+                    <p className="text-muted-foreground font-medium">No orders available</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">Create a new order to start tracking purchases</p>
                   </td>
                 </tr>
               ) : (
                 paginatedOrders.map((order) => (
-                  <tr key={order.order_id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <tr key={order.order_id} className="hover:bg-muted/50 dark:hover:bg-gray-700 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {/* Row selection handled in Export Wizard */}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-foreground">
                       {formatOrderId(order.order_id)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {order.supplier_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {order.created_at ? new Date(order.created_at).toLocaleDateString() : "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {order.expected_delivery || "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-foreground">
                       {order.total_items}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -517,11 +517,11 @@ export function Orders() {
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewOrder(order.order_id)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="text-primary hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -570,12 +570,12 @@ export function Orders() {
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Purchase Order</h2>
+          <div className="bg-card bg-card rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-border border-border">
+              <h2 className="text-xl font-bold text-foreground text-foreground">Create Purchase Order</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground/70 dark:hover:text-gray-200"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -584,13 +584,13 @@ export function Orders() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">
                     Supplier *
                   </label>
                   <select
                     value={newOrder.supplier_id}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, supplier_id: Number(e.target.value) }))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border dark:border-gray-600 rounded-lg px-3 py-2 bg-card dark:bg-gray-700 text-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value={0}>Select Supplier</option>
                     {suppliers
@@ -603,45 +603,45 @@ export function Orders() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">
                     Expected Delivery Date *
                   </label>
                   <input
                     type="date"
                     value={newOrder.expected_delivery}
                     onChange={(e) => setNewOrder((prev) => ({ ...prev, expected_delivery: e.target.value }))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border dark:border-gray-600 rounded-lg px-3 py-2 bg-card dark:bg-gray-700 text-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300">
                     Order Items *
                   </label>
                   <button
                     onClick={addOrderItem}
-                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                    className="text-sm text-primary hover:text-blue-800 dark:text-blue-400"
                   >
                     + Add Item
                   </button>
                 </div>
 
                 {newOrder.items.length === 0 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+                  <p className="text-sm text-muted-foreground dark:text-muted-foreground/70 py-4 text-center">
                     Click "Add Item" to add products to this order
                   </p>
                 )}
 
                 <div className="space-y-3">
                   {newOrder.items.map((item, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div key={index} className="flex items-center gap-3 p-3 bg-muted/50 dark:bg-gray-700 rounded-lg">
                       <div className="flex-1">
                         <select
                           value={item.product_id}
                           onChange={(e) => updateOrderItem(index, "product_id", Number(e.target.value))}
-                          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                          className="w-full border border-border dark:border-gray-600 rounded px-2 py-1 text-sm bg-card dark:bg-gray-600 text-foreground text-foreground"
                         >
                           <option value={0}>Select Product</option>
                           {products
@@ -659,7 +659,7 @@ export function Orders() {
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateOrderItem(index, "quantity", Number(e.target.value))}
-                          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                          className="w-full border border-border dark:border-gray-600 rounded px-2 py-1 text-sm bg-card dark:bg-gray-600 text-foreground text-foreground"
                           placeholder="Qty"
                         />
                       </div>
@@ -670,7 +670,7 @@ export function Orders() {
                           step="0.01"
                           value={item.unit_price || ""}
                           onChange={(e) => updateOrderItem(index, "unit_price", e.target.value ? Number(e.target.value) : null)}
-                          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                          className="w-full border border-border dark:border-gray-600 rounded px-2 py-1 text-sm bg-card dark:bg-gray-600 text-foreground text-foreground"
                           placeholder="Unit Price"
                         />
                       </div>
@@ -686,29 +686,29 @@ export function Orders() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">
                   Notes
                 </label>
                 <textarea
                   value={newOrder.notes}
                   onChange={(e) => setNewOrder((prev) => ({ ...prev, notes: e.target.value }))}
                   rows={3}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border dark:border-gray-600 rounded-lg px-3 py-2 bg-card dark:bg-gray-700 text-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Optional notes..."
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-border border-border">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-4 py-2 text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateOrder}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
               >
                 Create Order
               </button>
@@ -719,12 +719,12 @@ export function Orders() {
 
       {showViewModal && selectedOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Order Details</h2>
+          <div className="bg-card bg-card rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-border border-border">
+              <h2 className="text-xl font-bold text-foreground text-foreground">Order Details</h2>
               <button
                 onClick={() => setShowViewModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground/70 dark:hover:text-gray-200"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -733,11 +733,11 @@ export function Orders() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Order ID</label>
-                  <p className="font-medium text-gray-900 dark:text-white">{formatOrderId(selectedOrder.order_id)}</p>
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Order ID</label>
+                  <p className="font-medium text-foreground text-foreground">{formatOrderId(selectedOrder.order_id)}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Status</label>
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Status</label>
                   <p>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(selectedOrder.status)}`}>
                       {selectedOrder.status}
@@ -745,22 +745,22 @@ export function Orders() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Supplier</label>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedOrder.supplier_name}</p>
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Supplier</label>
+                  <p className="font-medium text-foreground text-foreground">{selectedOrder.supplier_name}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Expected Delivery</label>
-                  <p className="font-medium text-gray-900 dark:text-white">{selectedOrder.expected_delivery || "-"}</p>
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Expected Delivery</label>
+                  <p className="font-medium text-foreground text-foreground">{selectedOrder.expected_delivery || "-"}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Created Date</label>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Created Date</label>
+                  <p className="font-medium text-foreground text-foreground">
                     {selectedOrder.created_at ? new Date(selectedOrder.created_at).toLocaleDateString() : "-"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Received Date</label>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Received Date</label>
+                  <p className="font-medium text-foreground text-foreground">
                     {selectedOrder.received_at ? new Date(selectedOrder.received_at).toLocaleDateString() : "-"}
                   </p>
                 </div>
@@ -768,36 +768,36 @@ export function Orders() {
 
               {selectedOrder.notes && (
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400">Notes</label>
-                  <p className="text-gray-900 dark:text-white mt-1">{selectedOrder.notes}</p>
+                  <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Notes</label>
+                  <p className="text-foreground text-foreground mt-1">{selectedOrder.notes}</p>
                 </div>
               )}
 
               <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                <label className="text-sm font-medium text-muted-foreground dark:text-gray-300 mb-2 block">
                   Order Items
                 </label>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <div className="border border-border border-border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                    <thead className="bg-muted/50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70">
                           Product
                         </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70">
                           Quantity
                         </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70">
                           Unit Price
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-border dark:divide-gray-700">
                       {selectedOrder.items?.map((item: PurchaseOrderItem) => (
                         <tr key={item.item_id}>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{item.product_name}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{item.quantity}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
+                          <td className="px-4 py-2 text-sm text-foreground text-foreground">{item.product_name}</td>
+                          <td className="px-4 py-2 text-sm text-foreground text-foreground">{item.quantity}</td>
+                          <td className="px-4 py-2 text-sm text-foreground text-foreground">
                             {item.unit_price ? `₱${item.unit_price.toFixed(2)}` : "-"}
                           </td>
                         </tr>
@@ -808,10 +808,10 @@ export function Orders() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-border border-border">
               <button
                 onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-4 py-2 text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-700"
               >
                 Close
               </button>
@@ -832,7 +832,7 @@ export function Orders() {
       {/* Archive Confirm Modal */}
       {archiveTarget && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
               <div className="flex items-center gap-3">
@@ -840,7 +840,7 @@ export function Orders() {
                   <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Order</h3>
+                  <h3 className="text-lg font-semibold text-foreground text-foreground">Archive Order</h3>
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
                 </div>
               </div>
@@ -848,11 +848,11 @@ export function Orders() {
 
             {/* Body */}
             <div className="p-6">
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-muted-foreground dark:text-gray-300">
                 Are you sure you want to archive order{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">"{archiveTarget.displayId}"</span>?
+                <span className="font-semibold text-foreground text-foreground">"{archiveTarget.displayId}"</span>?
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
                 It will be moved to the Archive module and can be fully restored at any time.
               </p>
             </div>
@@ -862,7 +862,7 @@ export function Orders() {
               <button
                 onClick={() => setArchiveTarget(null)}
                 disabled={archiving}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -135,7 +135,7 @@ export function EditUserModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="edit-username" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <label htmlFor="edit-username" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                 Username
               </label>
               <input
@@ -144,20 +144,20 @@ export function EditUserModal({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border px-3 py-2 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                 required
                 disabled={saving}
               />
             </div>
             <div>
-               <label htmlFor="edit-role" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+               <label htmlFor="edit-role" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                 Role
               </label>
               <select
                 id="edit-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 required
                 disabled={saving || roleNames.length === 0}
               >
@@ -171,10 +171,10 @@ export function EditUserModal({
           </div>
 
           <div className="space-y-4 pt-2">
-            <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-100 pb-1">Personal Information</p>
+            <p className="text-[10px] font-black text-foreground uppercase tracking-widest border-b border-border pb-1">Personal Information</p>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label htmlFor="edit-surname" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <label htmlFor="edit-surname" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                   Surname
                 </label>
                 <input
@@ -182,14 +182,14 @@ export function EditUserModal({
                   type="text"
                   value={surname}
                   onChange={(e) => setSurname(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                   required
                   disabled={saving}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="edit-firstName" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <label htmlFor="edit-firstName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                     First Name
                   </label>
                   <input
@@ -197,13 +197,13 @@ export function EditUserModal({
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                     disabled={saving}
                   />
                 </div>
                 <div>
-                  <label htmlFor="edit-middleName" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <label htmlFor="edit-middleName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                     Middle Name
                   </label>
                   <input
@@ -211,7 +211,7 @@ export function EditUserModal({
                     type="text"
                     value={middleName}
                     onChange={(e) => setMiddleName(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                     disabled={saving}
                   />
                 </div>
@@ -221,7 +221,7 @@ export function EditUserModal({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="edit-email" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <label htmlFor="edit-email" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                 Email Address
               </label>
               <input
@@ -230,19 +230,19 @@ export function EditUserModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={saving}
               />
             </div>
              <div>
-              <label htmlFor="edit-status" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <label htmlFor="edit-status" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                 Status
               </label>
               <select
                 id="edit-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as "Active" | "Inactive")}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 disabled={saving}
               >
                 <option value="Active">Active</option>
@@ -252,10 +252,10 @@ export function EditUserModal({
           </div>
 
           <div className="space-y-4 pt-2">
-             <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-100 pb-1">Security Update</p>
+             <p className="text-[10px] font-black text-foreground uppercase tracking-widest border-b border-border pb-1">Security Update</p>
              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="edit-new-password" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <label htmlFor="edit-new-password" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                     New password
                   </label>
                   <input
@@ -265,12 +265,12 @@ export function EditUserModal({
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Leave blank to keep current"
                     autoComplete="new-password"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                     disabled={saving}
                   />
                 </div>
                 <div>
-                  <label htmlFor="edit-confirm-password" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <label htmlFor="edit-confirm-password" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                     Confirm New password
                   </label>
                   <input
@@ -280,7 +280,7 @@ export function EditUserModal({
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
                     placeholder="Repeat new password"
                     autoComplete="new-password"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                     disabled={saving}
                   />
                 </div>
@@ -288,8 +288,8 @@ export function EditUserModal({
 
              {/* Password Requirements Checklist - Only show if typing new password */}
              {newPassword.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2 translate-y-[-8px]">
-                  <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-3">Security Requirements</p>
+                <div className="bg-muted/50 p-4 rounded-xl border border-border space-y-2 translate-y-[-8px]">
+                  <p className="text-[10px] font-black text-foreground uppercase tracking-widest mb-3">Security Requirements</p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                     <RequirementItem label="8-12 Characters" met={newPassword.length >= 8} />
                     <RequirementItem label="Uppercase" met={/[A-Z]/.test(newPassword)} />
@@ -298,7 +298,7 @@ export function EditUserModal({
                     <RequirementItem label="Special (!@#$%^&*)" met={/[!@#$%^&*]/.test(newPassword)} />
                     <div className="flex items-center gap-2">
                       <div className={`w-1.5 h-1.5 rounded-full ${newPassword.length >= 12 ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      <span className={`text-[10px] font-bold ${newPassword.length >= 12 ? 'text-green-600' : 'text-gray-400'}`}>Recommended (12+)</span>
+                      <span className={`text-[10px] font-bold ${newPassword.length >= 12 ? 'text-green-600' : 'text-muted-foreground/70'}`}>Recommended (12+)</span>
                     </div>
                   </div>
                 </div>
@@ -309,11 +309,11 @@ export function EditUserModal({
             <button
               type="button"
               onClick={() => setIsPermissionsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-gray-700 transition-colors hover:bg-gray-100"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted"
             >
-              <Shield className="h-4 w-4 text-blue-600" />
+              <Shield className="h-4 w-4 text-primary" />
               Manage Permissions
-              <span className="ml-1 text-[10px] text-gray-400 font-normal">
+              <span className="ml-1 text-[10px] text-muted-foreground/70 font-normal">
                 ({Object.keys(permissions).length > 0 ? Object.keys(permissions).length : Object.keys(matchedPermissions).length} modules allowed)
               </span>
             </button>
@@ -325,19 +325,19 @@ export function EditUserModal({
             </p>
           ) : null}
 
-          <div className="flex gap-3 border-t border-gray-200 pt-6">
+          <div className="flex gap-3 border-t border-border pt-6">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="flex-1 rounded-lg bg-gray-100 py-2.5 font-bold text-gray-800 transition-colors duration-200 hover:bg-gray-200 disabled:opacity-50 text-xs uppercase tracking-widest"
+              className="flex-1 rounded-lg bg-muted py-2.5 font-bold text-foreground transition-colors duration-200 hover:bg-gray-200 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving || roleNames.length === 0}
-              className="flex-1 rounded-lg bg-blue-600 py-2.5 font-bold text-white transition-colors duration-200 hover:bg-blue-700 disabled:opacity-50 text-xs uppercase tracking-widest shadow-lg shadow-blue-200"
+              className="flex-1 rounded-lg bg-primary py-2.5 font-bold text-white transition-colors duration-200 hover:bg-primary/90 disabled:opacity-50 text-xs uppercase tracking-widest shadow-lg shadow-blue-200"
             >
               {saving ? "Saving…" : "Update Profile"}
             </button>
@@ -361,7 +361,7 @@ function RequirementItem({ label, met }: { label: string, met: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-red-400 opacity-50'}`} />
-      <span className={`text-[10px] font-bold uppercase tracking-tight ${met ? 'text-green-600' : 'text-gray-400'}`}>
+      <span className={`text-[10px] font-bold uppercase tracking-tight ${met ? 'text-green-600' : 'text-muted-foreground/70'}`}>
         {label}
       </span>
     </div>

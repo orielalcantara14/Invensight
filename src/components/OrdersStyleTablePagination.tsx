@@ -44,22 +44,22 @@ export function OrdersStyleTablePagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-between px-6 py-4 border-t border-border border-border">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600 dark:text-gray-400">Show</span>
+        <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">Show</span>
         <select
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-border dark:border-gray-600 rounded-md px-2 py-1 text-sm bg-card dark:bg-gray-700 text-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value={3}>3</option>
           <option value={5}>5</option>
           <option value={10}>10</option>
         </select>
-        <span className="text-sm text-gray-600 dark:text-gray-400">entries</span>
+        <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">entries</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
+        <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">
           Page {page} of {totalPages}
         </span>
         <div className="flex gap-1">
@@ -67,13 +67,13 @@ export function OrdersStyleTablePagination({
             type="button"
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
-            className="p-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="p-1 rounded border border-border dark:border-gray-600 disabled:opacity-50 hover:bg-muted dark:hover:bg-gray-700 text-muted-foreground dark:text-gray-300"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           {pageNumbers.map((p, index) => (
             p === '...' ? (
-              <span key={`ellipsis-${index}`} className="px-3 py-1 flex items-center justify-center text-sm text-gray-500">
+              <span key={`ellipsis-${index}`} className="px-3 py-1 flex items-center justify-center text-sm text-muted-foreground">
                 ...
               </span>
             ) : (
@@ -83,8 +83,8 @@ export function OrdersStyleTablePagination({
                 onClick={() => onPageChange(p as number)}
                 className={`px-3 py-1 rounded border text-sm ${
                   p === page
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    ? "bg-primary text-white border-primary"
+                    : "border-border dark:border-gray-600 hover:bg-muted dark:hover:bg-gray-700 text-muted-foreground dark:text-gray-300"
                 }`}
               >
                 {p}
@@ -95,7 +95,7 @@ export function OrdersStyleTablePagination({
             type="button"
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
-            className="p-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="p-1 rounded border border-border dark:border-gray-600 disabled:opacity-50 hover:bg-muted dark:hover:bg-gray-700 text-muted-foreground dark:text-gray-300"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

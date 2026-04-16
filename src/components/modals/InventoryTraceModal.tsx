@@ -125,51 +125,51 @@ export function InventoryTraceModal({
     <BaseModal isOpen={isOpen} onClose={onClose} title={title} maxWidth="lg">
       <div className="flex h-[min(74vh,700px)] min-h-0 flex-col overflow-hidden">
         <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
-          <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+          <div className="rounded-lg border border-border bg-muted/50/70 p-3">
             <div className="grid grid-cols-[150px_1fr] gap-y-2 text-sm md:grid-cols-[180px_1fr]">
-              <div className="text-gray-600">Product:</div>
-              <div className="font-semibold text-right text-gray-900">{item?.product_name || "-"}</div>
-              <div className="text-gray-600">SKU:</div>
-              <div className="font-semibold text-right text-blue-600">{item?.sku || "-"}</div>
-              <div className="text-gray-600">Expected Quantity:</div>
-              <div className="font-semibold text-right text-gray-900">{item?.expected ?? "-"}</div>
-              <div className="text-gray-600">Actual Quantity:</div>
-              <div className="font-semibold text-right text-gray-900">{item?.actual ?? "-"}</div>
-              <div className="col-span-2 my-1 border-t border-gray-200" />
-              <div className="text-gray-700">Total Difference:</div>
-              <div className={`font-bold text-right ${item && item.difference < 0 ? "text-red-600" : "text-gray-900"}`}>
+              <div className="text-muted-foreground">Product:</div>
+              <div className="font-semibold text-right text-foreground">{item?.product_name || "-"}</div>
+              <div className="text-muted-foreground">SKU:</div>
+              <div className="font-semibold text-right text-primary">{item?.sku || "-"}</div>
+              <div className="text-muted-foreground">Expected Quantity:</div>
+              <div className="font-semibold text-right text-foreground">{item?.expected ?? "-"}</div>
+              <div className="text-muted-foreground">Actual Quantity:</div>
+              <div className="font-semibold text-right text-foreground">{item?.actual ?? "-"}</div>
+              <div className="col-span-2 my-1 border-t border-border" />
+              <div className="text-muted-foreground">Total Difference:</div>
+              <div className={`font-bold text-right ${item && item.difference < 0 ? "text-red-600" : "text-foreground"}`}>
                 {item?.difference ?? "-"}
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Individual Discrepancies</h3>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">Individual Discrepancies</h3>
             <div className="mb-3 flex flex-wrap gap-3">
               <div className="flex-1 min-w-[140px]">
-                <label className="mb-1 block text-xs font-medium text-gray-600">From Date</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">From Date</label>
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
               <div className="flex-1 min-w-[140px]">
-                <label className="mb-1 block text-xs font-medium text-gray-600">To Date</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">To Date</label>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
               <div className="flex-1 min-w-[160px]">
-                <label className="mb-1 block text-xs font-medium text-gray-600">Discrepancy Type</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Discrepancy Type</label>
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as "all" | "shortage" | "surplus")}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="all">All Discrepancies</option>
                   <option value="shortage">Shortage (-)</option>
@@ -178,29 +178,29 @@ export function InventoryTraceModal({
               </div>
             </div>
             {isLoading ? (
-              <div className="rounded-lg border border-gray-200 p-6 text-center text-gray-500">Loading trace...</div>
+              <div className="rounded-lg border border-border p-6 text-center text-muted-foreground">Loading trace...</div>
             ) : filteredDiscrepancyEvents.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 p-6 text-center text-gray-500">
+              <div className="rounded-lg border border-border p-6 text-center text-muted-foreground">
                 {(dateFrom || dateTo || filterType !== "all") ? "No discrepancy records found for the selected filters." : "No discrepancy records found."}
               </div>
             ) : (
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                 {filteredDiscrepancyEvents.map((ev, index) => (
-                  <div key={ev.event_id} className="rounded-lg border border-gray-200 p-3">
+                  <div key={ev.event_id} className="rounded-lg border border-border p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                        <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary/90">
                           Item {index + 1}
                         </span>
                         <span className={`text-xl font-bold ${formatDiscrepancyChange(ev).startsWith("-") ? "text-red-600" : "text-green-600"}`}>
                           {formatDiscrepancyChange(ev)} piece
                         </span>
                       </div>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {ev.created_at ? new Date(ev.created_at).toLocaleDateString() : "-"}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-700">
+                    <div className="text-sm text-muted-foreground">
                       Reason: {ev.reason || ev.event_type}
                     </div>
                   </div>
@@ -209,51 +209,51 @@ export function InventoryTraceModal({
             )}
           </div>
 
-          <div className="border-t border-gray-200 pt-3">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Add New Discrepancy Record</h3>
+          <div className="border-t border-border pt-3">
+            <h3 className="mb-2 text-lg font-semibold text-foreground">Add New Discrepancy Record</h3>
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Discrepancy Type</label>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Discrepancy Type</label>
                   <select
                     value={discrepancyType}
                     onChange={(e) => setDiscrepancyType(e.target.value as "shortage" | "surplus")}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="shortage">Shortage (-)</option>
                     <option value="surplus">Surplus (+)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Quantity</label>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Quantity</label>
                   <input
                     type="number"
                     value={quantityAmount}
                     onChange={(e) => setQuantityAmount(e.target.value)}
                     placeholder="Enter quantity"
                     min="1"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-border px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Reason</label>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Reason</label>
                 <textarea
                   rows={2}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Explain the reason (e.g., damaged, lost, returned to supplier, theft)"
-                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-none rounded-lg border border-border px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-3 flex shrink-0 justify-end gap-3 border-t border-gray-200 pt-3">
+        <div className="mt-3 flex shrink-0 justify-end gap-3 border-t border-border pt-3">
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-border px-6 py-2 text-muted-foreground hover:bg-muted/50"
           >
             Close
           </button>

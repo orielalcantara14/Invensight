@@ -102,13 +102,13 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* ... existing modal structure ... */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+      <div className="relative bg-card rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-card sticky top-0 z-10">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Process Product Return</h2>
-            <p className="text-sm text-gray-500 mt-1">Invoice #{String(invoice.invoice_id).padStart(6, "0")}</p>
+            <h2 className="text-xl font-bold text-foreground">Process Product Return</h2>
+            <p className="text-sm text-muted-foreground mt-1">Invoice #{String(invoice.invoice_id).padStart(6, "0")}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="p-2 text-muted-foreground/70 hover:text-muted-foreground rounded-full hover:bg-muted transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -116,19 +116,19 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
         <div className="p-6 overflow-y-auto space-y-6">
           {/* Items Section */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider">Select Items to Return</h3>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Select Items to Return</h3>
+            <div className="border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-muted/50 border-b border-border">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-500">Product</th>
-                    <th className="px-4 py-2 text-center font-medium text-gray-500">Defective</th>
-                    <th className="px-4 py-2 text-center font-medium text-gray-500">Damage</th>
+                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">Product</th>
+                    <th className="px-4 py-2 text-center font-medium text-muted-foreground">Defective</th>
+                    <th className="px-4 py-2 text-center font-medium text-muted-foreground">Damage</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-border">
                   {items.map((item, idx) => (
-                    <tr key={idx} className={item.selected ? "bg-blue-50/30" : "opacity-50"}>
+                    <tr key={idx} className={item.selected ? "bg-primary/10/30" : "opacity-50"}>
                       <td className="px-4 py-3 flex items-center gap-3">
                         <input
                           type="checkbox"
@@ -138,11 +138,11 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
                             newItems[idx].selected = e.target.checked;
                             setItems(newItems);
                           }}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                         />
                         <div>
-                          <p className="font-medium text-gray-900">{item.product_name}</p>
-                          <p className="text-[11px] text-gray-500">QTY: {item.quantity}</p>
+                          <p className="font-medium text-foreground">{item.product_name}</p>
+                          <p className="text-[11px] text-muted-foreground">QTY: {item.quantity}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -155,7 +155,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
                             newItems[idx].is_defective = e.target.checked;
                             setItems(newItems);
                           }}
-                          className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                          className="w-4 h-4 rounded border-border text-red-600 focus:ring-red-500"
                         />
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -168,7 +168,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
                             newItems[idx].is_damaged = e.target.checked;
                             setItems(newItems);
                           }}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          className="w-4 h-4 rounded border-border text-orange-600 focus:ring-orange-500"
                         />
                       </td>
                     </tr>
@@ -184,61 +184,61 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
               onClick={() => setReturnType("Exchange")}
               className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
                 returnType === "Exchange" 
-                ? "border-blue-600 bg-blue-50" 
-                : "border-gray-100 hover:border-gray-200 bg-white"
+                ? "border-primary bg-primary/10" 
+                : "border-border hover:border-border bg-card"
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                returnType === "Exchange" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400"
+                returnType === "Exchange" ? "bg-primary text-white" : "bg-muted text-muted-foreground/70"
               }`}>
                 <Check className="w-6 h-6" />
               </div>
-              <span className={`font-semibold ${returnType === "Exchange" ? "text-blue-900" : "text-gray-600"}`}>Exchange</span>
-              <span className="text-[10px] text-center text-gray-500 mt-1">Replace with new product</span>
+              <span className={`font-semibold ${returnType === "Exchange" ? "text-blue-900" : "text-muted-foreground"}`}>Exchange</span>
+              <span className="text-[10px] text-center text-muted-foreground mt-1">Replace with new product</span>
             </button>
 
             <button
               onClick={() => setReturnType("Refund")}
               className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
                 returnType === "Refund" 
-                ? "border-blue-600 bg-blue-50" 
-                : "border-gray-100 hover:border-gray-200 bg-white"
+                ? "border-primary bg-primary/10" 
+                : "border-border hover:border-border bg-card"
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                returnType === "Refund" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400"
+                returnType === "Refund" ? "bg-primary text-white" : "bg-muted text-muted-foreground/70"
               }`}>
                 <Check className="w-6 h-6" />
               </div>
-              <span className={`font-semibold ${returnType === "Refund" ? "text-blue-900" : "text-gray-600"}`}>Cash Refund</span>
-              <span className="text-[10px] text-center text-gray-500 mt-1">Refund original payment</span>
+              <span className={`font-semibold ${returnType === "Refund" ? "text-blue-900" : "text-muted-foreground"}`}>Cash Refund</span>
+              <span className="text-[10px] text-center text-muted-foreground mt-1">Refund original payment</span>
             </button>
           </div>
 
           {/* Reason Section */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wider">Return Reason</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Return Reason</label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Provide a detailed reason for the return..."
               rows={3}
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none text-sm"
+              className="w-full px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-sm"
             />
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+        <div className="p-6 border-t border-border flex justify-end gap-3 bg-muted/50">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-200 rounded-lg transition-colors"
+            className="px-6 py-2.5 text-muted-foreground font-medium hover:bg-gray-200 rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-8 py-2.5 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
             {returnType === "Refund" ? "Refund" : "Process Exchange"}

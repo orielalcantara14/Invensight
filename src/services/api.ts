@@ -73,6 +73,8 @@ export interface PosProductPayload {
   unit_of_measurement?: string;
   stock: number;
   status: "Active" | "Archived";
+  serial_start?: string | null;
+  expiry_date?: string | null;
 }
 
 export interface CartItemPayload {
@@ -227,6 +229,9 @@ export interface InventoryItem {
   status: 'Normal' | 'Low' | 'Out of Stock' | 'Archived' | 'Deleted' | 'Active';
   last_updated: string;
   reason_adjustment: string;
+  serial_start?: string | null;
+  serial_end?: string | null;
+  expiry_date?: string | null;
 }
 
 export interface InventoryStockEvent {
@@ -259,6 +264,11 @@ export interface InventoryPayload {
   quantity: number;
   expected: number;
   reorder_level: number;
+  serial_start?: string | null;
+  serial_end?: string | null;
+  expiry_date?: string | null;
+  unit_price: number;
+  pos_price?: number;
 }
 
 export interface UpdateInventoryPayload {
@@ -273,6 +283,11 @@ export interface UpdateInventoryPayload {
   reorder_level: number;
   actual: number;
   reason_adjustment: string;
+  serial_start?: string | null;
+  serial_end?: string | null;
+  expiry_date?: string | null;
+  unit_price: number;
+  pos_price?: number;
 }
 
 export interface InventoryDiscrepancyPayload {
@@ -643,6 +658,7 @@ export const api = {
   getProfile: (userId: number) => requestWithUser<Profile>(userId, "/api/profile"),
   updateProfile: (userId: number, payload: ProfileUpdatePayload) => requestWithUser<Profile>(userId, "/api/profile", { method: "PATCH", body: JSON.stringify(payload) }),
   getProfileActivity: (userId: number, limit = 10) => requestWithUser<ProfileActivityItem[]>(userId, `/api/profile/activity?limit=${limit}`),
+  getSecurityLogs: (userId: number) => requestWithUser<ProfileActivityItem[]>(userId, "/api/profile/security-logs"),
 
   getCustomerReturns: (startDate?: string, endDate?: string) => {
     const params = new URLSearchParams();

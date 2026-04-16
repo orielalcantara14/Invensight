@@ -94,7 +94,7 @@ export function AuditLog() {
   );
 
   const criticalActions = auditLogs.filter(log => 
-    ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE', 'PERMANENT_DELETE', 'ARCHIVE_PRODUCT', 'ARCHIVE_SUPPLIER', 'DELETE_ORDER'].includes(log.action)
+    ['DELETE', 'DEACTIVATE_USER', 'DELETE_ROLE', 'PERMANENT_DELETE', 'ARCHIVE_PRODUCT', 'ARCHIVE_SUPPLIER', 'DELETE_ORDER', 'FAILED_LOGIN', 'ACCOUNT_LOCKOUT'].includes(log.action)
   ).length;
 
   const today = new Date().toISOString().split('T')[0];
@@ -114,71 +114,74 @@ export function AuditLog() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
-        <p className="text-gray-600 mt-1">Track all system activities and changes</p>
+        <h1 className="text-3xl font-bold text-foreground">Audit Log</h1>
+        <p className="text-muted-foreground mt-1">Track all system activities and changes</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Total Activities</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : auditLogs.length}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Total Activities</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : auditLogs.length}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Today's Activities</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : todaysActivities}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Today's Activities</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : todaysActivities}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Unique Users</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : uniqueUsers}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Unique Users</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : uniqueUsers}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Critical Actions</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : criticalActions}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Critical Actions</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : criticalActions}</div>
         </div>
       </div>
 
       {/* Audit Log Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-card rounded-lg shadow border border-border">
+        <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">System Activity Log</h2>
+            <h2 className="text-lg font-semibold text-foreground">System Activity Log</h2>
             <div className="flex items-center gap-3">
               <select
                 value={filterAction}
                 onChange={(e) => setFilterAction(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="All">All Actions</option>
+                <option value="LOGIN">Login & Security</option>
+                <option value="ADJUST">Inventory Audit</option>
+                <option value="ORDER">Orders & Receiving</option>
+                <option value="RETURN">Returns</option>
                 <option value="CREATE">Create</option>
                 <option value="UPDATE">Update</option>
-                <option value="DELETE">Delete</option>
                 <option value="ARCHIVE">Archive</option>
                 <option value="RESTORE">Restore</option>
-                <option value="APPROVE">Approve</option>
-                <option value="REJECT">Reject</option>
-                <option value="RECEIVE">Receive</option>
+                <option value="DELETE">Delete</option>
+                <option value="CLEAR">Clear Logs</option>
               </select>
               <select
                 value={filterEntity}
                 onChange={(e) => setFilterEntity(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="All">All Entities</option>
                 <option value="Product">Product</option>
+                <option value="Inventory">Inventory</option>
                 <option value="Sale">Sale</option>
                 <option value="User">User</option>
-                <option value="Inventory">Inventory</option>
-                <option value="Order">Order</option>
                 <option value="Supplier">Supplier</option>
+                <option value="Order">Order</option>
                 <option value="Return">Return</option>
                 <option value="Role">Role</option>
                 <option value="Category">Category</option>
+                <option value="System">System</option>
               </select>
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="All">All Roles</option>
                 <option value="Administrator">Administrator</option>
@@ -188,7 +191,7 @@ export function AuditLog() {
               </select>
               <button 
                 onClick={() => setIsExportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 Export Audit Log
@@ -205,50 +208,50 @@ export function AuditLog() {
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
             <input
               type="text"
               placeholder="Search by user, action, or details..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-muted/50 border-b border-border">
               <tr>
                 <th className="px-6 py-3 text-left">
                   {/* Header checkbox removed */}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Timestamp
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Action
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Entity Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Entity ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Details
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                     Loading audit logs…
                   </td>
                 </tr>
@@ -256,17 +259,17 @@ export function AuditLog() {
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center">
                     <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No audit logs available</p>
-                    <p className="text-sm text-gray-400 mt-1">System activities will be tracked here</p>
+                    <p className="text-muted-foreground font-medium">No audit logs available</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">System activities will be tracked here</p>
                   </td>
                 </tr>
               ) : (
                 paginatedLogs.map((log) => (
-                  <tr key={log.log_id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={log.log_id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {/* Row selection handled in Export Wizard */}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-mono">
                       {new Date(log.timestamp).toLocaleString(undefined, {
                         year: 'numeric',
                         month: 'short',
@@ -275,12 +278,12 @@ export function AuditLog() {
                         minute: '2-digit'
                       })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{log.username || 'System'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{log.username || 'System'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${
                         log.role?.toLowerCase() === 'administrator' ? 'bg-purple-50 text-purple-700' :
                         log.role?.toLowerCase() === 'manager' ? 'bg-indigo-50 text-indigo-700' :
-                        'bg-gray-100 text-gray-600'
+                        'bg-muted text-muted-foreground'
                       }`}>
                         {log.role || 'System'}
                       </span>
@@ -288,17 +291,17 @@ export function AuditLog() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
                         log.action.includes('CREATE') || log.action.includes('ADD') ? 'bg-green-50 text-green-700 border-green-200' :
-                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') || log.action.includes('REJECT') || log.action.includes('CLEAR') ? 'bg-red-50 text-red-700 border-red-200' :
-                        log.action.includes('UPDATE') || log.action.includes('RESTORE') || log.action.includes('APPROVE') || log.action.includes('ADJUST') ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') || log.action.includes('REJECT') || log.action.includes('CLEAR') || log.action.includes('LOCKOUT') || log.action.includes('FAILED') ? 'bg-red-50 text-red-700 border-red-200' :
+                        log.action.includes('UPDATE') || log.action.includes('RESTORE') || log.action.includes('APPROVE') || log.action.includes('ADJUST') ? 'bg-primary/10 text-primary/90 border-blue-200' :
                         log.action.includes('ARCHIVE') ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-gray-50 text-gray-700 border-gray-200'
+                        'bg-muted/50 text-muted-foreground border-border'
                       }`}>{log.action.replace(/_/g, ' ')}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{log.entity_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground capitalize">{log.entity_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {log.entity_id ? `#${log.entity_id}` : '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 max-w-xs" title={log.details || ""}>
+                    <td className="px-6 py-4 text-sm text-muted-foreground max-w-xs" title={log.details || ""}>
                       <div className="line-clamp-2 md:line-clamp-none whitespace-pre-wrap break-words">
                         {log.details || "No details provided"}
                       </div>
@@ -310,32 +313,32 @@ export function AuditLog() {
           </table>
         </div>
         {filteredLogs.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Show</span>
+              <span className="text-sm text-muted-foreground">Show</span>
               <select
                 value={itemsPerPage}
                 onChange={(e) => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-border rounded-md px-2 py-1 text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value={3}>3</option>
                 <option value={5}>5</option>
                 <option value={10}>10</option>
               </select>
-              <span className="text-sm text-gray-600">entries</span>
+              <span className="text-sm text-muted-foreground">entries</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 Page {currentPage} of {totalPages}
               </span>
               <div className="flex gap-1">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-100 text-gray-700"
+                  className="p-1 rounded border border-border disabled:opacity-50 hover:bg-muted text-muted-foreground"
                 >
                   {"<"}
                 </button>
@@ -345,8 +348,8 @@ export function AuditLog() {
                     onClick={() => setCurrentPage(page)}
                     className={`px-3 py-1 rounded border text-sm ${
                       page === currentPage
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "border-gray-300 hover:bg-gray-100 text-gray-700"
+                        ? "bg-primary text-white border-primary"
+                        : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
                     {page}
@@ -355,7 +358,7 @@ export function AuditLog() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-100 text-gray-700"
+                  className="p-1 rounded border border-border disabled:opacity-50 hover:bg-muted text-muted-foreground"
                 >
                   {">"}
                 </button>

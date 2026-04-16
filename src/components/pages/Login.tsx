@@ -227,8 +227,8 @@ export function Login() {
   const complexity = validatePasswordComplexity(newPassword);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full grid grid-cols-1 md:grid-cols-2">
+    <div className="min-h-screen bg-muted flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full grid grid-cols-1 md:grid-cols-2">
         {/* Left Panel: Branding */}
         <div className="bg-black flex items-center justify-center p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 to-transparent pointer-events-none"></div>
@@ -257,20 +257,20 @@ export function Login() {
                   setView("login");
                   setError(null);
                 }}
-                className="mb-4 flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+                className="mb-4 flex items-center gap-1 text-xs font-bold text-muted-foreground/70 uppercase tracking-widest hover:text-primary transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back to Login
               </button>
             )}
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-3xl font-bold text-foreground mb-2">
               {view === "login" && "Welcome"}
               {view === "mfa" && "Verification"}
               {view === "change_password" && "Update Password"}
               {view === "forgot_password" && "Reset Request"}
               {view === "reset_password" && "New Password"}
             </h2>
-            <p className="text-gray-500 text-sm">
+            <p className="text-muted-foreground text-sm">
               {view === "login" && "Sign in with your Username"}
               {view === "mfa" && "We've sent a 6-digit code to your email"}
               {view === "change_password" && "Please set a new secure password"}
@@ -284,44 +284,44 @@ export function Login() {
             {view === "login" && (
               <form onSubmit={handleLogin} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Username</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Username</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                     <input
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Username"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                       required
                     />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">Password</label>
                     <button
                       type="button"
                       onClick={() => setView("forgot_password")}
-                      className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                      className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                     <input
                       type={showPass ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter password"
-                      className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                      className="w-full pl-10 pr-10 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-muted-foreground"
                     >
                       {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -341,16 +341,16 @@ export function Login() {
             {view === "mfa" && (
               <form onSubmit={handleVerifyOTP} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Verification Code</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Verification Code</label>
                   <div className="relative">
-                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                     <input
                       type="text"
                       maxLength={6}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                       placeholder="000000"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono text-xl tracking-[0.5em] font-bold text-center"
+                      className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xl tracking-[0.5em] font-bold text-center"
                       required
                     />
                   </div>
@@ -359,7 +359,7 @@ export function Login() {
                 <button
                   type="submit"
                   disabled={loading || otp.length < 6}
-                  className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
+                  className="w-full bg-primary text-white py-3.5 rounded-xl font-bold uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
                 >
                   {loading ? "VERIFYING…" : "VERIFY CODE"}
                 </button>
@@ -368,28 +368,28 @@ export function Login() {
 
             {view === "change_password" && (
               <form onSubmit={handleUpdatePassword} className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-relaxed">
+                <div className="bg-primary/10 p-4 rounded-xl border border-blue-100">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-relaxed">
                     First login required security check. Please choose a new password.
                   </p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">New Password</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">New Password</label>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Confirm Password</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Confirm Password</label>
                   <input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                     required
                   />
                 </div>
@@ -414,15 +414,15 @@ export function Login() {
             {view === "forgot_password" && (
               <form onSubmit={handleForgotPassword} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Email Address</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Email Address</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="registered@email.com"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                      className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                       required
                     />
                   </div>
@@ -431,7 +431,7 @@ export function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
+                  className="w-full bg-primary text-white py-3.5 rounded-xl font-bold uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
                 >
                   {loading ? "SENDING…" : "SEND RESET CODE"}
                 </button>
@@ -441,33 +441,33 @@ export function Login() {
             {view === "reset_password" && (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Reset Code</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Reset Code</label>
                   <input
                     type="text"
                     maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono font-bold text-center tracking-[0.3em]"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono font-bold text-center tracking-[0.3em]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">New Password</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">New Password</label>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Confirm Password</label>
+                  <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-1.5">Confirm Password</label>
                   <input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium"
                     required
                   />
                 </div>
@@ -492,7 +492,7 @@ function RequirementItem({ label, met }: { label: string; met: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className={`w-1 h-1 rounded-full ${met ? "bg-green-500" : "bg-gray-300"}`} />
-      <span className={`text-[8px] font-bold uppercase tracking-widest ${met ? "text-green-600" : "text-gray-400"}`}>
+      <span className={`text-[8px] font-bold uppercase tracking-widest ${met ? "text-green-600" : "text-muted-foreground/70"}`}>
         {label}
       </span>
     </div>

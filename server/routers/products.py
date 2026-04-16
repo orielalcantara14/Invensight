@@ -368,11 +368,24 @@ def create_pos_product(
                 cur.execute(
                     """
                     INSERT INTO inventory (
-                        inventory_id, product_id, quantity, expected, actual, reorder_level, last_updated, reason_adjustment
+                        inventory_id, product_id, quantity, expected, actual, reorder_level, 
+                        last_updated, reason_adjustment, serial_start, serial_end, expiry_date
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (inventory_id, product_id, payload.stock, payload.stock, payload.stock, 5, date.today(), "Initial stock"),
+                    (
+                        inventory_id, 
+                        product_id, 
+                        payload.stock, 
+                        payload.stock, 
+                        payload.stock, 
+                        5, 
+                        date.today(), 
+                        "Initial stock",
+                        payload.serial_start,
+                        None, # serial_end handled by backend or left to calc
+                        payload.expiry_date
+                    ),
                 )
 
             # --- Audit log ---

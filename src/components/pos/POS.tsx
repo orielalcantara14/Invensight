@@ -93,7 +93,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
         </button>
         <button
           onClick={onNewSale}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-colors font-medium"
         >
           <RefreshCw className="w-4 h-4" />
           New Sale
@@ -103,7 +103,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
       {/* Receipt paper */}
       <div
         id="receipt"
-        className="bg-white shadow-xl p-6 w-full max-w-xs font-mono text-sm leading-relaxed"
+        className="bg-card shadow-xl p-6 w-full max-w-xs font-mono text-sm leading-relaxed"
         style={{ minWidth: "300px" }}
       >
         {/* Header */}
@@ -122,7 +122,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
         {/* Divider */}
         <div className="border-t border-dashed border-gray-400 my-3" />
 
-        <div className="grid grid-cols-12 gap-1 font-bold border-b border-gray-200 pb-1 mb-2 text-[10px] uppercase">
+        <div className="grid grid-cols-12 gap-1 font-bold border-b border-border pb-1 mb-2 text-[10px] uppercase">
           <div className="col-span-6">Product</div>
           <div className="col-span-2 text-center">Qty</div>
           <div className="col-span-2 text-right">Price</div>
@@ -136,7 +136,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
           return (
             <div key={product.product_id} className="text-[11px] mb-2 border-b border-gray-50 pb-1 last:border-0">
               <div className="font-bold leading-tight">{idx + 1}. {product.product_name || "Unknown"}</div>
-              <div className="grid grid-cols-12 gap-1 text-gray-600 mt-0.5">
+              <div className="grid grid-cols-12 gap-1 text-muted-foreground mt-0.5">
                 <div className="col-span-6 pl-3 text-[9px] truncate">[{product.sku || ""}]</div>
                 <div className="col-span-2 text-center">{item.quantity}</div>
                 <div className="col-span-2 text-right">{fmt(price)}</div>
@@ -176,7 +176,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
                 <span>Method</span>
                 <span>Split (Cash + E-Wal)</span>
               </div>
-              <div className="flex justify-between border-t border-gray-100 pt-1 mt-1">
+              <div className="flex justify-between border-t border-border pt-1 mt-1">
                 <span>Cash</span>
                 <span>{fmt(result.cash_given || result.cash_received)}</span>
               </div>
@@ -198,7 +198,7 @@ function Receipt({ result, cartItems, terminal, onNewSale }: ReceiptProps) {
             </>
           )}
 
-          <div className="flex justify-between font-bold pt-1 border-t border-gray-100">
+          <div className="flex justify-between font-bold pt-1 border-t border-border">
             <span>CHANGE</span>
             <span>{fmt(result.change || result.change_amount || 0)}</span>
           </div>
@@ -744,24 +744,24 @@ export function POS() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 flex-col sm:flex-row font-sans">
+    <div className="flex h-screen overflow-hidden bg-muted/50 flex-col sm:flex-row font-sans">
       {/* ====== LEFT: Products Panel ====== */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white z-0">
-        <div className="p-4 border-b border-gray-100 bg-white flex items-center gap-4">
+      <div className="flex-1 flex flex-col min-w-0 bg-card z-0">
+        <div className="p-4 border-b border-border bg-card flex items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="SEARCH PRODUCT..." value={searchName} onChange={e => setSearchName(e.target.value)} className="w-full bg-gray-50 border-none rounded-xl py-3 pl-10 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 placeholder:text-gray-300" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+            <input type="text" placeholder="SEARCH PRODUCT..." value={searchName} onChange={e => setSearchName(e.target.value)} className="w-full bg-muted/50 border-none rounded-xl py-3 pl-10 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/10 placeholder:text-gray-300" />
           </div>
-          <select value={searchCategory} onChange={e => setSearchCategory(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
+          <select value={searchCategory} onChange={e => setSearchCategory(e.target.value)} className="bg-muted/50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
             <option value="">ALL CATEGORIES</option>
             {categories.map(cat => <option key={cat.category_id} value={cat.category_name}>{cat.category_name}</option>)}
           </select>
-          <select value={searchSupplier} onChange={e => setSearchSupplier(e.target.value)} className="bg-gray-50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
+          <select value={searchSupplier} onChange={e => setSearchSupplier(e.target.value)} className="bg-muted/50 border-none rounded-xl py-3 px-4 text-xs font-bold outline-none appearance-none cursor-pointer">
             <option value="">ALL SUPPLIERS</option>
             {suppliers.map(sup => <option key={sup.supplier_id} value={sup.supplier_name}>{sup.supplier_name}</option>)}
           </select>
         </div>
-        <div className="px-6 py-4 bg-gray-50 grid grid-cols-12 gap-4 text-xs font-black text-gray-500 uppercase tracking-wider border-b border-gray-100">
+        <div className="px-6 py-4 bg-muted/50 grid grid-cols-12 gap-4 text-xs font-black text-muted-foreground uppercase tracking-wider border-b border-border">
           <div className="col-span-4">Product Details</div>
           <div className="col-span-2">Category</div>
           <div className="col-span-2">Supplier</div>
@@ -770,35 +770,35 @@ export function POS() {
           <div className="col-span-1"></div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-white px-2">
+        <div className="flex-1 overflow-y-auto bg-card px-2">
           {loading ? (
-             <div className="flex items-center justify-center h-40 text-gray-400 text-sm font-bold animate-pulse uppercase">Syncing Catalog...</div>
+             <div className="flex items-center justify-center h-40 text-muted-foreground/70 text-sm font-bold animate-pulse uppercase">Syncing Catalog...</div>
           ) : filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-300">
               <ShoppingCart className="w-24 h-24 mb-4 opacity-20" />
               <p className="font-black text-sm uppercase tracking-wide">No items found</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {filteredProducts.map(product => (
-                <div key={product.product_id} className="grid grid-cols-12 gap-4 items-center px-4 py-5 hover:bg-blue-50/80 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
+                <div key={product.product_id} className="grid grid-cols-12 gap-4 items-center px-4 py-5 hover:bg-primary/10/80 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
                   <div className="col-span-4">
-                    <div className="text-sm sm:text-base font-black text-gray-800 uppercase group-hover:text-blue-600 transition-colors truncate">{product.product_name}</div>
-                    <div className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">{product.sku}</div>
+                    <div className="text-sm sm:text-base font-black text-foreground uppercase group-hover:text-primary transition-colors truncate">{product.product_name}</div>
+                    <div className="text-xs text-muted-foreground font-bold uppercase tracking-tight mt-1">{product.sku}</div>
                   </div>
-                  <div className="col-span-2 text-xs sm:text-sm font-bold text-gray-500 uppercase truncate">{product.category_name}</div>
-                  <div className="col-span-2 text-xs sm:text-sm font-bold text-gray-500 uppercase truncate">{product.supplier_name}</div>
+                  <div className="col-span-2 text-xs sm:text-sm font-bold text-muted-foreground uppercase truncate">{product.category_name}</div>
+                  <div className="col-span-2 text-xs sm:text-sm font-bold text-muted-foreground uppercase truncate">{product.supplier_name}</div>
                   <div className="col-span-1 text-sm font-black text-center">
                     <span className={cn(
                       "px-3 py-1 rounded-full",
-                      (product.quantity || 0) <= 5 ? "bg-red-100 text-red-600" : (product.quantity || 0) <= 10 ? "bg-orange-100 text-orange-600" : "text-gray-900 bg-gray-100"
+                      (product.quantity || 0) <= 5 ? "bg-red-100 text-red-600" : (product.quantity || 0) <= 10 ? "bg-orange-100 text-orange-600" : "text-foreground bg-muted"
                     )}>
                       {product.quantity ?? 0}
                     </span>
                   </div>
-                  <div className="col-span-2 text-right text-base font-black text-gray-900 pr-2">₱ {fmt(getPosPrice(product))}</div>
+                  <div className="col-span-2 text-right text-base font-black text-foreground pr-2">₱ {fmt(getPosPrice(product))}</div>
                   <div className="col-span-1 text-right">
-                    <button className="w-10 h-10 flex items-center justify-center bg-gray-100 group-hover:bg-blue-600 group-hover:text-white rounded-full transition-all shadow-sm">
+                    <button className="w-10 h-10 flex items-center justify-center bg-muted group-hover:bg-primary group-hover:text-white rounded-full transition-all shadow-sm">
                       <Plus className="w-5 h-5" />
                     </button>
                   </div>
@@ -811,10 +811,10 @@ export function POS() {
 
     
       {/* ====== RIGHT: Checkout Panel ====== */}
-      <div className="w-full sm:w-[450px] shadow-lg z-10 bg-white flex flex-col border-l border-gray-200 flex-shrink-0">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm">
+      <div className="w-full sm:w-[450px] shadow-lg z-10 bg-card flex flex-col border-l border-border flex-shrink-0">
+        <div className="p-4 border-b border-border flex justify-between items-center bg-card shadow-sm">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-blue-600 tracking-tight">CheckOut</h1>
+            <h1 className="text-2xl font-black text-primary tracking-tight">CheckOut</h1>
           </div>
           <div className="flex items-center gap-2">
             {currentRole === "cashier" ? (
@@ -822,7 +822,7 @@ export function POS() {
                 <LogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" /> Logout
               </button>
             ) : (
-              <button onClick={() => navigate("/sales")} className="text-gray-500 hover:text-gray-800 transition-colors p-1 rounded hover:bg-gray-100 flex items-center gap-1 font-bold text-[10px] uppercase">
+              <button onClick={() => navigate("/sales")} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted flex items-center gap-1 font-bold text-[10px] uppercase">
                 <ArrowLeft className="w-5 h-5" /> Back
               </button>
             )}
@@ -830,33 +830,33 @@ export function POS() {
         </div>
         
         {cartItems.length > 0 && (
-          <div className="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center group">
+          <div className="p-3 bg-muted/50 border-b border-border flex justify-between items-center group">
             <div className="flex items-center gap-1 ml-2">
-              <input type="checkbox" id="partial-toggle" checked={isPartialPayment} onChange={(e) => setIsPartialPayment(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
-              <label htmlFor="partial-toggle" className="text-xs font-bold text-gray-700 cursor-pointer">PARTIAL SECURE</label>
+              <input type="checkbox" id="partial-toggle" checked={isPartialPayment} onChange={(e) => setIsPartialPayment(e.target.checked)} className="w-4 h-4 text-primary rounded focus:ring-primary" />
+              <label htmlFor="partial-toggle" className="text-xs font-bold text-muted-foreground cursor-pointer">PARTIAL SECURE</label>
             </div>
             <button onClick={clearCart} className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1.5 rounded uppercase mr-2">CLEAR CART</button>
           </div>
         )}
 
-        <div className="p-4 gap-3 bg-white border-b border-gray-100 flex flex-col">
+        <div className="p-4 gap-3 bg-card border-b border-border flex flex-col">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Customer</label>
-              <input type="text" placeholder="Walk-in" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
+              <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Customer</label>
+              <input type="text" placeholder="Walk-in" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border border-border rounded px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contact (Optional)</label>
-              <input type="text" placeholder="+639..." value={contactNumber} onChange={e => setContactNumber(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
+              <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Contact (Optional)</label>
+              <input type="text" placeholder="+639..." value={contactNumber} onChange={e => setContactNumber(e.target.value)} className="w-full border border-border rounded px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Address (Optional)</label>
-            <input type="text" placeholder="Complete Address" value={address} onChange={e => setAddress(e.target.value)} className="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
+            <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Address (Optional)</label>
+            <input type="text" placeholder="Complete Address" value={address} onChange={e => setAddress(e.target.value)} className="w-full border border-border rounded px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-2">
+        <div className="flex-1 overflow-y-auto bg-muted/50 p-2">
           {cartItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-300">
               <ShoppingCart className="w-12 h-12 mb-3 opacity-20" />
@@ -865,23 +865,23 @@ export function POS() {
           ) : (
             <div className="space-y-1">
               {cartItems.map(item => (
-                <div key={item.product?.product_id} className="bg-white p-2 border border-gray-100 flex items-center justify-between group">
+                <div key={item.product?.product_id} className="bg-card p-2 border border-border flex items-center justify-between group">
                   <div className="flex-1 min-w-0 pr-2">
-                    <div className="font-bold text-gray-800 text-xs uppercase truncate">{item.product.product_name}</div>
-                    <div className="text-[9px] text-gray-500 font-bold uppercase mt-0.5 tracking-tight">{item.product.sku}</div>
+                    <div className="font-bold text-foreground text-xs uppercase truncate">{item.product.product_name}</div>
+                    <div className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5 tracking-tight">{item.product.sku}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                      <button onClick={() => updateQty(item.product?.product_id, -1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black font-black">-</button>
+                    <div className="flex items-center bg-muted rounded-lg p-0.5">
+                      <button onClick={() => updateQty(item.product?.product_id, -1)} className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-black font-black">-</button>
                       <input
                         type="number"
                         value={item.quantity}
                         onChange={(e) => setQty(item.product?.product_id, e.target.value)}
                         className="w-8 bg-transparent text-center text-xs font-black outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <button onClick={() => updateQty(item.product?.product_id, 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black font-black">+</button>
+                      <button onClick={() => updateQty(item.product?.product_id, 1)} className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-black font-black">+</button>
                     </div>
-                    <div className="font-black text-gray-900 text-xs w-20 text-right">₱ {fmt(getPosPrice(item.product) * item.quantity)}</div>
+                    <div className="font-black text-foreground text-xs w-20 text-right">₱ {fmt(getPosPrice(item.product) * item.quantity)}</div>
                     <button onClick={() => removeFromCart(item.product?.product_id)} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -890,50 +890,50 @@ export function POS() {
           )}
         </div>
 
-        <div className="p-4 bg-white border-t border-gray-200 space-y-1.5">
-          <div className="flex justify-between text-[10px] text-gray-400 font-black uppercase tracking-wider">
+        <div className="p-4 bg-card border-t border-border space-y-1.5">
+          <div className="flex justify-between text-[10px] text-muted-foreground/70 font-black uppercase tracking-wider">
             <span>Item Total</span>
             <span>₱ {fmt(subtotal)}</span>
           </div>
-          <div className="flex justify-between items-center text-blue-600 pt-1 border-t border-gray-50">
+          <div className="flex justify-between items-center text-primary pt-1 border-t border-gray-50">
             <span className="text-xs font-black uppercase tracking-widest">Subtotal</span>
             <span className="text-2xl font-black">₱ {fmt(grandTotal)}</span>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 bg-white p-4">
+        <div className="border-t border-border bg-card p-4">
           {isPartialPayment ? (
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Cash Amount</label>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase">Cash Amount</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="text" value={formatNumberWithCommas(partialCash)} onChange={(e) => handlePartialCashChange(e.target.value)} onFocus={() => setNumpadTarget("partialCash")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialCash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 text-sm font-black">₱</span>
+                  <input type="text" value={formatNumberWithCommas(partialCash)} onChange={(e) => handlePartialCashChange(e.target.value)} onFocus={() => setNumpadTarget("partialCash")} placeholder="0.00" className={`w-full bg-muted/50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-foreground outline-none transition-colors ${numpadTarget === "partialCash" ? "border-primary ring-4 ring-primary/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">E-Wallet Amount</label>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase">E-Wallet Amount</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₱</span>
-                  <input type="text" value={formatNumberWithCommas(partialEWallet)} onChange={(e) => handlePartialEWalletChange(e.target.value)} onFocus={() => setNumpadTarget("partialEWallet")} placeholder="0.00" className={`w-full bg-gray-50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-gray-900 outline-none transition-colors ${numpadTarget === "partialEWallet" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 text-sm font-black">₱</span>
+                  <input type="text" value={formatNumberWithCommas(partialEWallet)} onChange={(e) => handlePartialEWalletChange(e.target.value)} onFocus={() => setNumpadTarget("partialEWallet")} placeholder="0.00" className={`w-full bg-muted/50 border-2 rounded-xl py-3 pl-7 pr-4 text-lg font-black text-foreground outline-none transition-colors ${numpadTarget === "partialEWallet" ? "border-primary ring-4 ring-primary/10" : "border-transparent"}`} />
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex gap-4 mb-4">
               <div className="flex-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Cash Received</label>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase mb-1 block">Cash Received</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-black">₱</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-black">₱</span>
                   <input type="text" value={formatNumberWithCommas(cashInput)} onChange={(e) => {
                     const val = e.target.value.replace(/,/g, "");
                     if (val === "" || /^\d*\.?\d*$/.test(val)) setCashInput(val);
-                  }} onFocus={() => setNumpadTarget("cash")} placeholder="0.00" className={`w-full bg-gray-100 border-2 rounded-xl py-3 pl-8 text-2xl font-black text-gray-900 outline-none transition-colors ${numpadTarget === "cash" ? "border-blue-500 ring-4 ring-blue-500/10" : "border-transparent"}`} />
+                  }} onFocus={() => setNumpadTarget("cash")} placeholder="0.00" className={`w-full bg-muted border-2 rounded-xl py-3 pl-8 text-2xl font-black text-foreground outline-none transition-colors ${numpadTarget === "cash" ? "border-primary ring-4 ring-primary/10" : "border-transparent"}`} />
                 </div>
               </div>
               <div className="w-32">
-                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Change</label>
-                <div className={`py-3 px-2 rounded-xl text-center font-black text-xl truncate h-[52px] flex items-center justify-center ${change >= 0 && cashFloat > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase mb-1 block">Change</label>
+                <div className={`py-3 px-2 rounded-xl text-center font-black text-xl truncate h-[52px] flex items-center justify-center ${change >= 0 && cashFloat > 0 ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground/70'}`}>
                   {fmt(Math.max(0, change))}
                 </div>
               </div>
@@ -943,7 +943,7 @@ export function POS() {
           {!isPartialPayment && (
             <div className="flex gap-2 mb-4">
               {["CASH", "GCASH", "PAYMAYA"].map((m) => (
-                <button key={m} onClick={() => setPaymentMethod(m === "CASH" ? "Cash" : m === "GCASH" ? "GCash" : "PayMaya")} className={`flex-1 py-3 rounded-xl border-2 font-black text-[10px] tracking-widest transition-all ${paymentMethod === (m === "CASH" ? "Cash" : m === "GCASH" ? "GCash" : "PayMaya") ? "border-blue-600 bg-blue-600 text-white shadow-lg" : "border-gray-100 bg-gray-50 text-gray-400 hover:bg-gray-100"}`}>
+                <button key={m} onClick={() => setPaymentMethod(m === "CASH" ? "Cash" : m === "GCASH" ? "GCash" : "PayMaya")} className={`flex-1 py-3 rounded-xl border-2 font-black text-[10px] tracking-widest transition-all ${paymentMethod === (m === "CASH" ? "Cash" : m === "GCASH" ? "GCash" : "PayMaya") ? "border-primary bg-primary text-white shadow-lg" : "border-border bg-muted/50 text-muted-foreground/70 hover:bg-muted"}`}>
                   {m}
                 </button>
               ))}
@@ -963,7 +963,7 @@ export function POS() {
                 className={`py-2 rounded border-b-2 active:border-b-0 active:translate-y-0.5 transition-all font-black text-lg ${
                   btn === 'CLR' || btn === 'DEL' 
                     ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' 
-                    : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50 shadow-sm'
+                    : 'bg-card text-foreground border-border hover:bg-muted/50 shadow-sm'
                 } ${btn === '0' ? 'col-span-2' : ''}`}
               >
                 {btn}

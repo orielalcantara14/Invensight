@@ -46,14 +46,14 @@ export function AddCategoryModal({
     <BaseModal isOpen={isOpen} onClose={onClose} title="Add Category">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-muted-foreground mb-1">
             Category Name
           </label>
           <input
             type="text"
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="e.g. Helmets, Tires, Oils"
             required
           />
@@ -64,9 +64,9 @@ export function AddCategoryModal({
             id="is_active"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
           />
-          <label htmlFor="is_active" className="text-sm text-gray-700">
+          <label htmlFor="is_active" className="text-sm text-muted-foreground">
             Active
           </label>
         </div>
@@ -74,14 +74,14 @@ export function AddCategoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {isLoading ? "Adding..." : "Add Category"}
           </button>

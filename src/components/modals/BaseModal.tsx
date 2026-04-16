@@ -112,18 +112,18 @@ export function BaseModal({
         aria-labelledby="modal-title"
       >
         <div
-          className={`bg-white rounded-xl shadow-2xl border border-gray-200/80 flex flex-col min-h-0 ${
+          className={`bg-card rounded-xl shadow-2xl border border-border/80 flex flex-col min-h-0 ${
             isFullSize ? 'max-h-full' : ''
           }`}
         >
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
+          <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-border bg-muted/50">
+            <h2 id="modal-title" className="text-xl font-semibold text-foreground">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors duration-200"
+              className="p-1 rounded-lg text-muted-foreground/70 hover:text-muted-foreground hover:bg-gray-200 transition-colors duration-200"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />

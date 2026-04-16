@@ -162,12 +162,12 @@ export function StockPrediction() {
     <div className="p-8 max-w-7xl mx-auto space-y-8 relative">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Stock Prediction List</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Stock Prediction List</h1>
+          <p className="text-muted-foreground mt-1">
             Your automated grocery list. AI turns stock predictions directly into draft orders.
           </p>
           {data?.served_from_cache && data?.cache_generated_at && (
-            <p className="mt-2 text-xs text-gray-400 font-medium">
+            <p className="mt-2 text-xs text-muted-foreground/70 font-medium">
               Intelligence refreshed: {new Date(data.cache_generated_at).toLocaleString()}
             </p>
           )}
@@ -181,7 +181,7 @@ export function StockPrediction() {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center py-20 text-gray-500 gap-3">
+        <div className="flex items-center justify-center py-20 text-muted-foreground gap-3">
           <Loader2 className="w-6 h-6 animate-spin" />
           <span className="font-medium">Building your shopping list…</span>
         </div>
@@ -192,7 +192,7 @@ export function StockPrediction() {
           {/* Main Content: The Grocery List */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <ShoppingCart className="w-6 h-6 text-indigo-600" />
                 Action Items
               </h2>
@@ -200,37 +200,37 @@ export function StockPrediction() {
               <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
                 {/* Search Bar */}
                 <div className="relative w-full md:w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                   <input
                     type="text"
                     placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all shadow-sm"
+                    className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all shadow-sm"
                   />
                 </div>
 
                 {/* Urgency Filter */}
                 <div className="relative w-full md:w-44">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                   <select
                     value={urgencyFilter}
                     onChange={(e) => setUrgencyFilter(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm appearance-none cursor-pointer shadow-sm"
+                    className="w-full pl-10 pr-10 py-2 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm appearance-none cursor-pointer shadow-sm"
                   >
                     <option value="All">All Risks</option>
                     <option value="High">High Urgency</option>
                     <option value="Medium">Medium Urgency</option>
                     <option value="Low">Low (Healthy)</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70 pointer-events-none" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/50 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white shadow-xl">
+            <div className="bg-card/50 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white shadow-xl">
               <div className="flex items-center justify-between mb-8">
-                <p className="text-sm text-gray-500 font-medium">
+                <p className="text-sm text-muted-foreground font-medium">
                   {filteredList.length} recommendations available
                 </p>
               </div>
@@ -244,37 +244,37 @@ export function StockPrediction() {
                       : "—";
 
                     return (
-                      <div key={item.product_id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between group">
+                      <div key={item.product_id} className="bg-card rounded-3xl p-6 shadow-sm border border-border hover:shadow-md transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between group">
                         {item.urgency === "High" && (
                           <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
                         )}
 
                         <div>
                           <div className="flex items-start justify-between mb-2 relative z-10">
-                            <h3 className="font-bold text-gray-900 text-lg leading-tight w-3/4 group-hover:text-indigo-600 transition-colors">{item.product_name}</h3>
+                            <h3 className="font-bold text-foreground text-lg leading-tight w-3/4 group-hover:text-indigo-600 transition-colors">{item.product_name}</h3>
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getUrgencyColor(item.urgency)}`}>
                               {item.urgency}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-4 mt-4">
-                            <div className="bg-gray-50 group-hover:bg-indigo-50/30 rounded-2xl p-3 flex-1 text-center transition-colors">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Time Left</p>
-                              <p className={`text-2xl font-black ${item.urgency === 'High' ? 'text-red-600' : 'text-gray-900'}`}>
-                                {daysLeft} <span className="text-xs font-bold text-gray-500">{typeof daysLeft === 'number' ? 'DAYS' : ''}</span>
+                            <div className="bg-muted/50 group-hover:bg-indigo-50/30 rounded-2xl p-3 flex-1 text-center transition-colors">
+                              <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-widest mb-1">Time Left</p>
+                              <p className={`text-2xl font-black ${item.urgency === 'High' ? 'text-red-600' : 'text-foreground'}`}>
+                                {daysLeft} <span className="text-xs font-bold text-muted-foreground">{typeof daysLeft === 'number' ? 'DAYS' : ''}</span>
                               </p>
                             </div>
-                            <div className="bg-gray-50 group-hover:bg-indigo-50/30 rounded-2xl p-3 flex-1 text-center transition-colors">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">In Stock</p>
-                              <p className="text-2xl font-black text-gray-900">{item.current_stock}</p>
+                            <div className="bg-muted/50 group-hover:bg-indigo-50/30 rounded-2xl p-3 flex-1 text-center transition-colors">
+                              <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-widest mb-1">In Stock</p>
+                              <p className="text-2xl font-black text-foreground">{item.current_stock}</p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+                        <div className="mt-6 pt-4 border-t border-border flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Recommendation</p>
-                            <p className="font-black text-gray-900 text-lg">Order {item.recommended_order}</p>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Recommendation</p>
+                            <p className="font-black text-foreground text-lg">Order {item.recommended_order}</p>
                           </div>
                           <ProtectedAction module="Orders" action="Add">
                             <button
@@ -299,13 +299,13 @@ export function StockPrediction() {
                 ) : (
                   <div className="col-span-full py-20 text-center">
                     <Package className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900">No predictions found</h3>
-                    <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
+                    <h3 className="text-xl font-bold text-foreground">No predictions found</h3>
+                    <p className="text-muted-foreground text-sm">Try adjusting your search or filters</p>
                   </div>
                 )}
               </div>
 
-              <div className="mt-8 pt-6 border-t border-gray-100">
+              <div className="mt-8 pt-6 border-t border-border">
                 <OrdersStyleTablePagination
                   itemCount={filteredList.length}
                   currentPage={currentPage}
@@ -319,13 +319,13 @@ export function StockPrediction() {
 
           {/* Sidebar: Overall Pulse & Risk Meter */}
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Clock className="w-6 h-6 text-purple-600" />
               Shop Pulse
             </h2>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Average Time To Stockout</h3>
+            <div className="bg-card rounded-3xl shadow-sm border border-border p-6">
+              <h3 className="text-sm font-bold text-muted-foreground/70 uppercase tracking-wider mb-4 text-center">Average Time To Stockout</h3>
               <div className="h-48 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadialBarChart
@@ -348,13 +348,13 @@ export function StockPrediction() {
                   </RadialBarChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
-                  <span className="text-4xl font-black text-gray-900">
+                  <span className="text-4xl font-black text-foreground">
                     {stats?.avg_days_to_stockout?.toFixed(0) ?? "—"}
                   </span>
-                  <span className="text-sm font-medium text-gray-500 font-bold uppercase tracking-widest">Days Avg</span>
+                  <span className="text-sm font-medium text-muted-foreground font-bold uppercase tracking-widest">Days Avg</span>
                 </div>
               </div>
-              <p className="text-center text-xs text-gray-400 mt-4 leading-relaxed font-medium">
+              <p className="text-center text-xs text-muted-foreground/70 mt-4 leading-relaxed font-medium">
                 Life expectancy of current inventory levels across active lines.
               </p>
             </div>
@@ -392,14 +392,14 @@ export function StockPrediction() {
       {/* PO Draft Magic Modal */}
       {draftOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+          <div className="bg-card rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300">
             {poSuccess ? (
               <div className="p-12 text-center flex flex-col items-center">
                 <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mb-8 animate-bounce">
                   <CheckCircle2 className="w-12 h-12 text-green-500" />
                 </div>
-                <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Draft Locked!</h2>
-                <p className="text-gray-500 font-medium">Auto-generated procurement draft is now available in your orders management.</p>
+                <h2 className="text-3xl font-black text-foreground mb-4 tracking-tight">Draft Locked!</h2>
+                <p className="text-muted-foreground font-medium">Auto-generated procurement draft is now available in your orders management.</p>
               </div>
             ) : (
               <form onSubmit={handleCreateDraft}>
@@ -409,25 +409,25 @@ export function StockPrediction() {
                       <Truck className="w-8 h-8 text-indigo-600" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">Purchase Draft</h2>
+                      <h2 className="text-2xl font-black text-foreground tracking-tight">Purchase Draft</h2>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AI Intelligence Active</p>
+                        <p className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">AI Intelligence Active</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-8">
                     <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Item Priority</label>
-                      <div className="bg-gray-50 p-5 rounded-3xl font-black text-gray-900 border border-gray-100/50 shadow-sm text-lg">
+                      <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Item Priority</label>
+                      <div className="bg-muted/50 p-5 rounded-3xl font-black text-foreground border border-border/50 shadow-sm text-lg">
                         {draftOrder.items[0]?.name}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Fill Amount</label>
+                        <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Fill Amount</label>
                         <input
                           type="number"
                           value={draftOrder.items[0]?.quantity || 0}
@@ -436,14 +436,14 @@ export function StockPrediction() {
                             newItems[0].quantity = parseInt(e.target.value) || 0;
                             setDraftOrder({ ...draftOrder, items: newItems });
                           }}
-                          className="w-full bg-white border border-gray-100 p-5 rounded-3xl font-black text-gray-900 text-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                          className="w-full bg-card border border-border p-5 rounded-3xl font-black text-foreground text-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Supplier</label>
+                        <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Supplier</label>
                         <div className="relative">
                           <select 
-                            className="w-full bg-white border border-gray-100 p-5 rounded-3xl font-bold text-gray-700 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none pr-12"
+                            className="w-full bg-card border border-border p-5 rounded-3xl font-bold text-muted-foreground focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none pr-12"
                             value={draftOrder.supplierId}
                             onChange={(e) => setDraftOrder({...draftOrder, supplierId: parseInt(e.target.value)})}
                           >
@@ -451,18 +451,18 @@ export function StockPrediction() {
                               <option key={s.supplier_id} value={s.supplier_id}>{s.supplier_name}</option>
                             ))}
                           </select>
-                          <ChevronDown className="absolute right-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <ChevronDown className="absolute right-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70 pointer-events-none" />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-8 bg-gray-50/50 flex items-center justify-end gap-4">
+                <div className="p-8 bg-muted/50/50 flex items-center justify-end gap-4">
                   <button
                     type="button"
                     onClick={() => setDraftOrder(null)}
-                    className="px-8 py-4 rounded-3xl font-black text-xs text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
+                    className="px-8 py-4 rounded-3xl font-black text-xs text-muted-foreground/70 uppercase tracking-widest hover:text-foreground transition-colors"
                   >
                     Cancel
                   </button>

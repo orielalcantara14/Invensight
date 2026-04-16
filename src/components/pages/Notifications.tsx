@@ -102,8 +102,8 @@ export function Notifications() {
         };
       case "stock_movement":
         return {
-          icon: <Package className="w-5 h-5 text-blue-600" />,
-          bg: "bg-blue-50",
+          icon: <Package className="w-5 h-5 text-primary" />,
+          bg: "bg-primary/10",
           border: "border-blue-200",
         };
       case "sales_forecast":
@@ -120,9 +120,9 @@ export function Notifications() {
         };
       default:
         return {
-          icon: <Bell className="w-5 h-5 text-gray-600" />,
-          bg: "bg-gray-50",
-          border: "border-gray-200",
+          icon: <Bell className="w-5 h-5 text-muted-foreground" />,
+          bg: "bg-muted/50",
+          border: "border-border",
         };
     }
   };
@@ -146,7 +146,7 @@ export function Notifications() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <Bell className="w-8 h-8 text-gray-800" strokeWidth={2.5} />
+              <Bell className="w-8 h-8 text-foreground" strokeWidth={2.5} />
               <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Notifications</h1>
             </div>
             <p className="text-slate-500 mt-2">
@@ -159,7 +159,7 @@ export function Notifications() {
               variant="outline" 
               onClick={markAllAsRead} 
               disabled={unreadCount === 0 || notifications.length === 0}
-              className="text-gray-700 font-medium"
+              className="text-muted-foreground font-medium"
             >
               <CheckCheck className="w-4 h-4 mr-2" />
               Mark All as Read
@@ -186,7 +186,7 @@ export function Notifications() {
             <button
               onClick={() => setFilter("all")}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                filter === "all" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                filter === "all" ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               All ({notifications.length})
@@ -194,7 +194,7 @@ export function Notifications() {
             <button
               onClick={() => setFilter("unread")}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                filter === "unread" ? "bg-white text-slate-900 shadow-sm outline border border-slate-200" : "text-slate-600 hover:text-slate-900"
+                filter === "unread" ? "bg-card text-slate-900 shadow-sm outline border border-slate-200" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Unread ({unreadCount})
@@ -207,7 +207,7 @@ export function Notifications() {
           {loading ? (
             <div className="text-center py-12 text-slate-400">Loading notifications...</div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-300 flex flex-col items-center">
+            <div className="text-center py-16 bg-card rounded-xl border border-dashed border-slate-300 flex flex-col items-center">
               <Bell className="w-12 h-12 text-slate-300 mb-3" />
               <h3 className="text-lg font-medium text-slate-900">All caught up!</h3>
               <p className="text-slate-500">You don't have any notifications right now.</p>
@@ -218,7 +218,7 @@ export function Notifications() {
               return (
                 <div 
                   key={notification.notification_id} 
-                  className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border ${
+                  className={`bg-card rounded-xl overflow-hidden transition-all duration-200 border ${
                     notification.is_read ? "border-slate-200 opacity-75" : styles.border
                   } shadow-sm hover:shadow-md flex items-center justify-between p-4 group`}
                 >
@@ -231,12 +231,12 @@ export function Notifications() {
                       <div className="flex items-center gap-2 mb-1">
                         <Link 
                            to={notification.link || "#"} 
-                           className={`font-semibold text-base transition-colors ${notification.is_read ? 'text-slate-700' : 'text-slate-900 hover:text-blue-600'}`}
+                           className={`font-semibold text-base transition-colors ${notification.is_read ? 'text-slate-700' : 'text-slate-900 hover:text-primary'}`}
                         >
                           {notification.title}
                         </Link>
                         {!notification.is_read && (
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
                         )}
                       </div>
                       <p className={`text-sm mb-2 ${notification.is_read ? 'text-slate-500' : 'text-slate-600'}`}>
@@ -252,7 +252,7 @@ export function Notifications() {
                     {!notification.is_read && (
                       <button 
                         onClick={() => markAsRead(notification.notification_id)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                         title="Mark as read"
                       >
                         <CheckCheck className="w-5 h-5" />

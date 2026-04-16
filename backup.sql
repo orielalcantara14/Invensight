@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Pz8yciD1OotSHx7D5c4e0ZTeUaUZDsoEkn6CgqSdhCjC1MYSlYmU8QjyjIzGGy9
+\restrict GdFDx6Qb0B2cnjuCaCkPFPwxDanYieUcF5OoHGGRcQf6aw4UXYF35XHMVA5DSMh
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -376,7 +376,10 @@ CREATE TABLE public.inventory (
     expected integer DEFAULT 0 NOT NULL,
     actual integer DEFAULT 0 NOT NULL,
     reason_adjustment text DEFAULT ''::text NOT NULL,
-    status character varying(50) DEFAULT 'Active'::character varying
+    status character varying(50) DEFAULT 'Active'::character varying,
+    serial_start character varying(100),
+    serial_end character varying(100),
+    expiry_date date
 );
 
 
@@ -948,7 +951,8 @@ CREATE TABLE public.users (
     password_changed_at date,
     must_change_password boolean DEFAULT true,
     mfa_code character varying(6),
-    mfa_expiry timestamp without time zone
+    mfa_expiry timestamp without time zone,
+    failed_attempts integer DEFAULT 0
 );
 
 
@@ -1874,6 +1878,15 @@ COPY public.auditlog (log_id, user_id, action, entity_type, entity_id, "timestam
 47	10	VERIFY_OTP	user	10	2026-04-16 23:49:13.795053	OTP verified successfully
 48	10	CREATE_ORDER	order	0	2026-04-17 00:22:57.309549	Created purchase order: PO-QQ21ZGV5 (Supplier ID: 4)
 49	10	RECEIVE_ORDER	order	0	2026-04-17 00:33:59.635432	Received PO: PO-QQ21ZGV5 (Receipt: NO-A-36572)
+50	10	CREATE_ORDER	order	0	2026-04-17 00:42:29.983979	Created purchase order: PO-OUPBX7P2 (Supplier ID: 3)
+51	10	UPDATE_INVENTORY	inventory	7	2026-04-17 00:44:06.610136	Updated inventory item: HONDA RED 1L (Current Qty: 9)
+52	10	RECEIVE_ORDER	order	0	2026-04-17 00:46:44.741589	Received PO: PO-OUPBX7P2 (Receipt: NO-A-36578)
+53	10	CREATE_ORDER	order	0	2026-04-17 00:59:57.976463	Created purchase order: PO-IESIO4QA (Supplier ID: 3)
+54	11	FAILED_LOGIN	user	11	2026-04-17 01:10:05.332935	Failed login attempt (1/4)
+55	11	FAILED_LOGIN	user	11	2026-04-17 01:10:06.649183	Failed login attempt (2/4)
+56	11	FAILED_LOGIN	user	11	2026-04-17 01:10:07.702567	Failed login attempt (3/4)
+57	11	ACCOUNT_LOCKOUT	user	11	2026-04-17 01:10:08.560842	Account deactivated after 4 failed login attempts.
+58	10	VERIFY_OTP	user	10	2026-04-17 01:11:26.794482	OTP verified successfully
 \.
 
 
@@ -1946,472 +1959,473 @@ COPY public.generated_reports (report_id, report_type, start_date, end_date, gen
 -- Data for Name: inventory; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, quantity, expected, actual, reason_adjustment, status) FROM stdin;
-1	1	5	2026-04-06	5	5	5	Initial stock	Active
-2	2	5	2026-04-06	10	10	10	Initial stock	Active
-3	3	5	2026-04-06	10	10	10	Initial stock	Active
-4	4	5	2026-04-06	10	10	10	Initial stock	Active
-5	5	5	2026-04-06	10	10	10	Initial stock	Active
-7	7	5	2026-04-06	10	10	10	Initial stock	Active
-8	8	5	2026-04-06	10	10	10	Initial stock	Active
-9	9	5	2026-04-06	10	10	10	Initial stock	Active
-11	11	5	2026-04-06	0	0	0	Initial stock	Active
-12	12	5	2026-04-06	10	10	10	Initial stock	Active
-14	14	5	2026-04-06	0	0	0	Initial stock	Active
-16	16	5	2026-04-06	0	0	0	Initial stock	Active
-22	22	5	2026-04-06	10	10	10	Initial stock	Active
-23	23	5	2026-04-06	10	10	10	Initial stock	Active
-24	24	5	2026-04-06	10	10	10	Initial stock	Active
-25	25	5	2026-04-06	10	10	10	Initial stock	Active
-28	28	5	2026-04-06	0	0	0	Initial import from excel file	Active
-29	29	5	2026-04-06	0	0	0	Initial import from excel file	Active
-405	405	5	2026-04-06	10	10	10	Initial import	Active
-18	18	5	2026-04-06	8	8	8	Initial stock	Active
-19	19	5	2026-04-06	8	8	8	Initial stock	Active
-20	20	5	2026-04-06	9	9	9	Initial stock	Active
-15	15	5	2026-04-06	9	9	9	Initial stock	Active
-13	13	5	2026-04-06	9	9	9	Initial stock	Active
-17	17	5	2026-04-06	9	9	9	Initial stock	Active
-6	6	5	2026-04-06	8	8	8	Initial stock	Active
-27	27	5	2026-04-06	8	8	8	Initial stock	Active
-26	26	5	2026-04-06	8	8	8	Initial stock	Active
-303	303	5	2026-04-06	9	9	9	Initial import	Active
-376	376	5	2026-04-06	9	9	9	Initial import	Active
-30	30	5	2026-04-06	10	10	10	Initial import	Active
-31	31	5	2026-04-06	10	10	10	Initial import	Active
-32	32	5	2026-04-06	10	10	10	Initial import	Active
-33	33	5	2026-04-06	10	10	10	Initial import	Active
-34	34	5	2026-04-06	10	10	10	Initial import	Active
-35	35	5	2026-04-06	10	10	10	Initial import	Active
-36	36	5	2026-04-06	10	10	10	Initial import	Active
-37	37	5	2026-04-06	10	10	10	Initial import	Active
-38	38	5	2026-04-06	10	10	10	Initial import	Active
-39	39	5	2026-04-06	10	10	10	Initial import	Active
-40	40	5	2026-04-06	10	10	10	Initial import	Active
-41	41	5	2026-04-06	10	10	10	Initial import	Active
-42	42	5	2026-04-06	10	10	10	Initial import	Active
-43	43	5	2026-04-06	10	10	10	Initial import	Active
-44	44	5	2026-04-06	10	10	10	Initial import	Active
-45	45	5	2026-04-06	10	10	10	Initial import	Active
-47	47	5	2026-04-06	10	10	10	Initial import	Active
-48	48	5	2026-04-06	10	10	10	Initial import	Active
-49	49	5	2026-04-06	10	10	10	Initial import	Active
-50	50	5	2026-04-06	10	10	10	Initial import	Active
-51	51	5	2026-04-06	10	10	10	Initial import	Active
-52	52	5	2026-04-06	10	10	10	Initial import	Active
-53	53	5	2026-04-06	10	10	10	Initial import	Active
-54	54	5	2026-04-06	10	10	10	Initial import	Active
-55	55	5	2026-04-06	10	10	10	Initial import	Active
-56	56	5	2026-04-06	10	10	10	Initial import	Active
-57	57	5	2026-04-06	10	10	10	Initial import	Active
-58	58	5	2026-04-06	10	10	10	Initial import	Active
-59	59	5	2026-04-06	10	10	10	Initial import	Active
-61	61	5	2026-04-06	10	10	10	Initial import	Active
-62	62	5	2026-04-06	10	10	10	Initial import	Active
-63	63	5	2026-04-06	10	10	10	Initial import	Active
-64	64	5	2026-04-06	10	10	10	Initial import	Active
-65	65	5	2026-04-06	10	10	10	Initial import	Active
-66	66	5	2026-04-06	10	10	10	Initial import	Active
-67	67	5	2026-04-06	10	10	10	Initial import	Active
-68	68	5	2026-04-06	10	10	10	Initial import	Active
-69	69	5	2026-04-06	10	10	10	Initial import	Active
-70	70	5	2026-04-06	10	10	10	Initial import	Active
-71	71	5	2026-04-06	10	10	10	Initial import	Active
-72	72	5	2026-04-06	10	10	10	Initial import	Active
-73	73	5	2026-04-06	10	10	10	Initial import	Active
-74	74	5	2026-04-06	10	10	10	Initial import	Active
-75	75	5	2026-04-06	10	10	10	Initial import	Active
-76	76	5	2026-04-06	10	10	10	Initial import	Active
-77	77	5	2026-04-06	10	10	10	Initial import	Active
-78	78	5	2026-04-06	10	10	10	Initial import	Active
-79	79	5	2026-04-06	10	10	10	Initial import	Active
-80	80	5	2026-04-06	10	10	10	Initial import	Active
-81	81	5	2026-04-06	10	10	10	Initial import	Active
-82	82	5	2026-04-06	10	10	10	Initial import	Active
-83	83	5	2026-04-06	10	10	10	Initial import	Active
-84	84	5	2026-04-06	10	10	10	Initial import	Active
-85	85	5	2026-04-06	10	10	10	Initial import	Active
-86	86	5	2026-04-06	10	10	10	Initial import	Active
-87	87	5	2026-04-06	10	10	10	Initial import	Active
-88	88	5	2026-04-06	10	10	10	Initial import	Active
-89	89	5	2026-04-06	10	10	10	Initial import	Active
-90	90	5	2026-04-06	10	10	10	Initial import	Active
-91	91	5	2026-04-06	10	10	10	Initial import	Active
-92	92	5	2026-04-06	10	10	10	Initial import	Active
-93	93	5	2026-04-06	10	10	10	Initial import	Active
-94	94	5	2026-04-06	10	10	10	Initial import	Active
-95	95	5	2026-04-06	10	10	10	Initial import	Active
-96	96	5	2026-04-06	10	10	10	Initial import	Active
-97	97	5	2026-04-06	10	10	10	Initial import	Active
-98	98	5	2026-04-06	10	10	10	Initial import	Active
-315	315	5	2026-04-07	7	7	7	Initial import	Active
-227	227	5	2026-04-08	7	7	8	RET-2026-008	Active
-307	307	5	2026-04-07	8	8	8	Return rejected: #4	Active
-21	21	5	2026-04-08	11	11	11	RET-2026-003	Active
-99	99	5	2026-04-06	10	10	10	Initial import	Active
-100	100	5	2026-04-06	10	10	10	Initial import	Active
-101	101	5	2026-04-06	10	10	10	Initial import	Active
-102	102	5	2026-04-06	10	10	10	Initial import	Active
-103	103	5	2026-04-06	10	10	10	Initial import	Active
-104	104	5	2026-04-06	10	10	10	Initial import	Active
-105	105	5	2026-04-06	10	10	10	Initial import	Active
-106	106	5	2026-04-06	10	10	10	Initial import	Active
-107	107	5	2026-04-06	10	10	10	Initial import	Active
-108	108	5	2026-04-06	10	10	10	Initial import	Active
-109	109	5	2026-04-06	10	10	10	Initial import	Active
-110	110	5	2026-04-06	10	10	10	Initial import	Active
-111	111	5	2026-04-06	10	10	10	Initial import	Active
-112	112	5	2026-04-06	10	10	10	Initial import	Active
-113	113	5	2026-04-06	10	10	10	Initial import	Active
-114	114	5	2026-04-06	10	10	10	Initial import	Active
-115	115	5	2026-04-06	10	10	10	Initial import	Active
-116	116	5	2026-04-06	10	10	10	Initial import	Active
-117	117	5	2026-04-06	10	10	10	Initial import	Active
-118	118	5	2026-04-06	10	10	10	Initial import	Active
-119	119	5	2026-04-06	10	10	10	Initial import	Active
-120	120	5	2026-04-06	10	10	10	Initial import	Active
-121	121	5	2026-04-06	10	10	10	Initial import	Active
-122	122	5	2026-04-06	10	10	10	Initial import	Active
-123	123	5	2026-04-06	10	10	10	Initial import	Active
-124	124	5	2026-04-06	10	10	10	Initial import	Active
-125	125	5	2026-04-06	10	10	10	Initial import	Active
-127	127	5	2026-04-06	10	10	10	Initial import	Active
-128	128	5	2026-04-06	10	10	10	Initial import	Active
-129	129	5	2026-04-06	10	10	10	Initial import	Active
-130	130	5	2026-04-06	10	10	10	Initial import	Active
-131	131	5	2026-04-06	10	10	10	Initial import	Active
-132	132	5	2026-04-06	10	10	10	Initial import	Active
-133	133	5	2026-04-06	10	10	10	Initial import	Active
-134	134	5	2026-04-06	10	10	10	Initial import	Active
-135	135	5	2026-04-06	10	10	10	Initial import	Active
-136	136	5	2026-04-06	10	10	10	Initial import	Active
-137	137	5	2026-04-06	10	10	10	Initial import	Active
-138	138	5	2026-04-06	10	10	10	Initial import	Active
-139	139	5	2026-04-06	10	10	10	Initial import	Active
-140	140	5	2026-04-06	10	10	10	Initial import	Active
-141	141	5	2026-04-06	10	10	10	Initial import	Active
-142	142	5	2026-04-06	10	10	10	Initial import	Active
-143	143	5	2026-04-06	10	10	10	Initial import	Active
-144	144	5	2026-04-06	10	10	10	Initial import	Active
-145	145	5	2026-04-06	10	10	10	Initial import	Active
-146	146	5	2026-04-06	10	10	10	Initial import	Active
-147	147	5	2026-04-06	10	10	10	Initial import	Active
-148	148	5	2026-04-06	10	10	10	Initial import	Active
-149	149	5	2026-04-06	10	10	10	Initial import	Active
-150	150	5	2026-04-06	10	10	10	Initial import	Active
-151	151	5	2026-04-06	10	10	10	Initial import	Active
-154	154	5	2026-04-06	10	10	10	Initial import	Active
-155	155	5	2026-04-06	10	10	10	Initial import	Active
-156	156	5	2026-04-06	10	10	10	Initial import	Active
-157	157	5	2026-04-06	10	10	10	Initial import	Active
-158	158	5	2026-04-06	10	10	10	Initial import	Active
-159	159	5	2026-04-06	10	10	10	Initial import	Active
-160	160	5	2026-04-06	10	10	10	Initial import	Active
-161	161	5	2026-04-06	10	10	10	Initial import	Active
-162	162	5	2026-04-06	10	10	10	Initial import	Active
-163	163	5	2026-04-06	10	10	10	Initial import	Active
-164	164	5	2026-04-06	10	10	10	Initial import	Active
-165	165	5	2026-04-06	10	10	10	Initial import	Active
-166	166	5	2026-04-06	10	10	10	Initial import	Active
-167	167	5	2026-04-06	10	10	10	Initial import	Active
-168	168	5	2026-04-06	10	10	10	Initial import	Active
-169	169	5	2026-04-06	10	10	10	Initial import	Active
-170	170	5	2026-04-06	10	10	10	Initial import	Active
-171	171	5	2026-04-06	10	10	10	Initial import	Active
-172	172	5	2026-04-06	10	10	10	Initial import	Active
-173	173	5	2026-04-06	10	10	10	Initial import	Active
-174	174	5	2026-04-06	10	10	10	Initial import	Active
-175	175	5	2026-04-06	10	10	10	Initial import	Active
-176	176	5	2026-04-06	10	10	10	Initial import	Active
-177	177	5	2026-04-06	10	10	10	Initial import	Active
-178	178	5	2026-04-06	10	10	10	Initial import	Active
-179	179	5	2026-04-06	10	10	10	Initial import	Active
-180	180	5	2026-04-06	10	10	10	Initial import	Active
-181	181	5	2026-04-06	10	10	10	Initial import	Active
-182	182	5	2026-04-06	10	10	10	Initial import	Active
-183	183	5	2026-04-06	10	10	10	Initial import	Active
-184	184	5	2026-04-06	10	10	10	Initial import	Active
-185	185	5	2026-04-06	10	10	10	Initial import	Active
-186	186	5	2026-04-06	10	10	10	Initial import	Active
-187	187	5	2026-04-06	10	10	10	Initial import	Active
-188	188	5	2026-04-06	10	10	10	Initial import	Active
-190	190	5	2026-04-06	10	10	10	Initial import	Active
-191	191	5	2026-04-06	10	10	10	Initial import	Active
-192	192	5	2026-04-06	10	10	10	Initial import	Active
-193	193	5	2026-04-06	10	10	10	Initial import	Active
-194	194	5	2026-04-06	10	10	10	Initial import	Active
-195	195	5	2026-04-06	10	10	10	Initial import	Active
-196	196	5	2026-04-06	10	10	10	Initial import	Active
-197	197	5	2026-04-06	10	10	10	Initial import	Active
-198	198	5	2026-04-06	10	10	10	Initial import	Active
-199	199	5	2026-04-06	10	10	10	Initial import	Active
-200	200	5	2026-04-06	10	10	10	Initial import	Active
-201	201	5	2026-04-06	10	10	10	Initial import	Active
-202	202	5	2026-04-06	10	10	10	Initial import	Active
-203	203	5	2026-04-06	10	10	10	Initial import	Active
-204	204	5	2026-04-06	10	10	10	Initial import	Active
-205	205	5	2026-04-06	10	10	10	Initial import	Active
-126	126	5	2026-04-07	7	7	7	Return removed: #7	Active
-206	206	5	2026-04-06	10	10	10	Initial import	Active
-207	207	5	2026-04-06	10	10	10	Initial import	Active
-208	208	5	2026-04-06	10	10	10	Initial import	Active
-209	209	5	2026-04-06	10	10	10	Initial import	Active
-210	210	5	2026-04-06	10	10	10	Initial import	Active
-211	211	5	2026-04-06	10	10	10	Initial import	Active
-212	212	5	2026-04-06	10	10	10	Initial import	Active
-213	213	5	2026-04-06	10	10	10	Initial import	Active
-214	214	5	2026-04-06	10	10	10	Initial import	Active
-215	215	5	2026-04-06	10	10	10	Initial import	Active
-216	216	5	2026-04-06	10	10	10	Initial import	Active
-217	217	5	2026-04-06	10	10	10	Initial import	Active
-218	218	5	2026-04-06	10	10	10	Initial import	Active
-219	219	5	2026-04-06	10	10	10	Initial import	Active
-220	220	5	2026-04-06	10	10	10	Initial import	Active
-221	221	5	2026-04-06	10	10	10	Initial import	Active
-222	222	5	2026-04-06	10	10	10	Initial import	Active
-223	223	5	2026-04-06	10	10	10	Initial import	Active
-224	224	5	2026-04-06	10	10	10	Initial import	Active
-225	225	5	2026-04-06	10	10	10	Initial import	Active
-226	226	5	2026-04-06	10	10	10	Initial import	Active
-228	228	5	2026-04-06	10	10	10	Initial import	Active
-229	229	5	2026-04-06	10	10	10	Initial import	Active
-230	230	5	2026-04-06	10	10	10	Initial import	Active
-231	231	5	2026-04-06	10	10	10	Initial import	Active
-232	232	5	2026-04-06	10	10	10	Initial import	Active
-233	233	5	2026-04-06	10	10	10	Initial import	Active
-234	234	5	2026-04-06	10	10	10	Initial import	Active
-235	235	5	2026-04-06	10	10	10	Initial import	Active
-236	236	5	2026-04-06	10	10	10	Initial import	Active
-237	237	5	2026-04-06	10	10	10	Initial import	Active
-238	238	5	2026-04-06	10	10	10	Initial import	Active
-239	239	5	2026-04-06	10	10	10	Initial import	Active
-240	240	5	2026-04-06	10	10	10	Initial import	Active
-242	242	5	2026-04-06	10	10	10	Initial import	Active
-243	243	5	2026-04-06	10	10	10	Initial import	Active
-244	244	5	2026-04-06	10	10	10	Initial import	Active
-245	245	5	2026-04-06	10	10	10	Initial import	Active
-246	246	5	2026-04-06	10	10	10	Initial import	Active
-247	247	5	2026-04-06	10	10	10	Initial import	Active
-248	248	5	2026-04-06	10	10	10	Initial import	Active
-249	249	5	2026-04-06	10	10	10	Initial import	Active
-250	250	5	2026-04-06	10	10	10	Initial import	Active
-251	251	5	2026-04-06	10	10	10	Initial import	Active
-252	252	5	2026-04-06	10	10	10	Initial import	Active
-253	253	5	2026-04-06	10	10	10	Initial import	Active
-254	254	5	2026-04-06	10	10	10	Initial import	Active
-255	255	5	2026-04-06	10	10	10	Initial import	Active
-256	256	5	2026-04-06	10	10	10	Initial import	Active
-257	257	5	2026-04-06	10	10	10	Initial import	Active
-258	258	5	2026-04-06	10	10	10	Initial import	Active
-259	259	5	2026-04-06	10	10	10	Initial import	Active
-260	260	5	2026-04-06	10	10	10	Initial import	Active
-261	261	5	2026-04-06	10	10	10	Initial import	Active
-262	262	5	2026-04-06	10	10	10	Initial import	Active
-263	263	5	2026-04-06	10	10	10	Initial import	Active
-264	264	5	2026-04-06	10	10	10	Initial import	Active
-265	265	5	2026-04-06	10	10	10	Initial import	Active
-266	266	5	2026-04-06	10	10	10	Initial import	Active
-267	267	5	2026-04-06	10	10	10	Initial import	Active
-268	268	5	2026-04-06	10	10	10	Initial import	Active
-269	269	5	2026-04-06	10	10	10	Initial import	Active
-270	270	5	2026-04-06	10	10	10	Initial import	Active
-271	271	5	2026-04-06	10	10	10	Initial import	Active
-273	273	5	2026-04-06	10	10	10	Initial import	Active
-274	274	5	2026-04-06	10	10	10	Initial import	Active
-275	275	5	2026-04-06	10	10	10	Initial import	Active
-276	276	5	2026-04-06	10	10	10	Initial import	Active
-277	277	5	2026-04-06	10	10	10	Initial import	Active
-278	278	5	2026-04-06	10	10	10	Initial import	Active
-281	281	5	2026-04-06	10	10	10	Initial import	Active
-282	282	5	2026-04-06	10	10	10	Initial import	Active
-283	283	5	2026-04-06	10	10	10	Initial import	Active
-284	284	5	2026-04-06	10	10	10	Initial import	Active
-285	285	5	2026-04-06	10	10	10	Initial import	Active
-286	286	5	2026-04-06	10	10	10	Initial import	Active
-287	287	5	2026-04-06	10	10	10	Initial import	Active
-293	293	5	2026-04-06	10	10	10	Initial import	Active
-294	294	5	2026-04-06	10	10	10	Initial import	Active
-295	295	5	2026-04-06	10	10	10	Initial import	Active
-297	297	5	2026-04-06	10	10	10	Initial import	Active
-298	298	5	2026-04-06	10	10	10	Initial import	Active
-300	300	5	2026-04-06	10	10	10	Initial import	Active
-305	305	5	2026-04-06	10	10	10	Initial import	Active
-308	308	5	2026-04-06	10	10	10	Initial import	Active
-309	309	5	2026-04-06	10	10	10	Initial import	Active
-311	311	5	2026-04-06	10	10	10	Initial import	Active
-312	312	5	2026-04-06	10	10	10	Initial import	Active
-313	313	5	2026-04-06	10	10	10	Initial import	Active
-314	314	5	2026-04-06	10	10	10	Initial import	Active
-316	316	5	2026-04-06	10	10	10	Initial import	Active
-317	317	5	2026-04-06	10	10	10	Initial import	Active
-318	318	5	2026-04-06	10	10	10	Initial import	Active
-292	292	5	2026-04-07	9	9	9	Initial import	Active
-291	291	5	2026-04-06	8	8	8	Initial import	Active
-290	290	5	2026-04-06	9	9	9	Initial import	Active
-279	279	5	2026-04-07	9	9	9	Initial import	Active
-310	310	5	2026-04-07	8	8	8	Initial import	Active
-304	304	5	2026-04-07	9	9	9	Initial import	Active
-241	241	5	2026-04-08	13	13	13	RET-2026-003	Active
-299	299	5	2026-04-08	11	11	11	RET-2026-003	Active
-302	302	5	2026-04-08	10	10	10	RET-2026-004	Active
-319	319	5	2026-04-06	10	10	10	Initial import	Active
-320	320	5	2026-04-06	10	10	10	Initial import	Active
-321	321	5	2026-04-06	10	10	10	Initial import	Active
-325	325	5	2026-04-06	10	10	10	Initial import	Active
-326	326	5	2026-04-06	10	10	10	Initial import	Active
-327	327	5	2026-04-06	10	10	10	Initial import	Active
-328	328	5	2026-04-06	10	10	10	Initial import	Active
-329	329	5	2026-04-06	10	10	10	Initial import	Active
-330	330	5	2026-04-06	10	10	10	Initial import	Active
-331	331	5	2026-04-06	10	10	10	Initial import	Active
-332	332	5	2026-04-06	10	10	10	Initial import	Active
-333	333	5	2026-04-06	10	10	10	Initial import	Active
-334	334	5	2026-04-06	10	10	10	Initial import	Active
-335	335	5	2026-04-06	10	10	10	Initial import	Active
-336	336	5	2026-04-06	10	10	10	Initial import	Active
-337	337	5	2026-04-06	10	10	10	Initial import	Active
-338	338	5	2026-04-06	10	10	10	Initial import	Active
-339	339	5	2026-04-06	10	10	10	Initial import	Active
-340	340	5	2026-04-06	10	10	10	Initial import	Active
-341	341	5	2026-04-06	10	10	10	Initial import	Active
-342	342	5	2026-04-06	10	10	10	Initial import	Active
-343	343	5	2026-04-06	10	10	10	Initial import	Active
-344	344	5	2026-04-06	10	10	10	Initial import	Active
-345	345	5	2026-04-06	10	10	10	Initial import	Active
-346	346	5	2026-04-06	10	10	10	Initial import	Active
-347	347	5	2026-04-06	10	10	10	Initial import	Active
-348	348	5	2026-04-06	10	10	10	Initial import	Active
-349	349	5	2026-04-06	10	10	10	Initial import	Active
-350	350	5	2026-04-06	10	10	10	Initial import	Active
-351	351	5	2026-04-06	10	10	10	Initial import	Active
-352	352	5	2026-04-06	10	10	10	Initial import	Active
-353	353	5	2026-04-06	10	10	10	Initial import	Active
-354	354	5	2026-04-06	10	10	10	Initial import	Active
-355	355	5	2026-04-06	10	10	10	Initial import	Active
-356	356	5	2026-04-06	10	10	10	Initial import	Active
-357	357	5	2026-04-06	10	10	10	Initial import	Active
-358	358	5	2026-04-06	10	10	10	Initial import	Active
-359	359	5	2026-04-06	10	10	10	Initial import	Active
-360	360	5	2026-04-06	10	10	10	Initial import	Active
-361	361	5	2026-04-06	10	10	10	Initial import	Active
-362	362	5	2026-04-06	10	10	10	Initial import	Active
-363	363	5	2026-04-06	10	10	10	Initial import	Active
-364	364	5	2026-04-06	10	10	10	Initial import	Active
-365	365	5	2026-04-06	10	10	10	Initial import	Active
-366	366	5	2026-04-06	10	10	10	Initial import	Active
-367	367	5	2026-04-06	10	10	10	Initial import	Active
-368	368	5	2026-04-06	10	10	10	Initial import	Active
-369	369	5	2026-04-06	10	10	10	Initial import	Active
-370	370	5	2026-04-06	10	10	10	Initial import	Active
-371	371	5	2026-04-06	10	10	10	Initial import	Active
-372	372	5	2026-04-06	10	10	10	Initial import	Active
-373	373	5	2026-04-06	10	10	10	Initial import	Active
-374	374	5	2026-04-06	10	10	10	Initial import	Active
-375	375	5	2026-04-06	10	10	10	Initial import	Active
-377	377	5	2026-04-06	10	10	10	Initial import	Active
-378	378	5	2026-04-06	10	10	10	Initial import	Active
-379	379	5	2026-04-06	10	10	10	Initial import	Active
-380	380	5	2026-04-06	10	10	10	Initial import	Active
-381	381	5	2026-04-06	10	10	10	Initial import	Active
-382	382	5	2026-04-06	10	10	10	Initial import	Active
-383	383	5	2026-04-06	10	10	10	Initial import	Active
-385	385	5	2026-04-06	10	10	10	Initial import	Active
-386	386	5	2026-04-06	10	10	10	Initial import	Active
-387	387	5	2026-04-06	10	10	10	Initial import	Active
-388	388	5	2026-04-06	10	10	10	Initial import	Active
-389	389	5	2026-04-06	10	10	10	Initial import	Active
-390	390	5	2026-04-06	10	10	10	Initial import	Active
-391	391	5	2026-04-06	10	10	10	Initial import	Active
-392	392	5	2026-04-06	10	10	10	Initial import	Active
-393	393	5	2026-04-06	10	10	10	Initial import	Active
-394	394	5	2026-04-06	10	10	10	Initial import	Active
-395	395	5	2026-04-06	10	10	10	Initial import	Active
-396	396	5	2026-04-06	10	10	10	Initial import	Active
-397	397	5	2026-04-06	10	10	10	Initial import	Active
-398	398	5	2026-04-06	10	10	10	Initial import	Active
-399	399	5	2026-04-06	10	10	10	Initial import	Active
-400	400	5	2026-04-06	10	10	10	Initial import	Active
-401	401	5	2026-04-06	10	10	10	Initial import	Active
-402	402	5	2026-04-06	10	10	10	Initial import	Active
-403	403	5	2026-04-06	10	10	10	Initial import	Active
-404	404	5	2026-04-06	10	10	10	Initial import	Active
-406	406	5	2026-04-06	10	10	10	Initial import	Active
-407	407	5	2026-04-06	10	10	10	Initial import	Active
-408	408	5	2026-04-06	10	10	10	Initial import	Active
-409	409	5	2026-04-06	10	10	10	Initial import	Active
-410	410	5	2026-04-06	10	10	10	Initial import	Active
-411	411	5	2026-04-06	10	10	10	Initial import	Active
-412	412	5	2026-04-06	10	10	10	Initial import	Active
-413	413	5	2026-04-06	10	10	10	Initial import	Active
-414	414	5	2026-04-06	10	10	10	Initial import	Active
-415	415	5	2026-04-06	10	10	10	Initial import	Active
-416	416	5	2026-04-06	10	10	10	Initial import	Active
-417	417	5	2026-04-06	10	10	10	Initial import	Active
-418	418	5	2026-04-06	10	10	10	Initial import	Active
-419	419	5	2026-04-06	10	10	10	Initial import	Active
-420	420	5	2026-04-06	10	10	10	Initial import	Active
-421	421	5	2026-04-06	10	10	10	Initial import	Active
-422	422	5	2026-04-06	10	10	10	Initial import	Active
-423	423	5	2026-04-06	10	10	10	Initial import	Active
-424	424	5	2026-04-06	10	10	10	Initial import	Active
-426	426	5	2026-04-06	10	10	10	Initial import	Active
-427	427	5	2026-04-06	10	10	10	Initial import	Active
-428	428	5	2026-04-06	10	10	10	Initial import	Active
-322	322	5	2026-04-06	9	9	9	Initial import	Active
-429	429	5	2026-04-06	10	10	10	Initial import	Active
-430	430	5	2026-04-06	10	10	10	Initial import	Active
-431	431	5	2026-04-06	10	10	10	Initial import	Active
-432	432	5	2026-04-06	10	10	10	Initial import	Active
-433	433	5	2026-04-06	10	10	10	Initial import	Active
-434	434	5	2026-04-06	10	10	10	Initial import	Active
-435	435	5	2026-04-06	10	10	10	Initial import	Active
-436	436	5	2026-04-06	10	10	10	Initial import	Active
-437	437	5	2026-04-06	10	10	10	Initial import	Active
-438	438	5	2026-04-06	10	10	10	Initial import	Active
-439	439	5	2026-04-06	10	10	10	Initial import	Active
-440	440	5	2026-04-06	10	10	10	Initial import	Active
-441	441	5	2026-04-06	10	10	10	Initial import	Active
-444	444	5	2026-04-06	10	10	10	Initial import	Active
-445	445	5	2026-04-06	10	10	10	Initial import	Active
-446	446	5	2026-04-06	10	10	10	Initial import	Active
-447	447	5	2026-04-06	10	10	10	Initial import	Active
-448	448	5	2026-04-06	10	10	10	Initial import	Active
-449	449	5	2026-04-06	10	10	10	Initial import	Active
-450	450	5	2026-04-06	10	10	10	Initial import	Active
-451	451	5	2026-04-06	10	10	10	Initial import	Active
-452	452	5	2026-04-06	10	10	10	Initial import	Active
-453	453	5	2026-04-06	10	10	10	Initial import	Active
-454	454	5	2026-04-06	10	10	10	Initial import	Active
-455	455	5	2026-04-06	10	10	10	Initial import	Active
-456	456	5	2026-04-06	10	10	10	Initial import	Active
-457	457	5	2026-04-06	10	10	10	Initial import	Active
-458	458	5	2026-04-06	10	10	10	Initial import	Active
-459	459	5	2026-04-06	10	10	10	Initial import	Active
-460	460	5	2026-04-06	10	10	10	Initial import	Active
-461	461	5	2026-04-06	10	10	10	Initial import	Active
-462	462	5	2026-04-06	10	10	10	Initial import	Active
-463	463	5	2026-04-06	10	10	10	Initial import	Active
-464	464	5	2026-04-06	10	10	10	Initial import	Active
-443	443	5	2026-04-06	9	9	9	Initial import	Active
-323	323	5	2026-04-06	8	8	8	Initial import	Active
-301	301	5	2026-04-06	8	8	8	Initial import	Active
-153	153	5	2026-04-06	9	9	9	Initial import	Active
-425	425	5	2026-04-06	8	8	8	Initial import	Active
-280	280	5	2026-04-06	9	9	9	Initial import	Active
-306	306	5	2026-04-06	9	9	9	Initial import	Active
-296	296	5	2026-04-06	8	8	8	Initial import	Active
-288	288	5	2026-04-06	9	9	9	Initial import	Active
-189	189	5	2026-04-06	9	9	9	Initial import	Active
-272	272	5	2026-04-06	4	4	4	Initial import	Active
-152	152	5	2026-04-06	0	0	0	Initial import	Active
-384	384	5	2026-04-06	0	0	0	Initial import	Active
-289	289	5	2026-04-07	3	3	3	Return removed: #3	Active
-10	10	5	2026-04-08	10	10	10	RET-2026-003	Active
-46	46	5	2026-04-08	8	8	8	RET-2026-007	Active
-442	442	5	2026-04-08	12	12	12	RET-2026-004	Active
-324	324	5	2026-04-08	3	3	3	RET-2026-009	Active
-60	60	5	2026-04-10	8	8	9	RET-2026-010	Active
-465	465	5	2026-04-17	14	14	14	Initial stock	Active
+COPY public.inventory (inventory_id, product_id, reorder_level, last_updated, quantity, expected, actual, reason_adjustment, status, serial_start, serial_end, expiry_date) FROM stdin;
+315	315	5	2026-04-17	7	7	7	Manual Count	Active	\N	\N	\N
+466	467	5	2026-04-17	15	15	15	Initial stock	Active	0001	\N	2026-04-24
+7	7	5	2026-04-17	13	14	13	Lost	Active	\N	\N	\N
+467	468	5	2026-04-17	20	15	20	Initial stock	Active	0001	0020	2026-04-29
+1	1	5	2026-04-06	5	5	5	Initial stock	Active	\N	\N	\N
+2	2	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+3	3	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+4	4	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+5	5	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+8	8	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+9	9	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+11	11	5	2026-04-06	0	0	0	Initial stock	Active	\N	\N	\N
+12	12	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+14	14	5	2026-04-06	0	0	0	Initial stock	Active	\N	\N	\N
+16	16	5	2026-04-06	0	0	0	Initial stock	Active	\N	\N	\N
+22	22	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+23	23	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+24	24	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+25	25	5	2026-04-06	10	10	10	Initial stock	Active	\N	\N	\N
+28	28	5	2026-04-06	0	0	0	Initial import from excel file	Active	\N	\N	\N
+29	29	5	2026-04-06	0	0	0	Initial import from excel file	Active	\N	\N	\N
+405	405	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+18	18	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
+19	19	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
+20	20	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
+15	15	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
+13	13	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
+17	17	5	2026-04-06	9	9	9	Initial stock	Active	\N	\N	\N
+6	6	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
+27	27	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
+26	26	5	2026-04-06	8	8	8	Initial stock	Active	\N	\N	\N
+303	303	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+376	376	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+30	30	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+31	31	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+32	32	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+33	33	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+34	34	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+35	35	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+36	36	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+37	37	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+38	38	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+39	39	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+40	40	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+41	41	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+42	42	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+43	43	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+44	44	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+45	45	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+47	47	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+48	48	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+49	49	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+50	50	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+51	51	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+52	52	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+53	53	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+54	54	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+55	55	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+56	56	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+57	57	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+58	58	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+59	59	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+61	61	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+62	62	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+63	63	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+64	64	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+65	65	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+66	66	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+67	67	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+68	68	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+69	69	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+70	70	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+71	71	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+72	72	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+73	73	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+74	74	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+75	75	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+76	76	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+77	77	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+78	78	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+79	79	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+80	80	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+81	81	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+82	82	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+83	83	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+84	84	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+85	85	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+86	86	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+87	87	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+88	88	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+89	89	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+90	90	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+91	91	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+92	92	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+93	93	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+94	94	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+95	95	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+96	96	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+97	97	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+98	98	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+227	227	5	2026-04-08	7	7	8	RET-2026-008	Active	\N	\N	\N
+307	307	5	2026-04-07	8	8	8	Return rejected: #4	Active	\N	\N	\N
+21	21	5	2026-04-08	11	11	11	RET-2026-003	Active	\N	\N	\N
+99	99	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+100	100	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+101	101	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+102	102	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+103	103	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+104	104	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+105	105	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+106	106	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+107	107	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+108	108	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+109	109	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+110	110	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+111	111	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+112	112	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+113	113	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+114	114	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+115	115	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+116	116	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+117	117	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+118	118	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+119	119	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+120	120	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+121	121	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+122	122	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+123	123	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+124	124	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+125	125	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+127	127	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+128	128	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+129	129	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+130	130	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+131	131	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+132	132	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+133	133	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+134	134	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+135	135	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+136	136	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+137	137	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+138	138	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+139	139	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+140	140	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+141	141	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+142	142	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+143	143	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+144	144	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+145	145	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+146	146	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+147	147	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+148	148	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+149	149	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+150	150	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+151	151	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+154	154	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+155	155	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+156	156	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+157	157	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+158	158	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+159	159	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+160	160	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+161	161	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+162	162	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+163	163	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+164	164	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+165	165	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+166	166	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+167	167	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+168	168	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+169	169	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+170	170	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+171	171	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+172	172	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+173	173	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+174	174	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+175	175	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+176	176	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+177	177	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+178	178	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+179	179	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+180	180	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+181	181	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+182	182	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+183	183	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+184	184	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+185	185	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+186	186	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+187	187	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+188	188	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+190	190	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+191	191	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+192	192	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+193	193	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+194	194	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+195	195	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+196	196	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+197	197	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+198	198	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+199	199	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+200	200	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+201	201	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+202	202	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+203	203	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+204	204	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+205	205	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+206	206	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+207	207	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+208	208	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+209	209	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+210	210	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+211	211	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+212	212	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+213	213	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+214	214	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+215	215	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+216	216	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+217	217	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+218	218	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+219	219	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+220	220	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+221	221	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+222	222	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+223	223	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+224	224	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+225	225	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+226	226	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+228	228	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+229	229	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+230	230	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+231	231	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+232	232	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+233	233	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+234	234	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+235	235	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+236	236	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+237	237	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+238	238	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+239	239	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+240	240	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+242	242	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+243	243	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+244	244	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+245	245	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+246	246	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+247	247	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+248	248	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+249	249	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+250	250	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+251	251	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+252	252	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+253	253	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+254	254	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+255	255	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+256	256	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+257	257	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+258	258	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+259	259	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+260	260	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+261	261	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+262	262	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+263	263	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+264	264	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+265	265	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+266	266	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+267	267	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+268	268	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+269	269	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+270	270	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+271	271	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+273	273	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+274	274	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+275	275	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+276	276	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+277	277	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+278	278	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+281	281	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+282	282	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+283	283	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+284	284	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+285	285	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+286	286	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+287	287	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+293	293	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+294	294	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+295	295	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+297	297	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+298	298	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+300	300	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+305	305	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+308	308	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+309	309	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+311	311	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+312	312	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+313	313	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+314	314	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+316	316	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+317	317	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+318	318	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+292	292	5	2026-04-07	9	9	9	Initial import	Active	\N	\N	\N
+291	291	5	2026-04-06	8	8	8	Initial import	Active	\N	\N	\N
+290	290	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+279	279	5	2026-04-07	9	9	9	Initial import	Active	\N	\N	\N
+310	310	5	2026-04-07	8	8	8	Initial import	Active	\N	\N	\N
+304	304	5	2026-04-07	9	9	9	Initial import	Active	\N	\N	\N
+241	241	5	2026-04-08	13	13	13	RET-2026-003	Active	\N	\N	\N
+299	299	5	2026-04-08	11	11	11	RET-2026-003	Active	\N	\N	\N
+302	302	5	2026-04-08	10	10	10	RET-2026-004	Active	\N	\N	\N
+319	319	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+320	320	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+321	321	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+325	325	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+326	326	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+327	327	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+328	328	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+329	329	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+330	330	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+331	331	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+332	332	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+333	333	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+334	334	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+335	335	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+336	336	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+337	337	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+338	338	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+339	339	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+340	340	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+341	341	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+342	342	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+343	343	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+344	344	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+345	345	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+346	346	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+347	347	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+348	348	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+349	349	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+350	350	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+351	351	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+352	352	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+353	353	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+354	354	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+355	355	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+356	356	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+357	357	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+358	358	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+359	359	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+360	360	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+361	361	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+362	362	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+363	363	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+364	364	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+365	365	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+366	366	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+367	367	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+368	368	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+369	369	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+370	370	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+371	371	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+372	372	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+373	373	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+374	374	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+375	375	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+377	377	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+378	378	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+379	379	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+380	380	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+381	381	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+382	382	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+383	383	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+385	385	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+386	386	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+387	387	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+388	388	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+389	389	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+390	390	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+391	391	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+392	392	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+393	393	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+394	394	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+395	395	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+396	396	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+397	397	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+398	398	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+399	399	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+400	400	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+401	401	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+402	402	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+403	403	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+404	404	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+406	406	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+407	407	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+408	408	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+409	409	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+410	410	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+411	411	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+412	412	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+413	413	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+414	414	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+415	415	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+416	416	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+417	417	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+418	418	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+419	419	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+420	420	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+421	421	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+422	422	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+423	423	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+424	424	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+426	426	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+427	427	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+428	428	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+322	322	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+429	429	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+430	430	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+431	431	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+432	432	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+433	433	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+434	434	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+435	435	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+436	436	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+437	437	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+438	438	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+439	439	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+440	440	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+441	441	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+444	444	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+445	445	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+446	446	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+447	447	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+448	448	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+449	449	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+450	450	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+451	451	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+452	452	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+453	453	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+454	454	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+455	455	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+456	456	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+457	457	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+458	458	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+459	459	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+460	460	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+461	461	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+462	462	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+463	463	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+464	464	5	2026-04-06	10	10	10	Initial import	Active	\N	\N	\N
+443	443	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+323	323	5	2026-04-06	8	8	8	Initial import	Active	\N	\N	\N
+301	301	5	2026-04-06	8	8	8	Initial import	Active	\N	\N	\N
+153	153	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+425	425	5	2026-04-06	8	8	8	Initial import	Active	\N	\N	\N
+280	280	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+306	306	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+296	296	5	2026-04-06	8	8	8	Initial import	Active	\N	\N	\N
+288	288	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+189	189	5	2026-04-06	9	9	9	Initial import	Active	\N	\N	\N
+272	272	5	2026-04-06	4	4	4	Initial import	Active	\N	\N	\N
+152	152	5	2026-04-06	0	0	0	Initial import	Active	\N	\N	\N
+384	384	5	2026-04-06	0	0	0	Initial import	Active	\N	\N	\N
+289	289	5	2026-04-07	3	3	3	Return removed: #3	Active	\N	\N	\N
+10	10	5	2026-04-08	10	10	10	RET-2026-003	Active	\N	\N	\N
+46	46	5	2026-04-08	8	8	8	RET-2026-007	Active	\N	\N	\N
+442	442	5	2026-04-08	12	12	12	RET-2026-004	Active	\N	\N	\N
+60	60	5	2026-04-10	8	8	9	RET-2026-010	Active	\N	\N	\N
+465	465	5	2026-04-17	14	14	14	Initial stock	Active	\N	\N	\N
+324	324	5	2026-04-17	3	3	3	RET-2026-009	Active	\N	\N	\N
 \.
 
 
@@ -2423,8 +2437,6 @@ COPY public.inventory_stock_events (event_id, inventory_id, product_id, event_ty
 16	289	289	RETURN_ALLOCATED	10	10	10	9	10	9	0	-1	-1	0	-1	product_returns	3	damaged	2026-04-06 16:43:12.705736
 17	289	289	RETURN_APPROVED	9	8	8	8	8	8	-1	0	0	-1	0	product_returns	3		2026-04-06 17:16:41.181198
 18	307	307	RETURN_ALLOCATED	9	9	9	8	9	8	0	-1	-1	0	-1	product_returns	4	CANOLA OIL	2026-04-06 17:18:11.339341
-19	126	126	RETURN_ALLOCATED	10	10	10	9	10	9	0	-1	-1	0	-1	product_returns	7	CANOLA OIL	2026-04-06 17:19:40.637063
-20	126	126	RETURN_APPROVED	10	9	9	9	9	9	-1	0	0	-1	0	product_returns	7		2026-04-06 17:20:22.930613
 21	307	307	RETURN_REJECTED	9	9	8	9	8	9	0	1	1	-1	0	product_returns	4		2026-04-06 17:20:26.365089
 22	324	324	RETURN_ALLOCATED	9	9	9	8	9	8	0	-1	-1	0	-1	product_returns	8	DAMAGED	2026-04-06 17:20:53.619378
 23	324	324	RETURN_APPROVED	9	8	8	8	8	8	-1	0	0	-1	0	product_returns	8		2026-04-06 17:21:58.248938
@@ -2451,6 +2463,7 @@ COPY public.inventory_stock_events (event_id, inventory_id, product_id, event_ty
 44	324	324	CUSTOMER_RETURN_TO_SUPPLIER	3	3	6	6	4	3	0	0	-1	-1	-3	customer_returns	9	Returned to supplier	2026-04-08 13:13:11.983093
 45	60	60	CUSTOMER_RETURN_EXCHANGE	9	8	10	10	9	9	-1	0	0	-1	0	customer_returns	10	RET-2026-010	2026-04-10 23:11:48.998755
 46	465	465	PO_RECEIVED	10	14	10	14	10	14	4	4	4	0	0	purchase_orders	PO-QQ21ZGV5	Received with 1 items damage	2026-04-17 00:33:59.635432
+47	7	7	PO_RECEIVED	9	13	10	14	9	13	4	4	4	-1	-1	purchase_orders	PO-OUPBX7P2	Received with 1 items damage	2026-04-17 00:46:44.741589
 \.
 
 
@@ -2723,6 +2736,7 @@ COPY public.product_price_history (history_id, product_id, old_price, new_price,
 38	29	\N	325.00	2026-04-06 01:31:46.709954	\N
 39	465	\N	0.12	2026-04-06 16:46:39.878305	\N
 40	465	\N	2000.50	2026-04-08 13:19:59.936301	\N
+41	467	\N	50.00	2026-04-17 03:02:08.526284	\N
 \.
 
 
@@ -2761,7 +2775,6 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 4	1	1	HONDA GOLD 1L	260.00	L-HO-GL1L	2026-04-06	Liter	Engine Oil	295.00	Active	\N	0.00
 5	1	1	HONDA BLUE SCT 800ML	300.00	L-HO-BS8M	2026-04-06	Milliliter	Engine Oil	340.00	Active	\N	0.00
 6	1	1	HONDA BLUE 1L	325.00	L-HO-BL1L	2026-04-06	Liter	Engine Oil	375.00	Active	\N	0.00
-7	1	3	HONDA RED 1L	238.00	L-HO-RE1L	2026-04-06	Liter	Engine Oil	275.00	Active	\N	0.00
 8	1	1	HONDA GEAR OIL	70.00	L-HO-GEO	2026-04-06	Liter	Gear Oil	95.00	Active	\N	0.00
 9	1	3	YAMALUBE PERFORMANCE 1L	275.00	L-YA-PE1L	2026-04-06	Liter	Engine Oil	315.00	Active	\N	0.00
 10	1	3	YAMALUBE BUSINESS 1L	290.00	L-YA-BU1L	2026-04-06	Liter	Engine Oil	320.00	Active	\N	0.00
@@ -3065,7 +3078,6 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 312	2	\N	BALLRACE BEARING M3	269.23	S-BA-BE3M	2026-04-06	Piece	Bearing	350.00	Active	\N	0.00
 313	2	\N	BRAKE PAD ADV 160	115.38	S-BR-PA1	2026-04-06	Set	Brake Pad	150.00	Active	\N	0.00
 314	2	\N	BRAKE PAD MIO SPORTY	192.31	S-BR-PMS	2026-04-06	Set	Brake Pad	250.00	Active	\N	0.00
-315	2	\N	ABEARING KOYO 6303	25.00	S-AB-KO6	2026-04-06	Piece	Bearing	80.00	Active	\N	0.00
 316	4	\N	CLUTCH LINING	120.00	O-CL-L-001	2026-04-06	Piece	Others	200.00	Active	\N	0.00
 317	1	\N	ASUN RASING GEAR OIL	60.00	L-AS-RGO	2026-04-06	Bottle	Gear Oil	100.00	Active	\N	0.00
 318	2	\N	SPARK PLUG CUP OEM	20.00	S-SP-PCO	2026-04-06	Piece	Spark Plug	50.00	Active	\N	0.00
@@ -3097,7 +3109,6 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 345	2	\N	BRAKE SHOE CWORKS CLICK125 V1 V2 V3 150/GC/160/AIRBLADE 150/BEAT FI	225.00	S-BR-SCF	2026-04-06	Set	Brake Shoe	290.00	Active	\N	0.00
 346	2	\N	BRAKE PAD CWORKS NMAX REAR/MIO SPORTY/MXI/VEGA/FINO FRONT	144.00	S-BR-PCF	2026-04-06	Set	Brake Pad	195.00	Active	\N	0.00
 347	2	\N	BRAKE PAD CWORKS NMAX FRONT/MIO 125/ MIO SOULi/M3/GRVIS/AEROX/SNIPER150/155	144.00	S-BR-PC3S	2026-04-06	Set	Brake Pad	195.00	Active	\N	0.00
-324	4	\N	A6300	25.00	O-A6	2026-04-06	Piece	Others	110.00	Active	\N	0.00
 348	4	\N	CLUTCH SPRING CWORKS ALL CLICK/PCX/ADV/MIO/M3/NMAX/AEROX/GY6/BEAT FI/XMAX/RUSI 800RPM	162.00	O-CL-SC8R	2026-04-06	Piece	Others	250.00	Active	\N	0.00
 349	4	\N	SLIDER PIECE CWORKS CLICK125i/150/V1V2V3	58.50	O-SL-PC1C	2026-04-06	Piece	Others	100.00	Active	\N	0.00
 350	4	\N	SLIDER PIECE CWORKS BEAT V1V2V3/GY6	58.50	O-SL-PC1V	2026-04-06	Piece	Others	100.00	Active	\N	0.00
@@ -3220,6 +3231,12 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 292	4	\N	ROTOR DISC	125.00	O-A-ROD	2026-04-06	Piece	Others	250.00	Active	\N	0.00
 384	1	\N	ADD OIL PETRON / RACERX 200M	319.11	L-A-AO2M	2026-04-06	Bottle	Additive	433.34	Active	\N	0.00
 465	2	4	Yamaha Breakpad Nmax	2000.50	S-YA-BRN	2026-04-08	Piece	Brake Pad	2000.00	Active	\N	0.00
+7	1	3	HONDA RED 1L	238.00	L-HO-RE1L-001	2026-04-06	Liter	Engine Oil	275.00	Active	\N	0.00
+324	4	\N	A6300	25.00	O-A6	2026-04-06	Piece	Others	110.00	Active	\N	0.00
+315	2	3	ABEARING KOYO 6303	25.00	S-AB-KO6	2026-04-06	Piece	Bearing	80.00	Active	\N	0.00
+466	4	\N	ABETA GREY	90.00	O-AB-G-001	2026-04-17	Piece	Others	\N	Active	\N	0.00
+467	3	3	BETA GREY	50.00	A-BE-G	2026-04-17	Set	Accessory	63.00	Active	\N	0.00
+468	3	3	BETA GREY	50.00	A-BE-G-001	2026-04-17	Set	Accessory	\N	Active	\N	0.00
 \.
 
 
@@ -3229,6 +3246,8 @@ COPY public.products (product_id, category_id, supplier_id, product_name, unit_p
 
 COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_price, received_quantity, received_at, damage_count) FROM stdin;
 4	PO-QQ21ZGV5	465	5	2000.50	0	\N	1
+5	PO-OUPBX7P2	7	5	238.00	0	\N	1
+6	PO-IESIO4QA	7	5	238.00	0	\N	0
 \.
 
 
@@ -3239,6 +3258,8 @@ COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_
 COPY public.purchase_orders (order_id, supplier_id, user_id, status, expected_delivery, created_at, received_at, total_items, notes, receipt_number) FROM stdin;
 PO-MXBZ23VT	1	\N	Received	2026-04-07	2026-04-04 08:36:36.89	2026-04-04 08:36:57.940004	10	\N	\N
 PO-QQ21ZGV5	4	\N	Received	2026-04-20	2026-04-17 00:22:57.309549	2026-04-17 00:33:59.635432	5	One damage	NO-A-36572
+PO-OUPBX7P2	3	\N	Received	2026-04-18	2026-04-17 00:42:29.983979	2026-04-17 00:46:44.741589	5	one damage	NO-A-36578
+PO-IESIO4QA	3	\N	Pending	2026-04-18	2026-04-17 00:59:57.976463	\N	5	\N	\N
 \.
 
 
@@ -3974,10 +3995,10 @@ COPY public.sold_items (sold_item_id, invoice_id, product_id, return_id, quantit
 COPY public.supplier (supplier_id, supplier_name, address, email, contact_number, product_supplied, total_orders, status, completed_orders) FROM stdin;
 1	Oils and tires	Bagumbong Dulo Caloocan City	sohitado@gmail.com	09388347797	Transmission & Drivetrain	1	Active	1
 2	Jvt and cworks products	68 7th ave, Corner C. Cordero St, Grace Park West, Caloocan, 1402 Metro Manila	jvtscooterphil@gmail.com	09178368680	Spareparts	0	Active	0
-3	Al Cycle and Lube Center	15 Rainbow Ave, Caloocan, Metro Manila	\N	\N	spare parts and accessories like brake pads, brake shoe, brake and clutch cables etc	0	Active	0
 6	Corsa Tires: JKSS tire center	Valenzuela, Philippines, 1440	jksstrading@yahoo.com	09230836830	CORSA MOTORCYCLE TIRES,AMARON MOTORCYCLE Battery,Mobil Lubricants	0	Active	0
 5	Dunlop tires: Tireshackk Inc	347 Ortigas Avenue, Greenhills East, Mandaluyong, Philippines, 1554	ti.tireshakk.mktg@gmail.com	09175406116	Tires	0	Active	0
 4	 PS Cycle Center	Speedtrail Cycle Center, 18 Miller Avenue, Barangay Bungad, Quezon City, Philippines, 1105	\N	09988870858	Spareparts	1	Active	1
+3	Al Cycle and Lube Center	15 Rainbow Ave, Caloocan, Metro Manila	\N	\N	spare parts and accessories like brake pads, brake shoe, brake and clutch cables etc	2	Active	1
 \.
 
 
@@ -3997,6 +4018,7 @@ last_expected_reset	2026-04-17	Last date the inventory expected count was reset	
 
 COPY public.user_settings (user_id, setting_key, setting_value, updated_at) FROM stdin;
 2	out_of_stock	t	2026-04-08 05:16:37.016472
+2	compact_mode	f	2026-04-17 02:17:52.27763
 \.
 
 
@@ -4004,13 +4026,13 @@ COPY public.user_settings (user_id, setting_key, setting_value, updated_at) FROM
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at, must_change_password, mfa_code, mfa_expiry) FROM stdin;
-8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N	t	\N	\N
-7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N	t	\N	\N
-9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N	t	\N	\N
-2	2	$2b$12$EckBa/beM6HzqNUSnRBju.u.HC4KA9Pn30bpAsEcVtPuB/x7TyFhm	ROBEK!	administrator	t	2026-03-25	2026-04-16	rootadminnginamo	{}	\N	\N	\N	t	\N	\N
-10	10	$2b$12$o.OFhThqhW9a4P3Aq/LzX.4k3gpxSFekZci288KYdp07TB6g49kN.	Sohitado, John Rovhic A	Administrator	t	2026-04-15	2026-04-16	rovhic	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	rovhicsohitado@gmail.com	\N	\N	f	\N	\N
-11	11	$2b$12$tgmEW4lHZhG0InByGxli0.AJDuPSJWb0IZyKlOVzg2Jn66OxL1gMq	SOHITADO, JOHN REIMARC A	Administrator	t	2026-04-16	2026-04-16	Reimarc	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	registercash9@gmail.com	\N	\N	f	\N	\N
+COPY public.users (user_id, employee_id, password_hash, full_name, role, is_active, created_date, last_login, username, permissions_json, email, address, password_changed_at, must_change_password, mfa_code, mfa_expiry, failed_attempts) FROM stdin;
+8	8	$2b$12$IzkhpezskE8YftAVt5F4oujDMOeumQsVQYNwxTfa9VHLByCwpKSea	James conde	Administrator	t	2026-04-10	\N	Conde	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Delete"], "Reports": ["View", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Export"], "Dashboard": ["View", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Export"], "Product Return": ["View", "Process Return", "Edit"], "Purchase Order": ["View", "Create Order", "Edit", "Delete"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Export"]}	conde@gmail.com	\N	\N	t	\N	\N	0
+7	7	$2b$12$phwvMc3i/zwuuzsj.A2ERuvSeRW/XkpSIdSABqCnn2VqCc8Cygmgu	John Rovhic Sohitado	Administrator	t	2026-04-07	2026-04-07	Halcrow01	{}	totoybata9@gmail.com	\N	\N	t	\N	\N	0
+9	9	$2b$12$bHDUvN2Qj4ehF175s0K0h.XCl6/B3rcLNl7wRGKFD6fckD5ut/kmO	John robek	Cashier	t	2026-04-10	2026-04-10	Cashier	{}	robek@gmail.com	\N	\N	t	\N	\N	0
+2	2	$2b$12$LjenydrbnnXgGY34BXbIhuvE5p0swHfd12ujkpcXjXJZ1zT1TJfbS	ROBEK!	administrator	t	2026-03-25	2026-04-17	rootadminnginamo	{}	\N	\N	\N	t	\N	\N	0
+10	10	$2b$12$o.OFhThqhW9a4P3Aq/LzX.4k3gpxSFekZci288KYdp07TB6g49kN.	Sohitado, John Rovhic A	Administrator	t	2026-04-15	2026-04-17	rovhic	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	rovhicsohitado@gmail.com	\N	\N	f	\N	\N	0
+11	11	$2b$12$tgmEW4lHZhG0InByGxli0.AJDuPSJWb0IZyKlOVzg2Jn66OxL1gMq	SOHITADO, JOHN REIMARC A	Administrator	t	2026-04-16	2026-04-16	reimarc	{"Sales": ["View", "Add", "Edit", "Delete", "Export"], "Orders": ["View", "Add", "Edit", "Delete", "Export"], "Archive": ["View", "Add", "Edit", "Delete", "Export"], "Reports": ["View", "Add", "Edit", "Delete", "Export"], "Products": ["View", "Add", "Edit", "Delete", "Export"], "Audit Log": ["View", "Add", "Edit", "Delete", "Export"], "Dashboard": ["View", "Add", "Edit", "Delete", "Export"], "Inventory": ["View", "Add", "Edit", "Delete", "Export"], "Suppliers": ["View", "Add", "Edit", "Delete", "Export"], "Forecasting": ["View", "Add", "Edit", "Delete", "Export"], "Customer Return": ["View", "Add", "Edit", "Delete", "Export"], "Supplier Return": ["View", "Add", "Edit", "Delete", "Export"], "User Management": ["View", "Add", "Edit", "Delete", "Export"], "Role Permissions": ["View", "Add", "Edit", "Delete", "Export"], "Stock Prediction": ["View", "Add", "Edit", "Delete", "Export"]}	registercash9@gmail.com	\N	\N	f	\N	\N	4
 \.
 
 
@@ -4025,7 +4047,7 @@ SELECT pg_catalog.setval('public.analytics_model_runs_run_id_seq', 768, true);
 -- Name: auditlog_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.auditlog_log_id_seq', 49, true);
+SELECT pg_catalog.setval('public.auditlog_log_id_seq', 58, true);
 
 
 --
@@ -4053,7 +4075,7 @@ SELECT pg_catalog.setval('public.generated_reports_report_id_seq', 30, true);
 -- Name: inventory_stock_events_event_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 46, true);
+SELECT pg_catalog.setval('public.inventory_stock_events_event_id_seq', 47, true);
 
 
 --
@@ -4081,7 +4103,7 @@ SELECT pg_catalog.setval('public.payments_payment_id_seq', 707, true);
 -- Name: product_price_history_history_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.product_price_history_history_id_seq', 40, true);
+SELECT pg_catalog.setval('public.product_price_history_history_id_seq', 41, true);
 
 
 --
@@ -4102,7 +4124,7 @@ SELECT pg_catalog.setval('public.product_returns_return_id_seq', 8, true);
 -- Name: purchase_order_items_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.purchase_order_items_item_id_seq', 4, true);
+SELECT pg_catalog.setval('public.purchase_order_items_item_id_seq', 6, true);
 
 
 --
@@ -4592,5 +4614,5 @@ ALTER TABLE ONLY public.user_settings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Pz8yciD1OotSHx7D5c4e0ZTeUaUZDsoEkn6CgqSdhCjC1MYSlYmU8QjyjIzGGy9
+\unrestrict GdFDx6Qb0B2cnjuCaCkPFPwxDanYieUcF5OoHGGRcQf6aw4UXYF35XHMVA5DSMh
 

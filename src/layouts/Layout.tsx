@@ -22,7 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { clearSession, getSession } from "@/auth/session";
+import { clearSession, getSession, getLastActivity, setLastActivity, getStoredTimeout, setStoredTimeout } from "@/auth/session";
 import { api } from "@/services/api";
 
 export function Layout() {
@@ -56,6 +56,67 @@ export function Layout() {
     const inv = setInterval(fetchCount, 30000);
     return () => clearInterval(inv);
   }, []);
+
+  // --- Inactivity Timeout Tracker (Cross-Tab Synced) ---
+  useEffect(() => {
+    if (!session) return;
+
+    // Load initial timeout
+    const loadTimeout = async () => {
+      try {
+        const settings = await api.get<Record<string, any>>("/api/settings/user");
+        if (settings?.session_timeout) {
+          setStoredTimeout(parseInt(settings.session_timeout));
+        }
+      } catch (e) {
+        console.error("Failed to load timeout setting", e);
+      }
+    };
+    loadTimeout();
+
+    const handleActivity = () => {
+      setLastActivity();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      // If session was cleared in another tab, redirect
+      if (e.key === "invensight_session" && !e.newValue) {
+        navigate("/login", { replace: true });
+      }
+    };
+
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("mousedown", handleActivity);
+    window.addEventListener("keypress", handleActivity);
+    window.addEventListener("scroll", handleActivity);
+    window.addEventListener("touchstart", handleActivity);
+    window.addEventListener("storage", handleStorageChange);
+
+    const interval = setInterval(() => {
+      const timeoutMinutes = getStoredTimeout();
+      if (timeoutMinutes <= 0) return;
+
+      const now = Date.now();
+      const lastActivity = getLastActivity();
+      const inactiveMs = now - lastActivity;
+      const timeoutMs = timeoutMinutes * 60 * 1000;
+
+      if (inactiveMs >= timeoutMs) {
+        console.log("Session timed out after", timeoutMinutes, "minutes");
+        handleLogout();
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => {
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("mousedown", handleActivity);
+      window.removeEventListener("keypress", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+      window.removeEventListener("touchstart", handleActivity);
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [session, navigate]);
 
   interface NavigationItem {
     name: string;
@@ -149,20 +210,20 @@ export function Layout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background text-foreground transition-colors duration-300">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
-        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col`}
+        } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div>
-                <h1 className="font-bold text-lg text-gray-900">Jonbrix</h1>
-                <p className="text-xs text-gray-500">Motorcycle Parts & Accessories</p>
+                <h1 className="font-bold text-lg text-foreground">Jonbrix</h1>
+                <p className="text-xs text-muted-foreground">Motorcycle Parts & Accessories</p>
                 {session && (
                   <p className="text-xs text-gray-400 mt-2 truncate" title={session.full_name}>
                     {session.full_name}
@@ -173,7 +234,7 @@ export function Layout() {
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded text-gray-500"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-muted-foreground transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -196,8 +257,8 @@ export function Layout() {
                     to={item.path}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-accent/20 text-foreground border-r-4 border-primary"
+                        : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-foreground"
                     }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
@@ -233,8 +294,8 @@ export function Layout() {
                           to={subitem.path}
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ml-6 ${
                             isSubActive
-                              ? "bg-blue-50 text-blue-600"
-                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                              ? "bg-accent/20 text-foreground"
+                              : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-foreground"
                           }`}
                         >
                           <SubIcon className="w-4 h-4 flex-shrink-0" />
@@ -250,7 +311,7 @@ export function Layout() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-sidebar-border">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-gray-600 hover:bg-red-50 hover:text-red-600 w-full"
@@ -269,23 +330,23 @@ export function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top header — profile, notifications, settings */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-end gap-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6">
+        <header className="flex h-16 flex-shrink-0 items-center justify-end gap-4 border-b border-header-border bg-header px-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3 sm:gap-4">
             {/* Single profile card: avatar, name, role, notifications (matches profile page reference) */}
-            <div className="flex items-center gap-0 rounded-xl border border-gray-200 bg-white py-2 pl-3 pr-2 shadow-sm sm:pl-4 sm:pr-3">
+            <div className="flex items-center gap-0 rounded-xl border border-header-border bg-card py-2 pl-3 pr-2 shadow-sm sm:pl-4 sm:pr-3">
               <Link
                 to="/profile"
                 className="flex min-w-0 max-w-[min(100vw-12rem,16rem)] items-center gap-3 pr-2 transition-colors hover:opacity-90 sm:max-w-[18rem]"
                 title="My profile"
               >
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-violet-500 to-blue-600 text-white shadow-sm ring-2 ring-white">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-primary to-primary/80 text-white shadow-sm ring-2 ring-white/20">
                   <User className="h-5 w-5" strokeWidth={2} />
                 </div>
                 <div className="hidden min-w-0 text-left sm:block">
-                  <p className="truncate text-sm font-semibold leading-tight text-gray-900">
+                  <p className="truncate text-sm font-semibold leading-tight text-foreground">
                     {displayName}
                   </p>
-                  <p className="text-xs text-slate-500">{roleLabel}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel}</p>
                 </div>
               </Link>
 

@@ -67,8 +67,8 @@ export function ReceiveOrderModal({
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="Receive Purchase Order">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+        <div className="bg-primary/10 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-primary dark:text-blue-400 mt-0.5" />
           <div className="text-sm text-blue-800 dark:text-blue-300">
             <p className="font-semibold">Receiving Order {order.order_id}</p>
             <p>Please enter the supplier's receipt number and report any damaged items found during delivery.</p>
@@ -77,13 +77,13 @@ export function ReceiveOrderModal({
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">
               Receipt Number *
             </label>
             <input
               type="text"
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
+              className="w-full px-3 py-2 border border-border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary bg-card dark:bg-gray-700 text-foreground text-foreground outline-none"
               placeholder="Enter receipt/invoice number..."
               value={receiptNumber}
               onChange={(e) => setReceiptNumber(e.target.value)}
@@ -92,29 +92,29 @@ export function ReceiveOrderModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-2">
             Items and Damage Count
           </label>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="border border-border border-border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-muted/50 bg-card">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Ordered</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-32">Damage Qty</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Product</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Ordered</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase w-32">Damage Qty</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-border dark:divide-gray-700">
                 {(order.items || []).map((item) => (
                   <tr key={item.product_id}>
-                    <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{item.product_name}</td>
-                    <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{item.quantity}</td>
+                    <td className="px-4 py-3 text-foreground text-foreground font-medium">{item.product_name}</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground dark:text-muted-foreground/70">{item.quantity}</td>
                     <td className="px-4 py-3">
                       <input
                         type="number"
                         min="0"
                         max={item.quantity}
-                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-red-500 text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="w-full px-2 py-1 border border-border dark:border-gray-600 rounded focus:ring-1 focus:ring-red-500 text-right bg-card dark:bg-gray-700 text-foreground text-foreground"
                         value={itemDamages[item.product_id] || 0}
                         onChange={(e) => handleDamageChange(item.product_id, e.target.value, item.quantity)}
                       />
@@ -127,11 +127,11 @@ export function ReceiveOrderModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">
             Notes
           </label>
           <textarea
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
+            className="w-full px-3 py-2 border border-border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary bg-card dark:bg-gray-700 text-foreground text-foreground outline-none"
             rows={3}
             placeholder="Add any specific observations about the delivery..."
             value={notes}
@@ -143,7 +143,7 @@ export function ReceiveOrderModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="px-6 py-2 border border-border dark:border-gray-600 text-muted-foreground dark:text-gray-300 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors"
           >
             Cancel
           </button>

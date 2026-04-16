@@ -47,8 +47,8 @@ export function Dashboard() {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-500">Loading dashboard data...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
         </div>
       </div>
     );
@@ -74,7 +74,7 @@ export function Dashboard() {
 
   const kpis = [
     { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: DollarSign, color: "text-green-600" },
-    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-blue-600" },
+    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-primary" },
     { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600" },
     { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600" },
   ];
@@ -82,20 +82,20 @@ export function Dashboard() {
   return (
     <div className="p-8 relative">
       {loading && (
-        <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] flex items-center justify-center z-50 pointer-events-none">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="absolute inset-0 bg-card/20 backdrop-blur-[1px] flex items-center justify-center z-50 pointer-events-none">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       )}
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">JonBrix</h1>
-        <p className="text-gray-600 mt-1">Motorcycle Parts & Accessories</p>
+        <h1 className="text-3xl font-bold text-foreground">JonBrix</h1>
+        <p className="text-muted-foreground mt-1">Motorcycle Parts & Accessories</p>
       </div>
 
       {/* Expected Delivery Reminder */}
       {upcomingDeliveries.length > 0 && (
-        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
-          <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+        <div className="mb-6 bg-primary/10 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+          <Truck className="w-5 h-5 text-primary dark:text-blue-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
               {upcomingDeliveries.length === 1 
@@ -104,7 +104,7 @@ export function Dashboard() {
             </h3>
             <div className="mt-2 space-y-1">
               {upcomingDeliveries.map((delivery) => (
-                <p key={delivery.order_id} className="text-sm text-blue-700 dark:text-blue-400">
+                <p key={delivery.order_id} className="text-sm text-primary/90 dark:text-blue-400">
                   <strong>Order #{delivery.order_id}</strong> from {delivery.supplier_name || "Unknown Supplier"} - {delivery.total_items} item{delivery.total_items !== 1 ? "s" : ""}
                 </p>
               ))}
@@ -119,16 +119,16 @@ export function Dashboard() {
           <div 
             key={kpi.label} 
             className={cn(
-               "bg-white p-6 rounded-lg shadow border border-gray-200 transition-all duration-200",
-               (kpi as any).path && "cursor-pointer hover:shadow-md hover:border-blue-200 hover:-translate-y-1 active:translate-y-0"
+               "bg-card p-6 rounded-lg shadow border border-border transition-all duration-200",
+               (kpi as any).path && "cursor-pointer hover:shadow-md hover:border-primary/50 hover:-translate-y-1 active:translate-y-0"
             )}
             onClick={() => (kpi as any).path && navigate((kpi as any).path)}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-600">{kpi.label}</span>
+              <span className="text-muted-foreground">{kpi.label}</span>
               <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
             </div>
-            <div className="text-2xl font-bold text-gray-900">{kpi.value}</div>
+            <div className="text-2xl font-bold text-foreground">{kpi.value}</div>
           </div>
         ))}
       </div>
@@ -136,10 +136,10 @@ export function Dashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Sales Trend & Forecast */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Sales Trend & Forecast</h2>
-            <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+            <h2 className="text-lg font-semibold text-foreground">Sales Trend & Forecast</h2>
+            <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
               {(["7d", "monthly", "annual"] as const).map((range) => (
                 <button
                   key={range}
@@ -147,8 +147,8 @@ export function Dashboard() {
                   className={cn(
                     "px-3 py-1 text-xs font-medium rounded-md transition-all",
                     timeRange === range
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {range === "7d" ? "7 Days" : range === "monthly" ? "Monthly" : "Annual"}
@@ -190,7 +190,7 @@ export function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-muted-foreground/70">
                 <div className="text-center">
                   <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                   <p className="text-lg font-medium">No sales data available</p>
@@ -202,8 +202,8 @@ export function Dashboard() {
         </div>
 
         {/* Sales by Category */}
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Category</h2>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Sales by Category</h2>
           <div className="h-[300px]">
             {stats && stats.sales_by_category.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -232,7 +232,7 @@ export function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-muted-foreground/70">
                 <div className="text-center">
                   <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                   <p className="text-lg font-medium">No category data</p>
@@ -245,27 +245,27 @@ export function Dashboard() {
       </div>
 
       {/* Top Products Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Top Selling Products</h2>
+      <div className="bg-card rounded-lg shadow border border-border">
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Top Selling Products</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units Sold</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Product Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Units Sold</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Stock</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {stats && stats.top_products.length > 0 ? (
                 stats.top_products.map((product, idx) => (
                   <tr key={idx}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.units_sold}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.current_stock}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.units_sold}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.current_stock}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         product.status === "Critical" ? "bg-red-100 text-red-800" :
@@ -281,8 +281,8 @@ export function Dashboard() {
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No product data available</p>
-                    <p className="text-sm text-gray-400 mt-1">Add products to start tracking sales</p>
+                    <p className="text-muted-foreground font-medium">No product data available</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">Add products to start tracking sales</p>
                   </td>
                 </tr>
               )}

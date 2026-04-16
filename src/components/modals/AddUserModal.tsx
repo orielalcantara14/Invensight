@@ -170,12 +170,12 @@ export function AddUserModal({
             className="relative w-full max-w-[420px] bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
           >
             {/* Animated Mesh Header */}
-            <div className="relative h-48 bg-gradient-to-br from-indigo-600 via-blue-600 to-fuchsia-600 overflow-hidden">
+            <div className="relative h-48 bg-gradient-to-br from-indigo-600 via-primary to-fuchsia-600 overflow-hidden">
               {/* Background Decorative Circles */}
               <motion.div
                 animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
                 transition={{ duration: 10, repeat: Infinity }}
-                className="absolute -top-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"
+                className="absolute -top-10 -left-10 w-40 h-40 bg-card/10 rounded-full blur-2xl"
               />
               <motion.div
                 animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0] }}
@@ -197,8 +197,8 @@ export function AddUserModal({
                   transition={{ type: "spring", delay: 0.2, bounce: 0.5 }}
                   className="relative"
                 >
-                  <div className="absolute inset-0 bg-white/30 rounded-full blur-xl animate-pulse" />
-                  <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl">
+                  <div className="absolute inset-0 bg-card/30 rounded-full blur-xl animate-pulse" />
+                  <div className="relative w-24 h-24 bg-card rounded-full flex items-center justify-center shadow-2xl">
                     <Check className="w-12 h-12 text-indigo-600 stroke-[3]" />
                   </div>
                 </motion.div>
@@ -225,12 +225,12 @@ export function AddUserModal({
                 >
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] mb-3 block ml-1 px-1 border-l-2 border-indigo-500/50">Username</label>
                   <div className="relative group">
-                    <div className="w-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 group-hover:border-indigo-500/30 transition-all duration-300 rounded-2xl px-6 py-5 text-white font-bold text-lg backdrop-blur-md">
+                    <div className="w-full bg-card/[0.03] hover:bg-card/[0.06] border border-white/10 group-hover:border-indigo-500/30 transition-all duration-300 rounded-2xl px-6 py-5 text-white font-bold text-lg backdrop-blur-md">
                       {formData.username}
                     </div>
                     <button
                       onClick={() => copyToClipboard(formData.username, 'Username')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/5 hover:bg-indigo-600 text-slate-400 hover:text-white rounded-xl transition-all shadow-lg"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-card/5 hover:bg-indigo-600 text-slate-400 hover:text-white rounded-xl transition-all shadow-lg"
                     >
                       <Copy className="w-5 h-5" />
                     </button>
@@ -244,12 +244,12 @@ export function AddUserModal({
                 >
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] mb-3 block ml-1 px-1 border-l-2 border-emerald-500/50">Temporary Password</label>
                   <div className="relative group">
-                    <div className="w-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 group-hover:border-emerald-500/30 transition-all duration-300 rounded-2xl px-6 py-5 text-emerald-400 font-bold text-lg select-all backdrop-blur-md">
+                    <div className="w-full bg-card/[0.03] hover:bg-card/[0.06] border border-white/10 group-hover:border-emerald-500/30 transition-all duration-300 rounded-2xl px-6 py-5 text-emerald-400 font-bold text-lg select-all backdrop-blur-md">
                       {generatedTempPass}
                     </div>
                     <button
                       onClick={() => copyToClipboard(generatedTempPass, 'Temporary Password')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/5 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-xl transition-all shadow-lg"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-card/5 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-xl transition-all shadow-lg"
                     >
                       <Copy className="w-5 h-5" />
                     </button>
@@ -262,7 +262,7 @@ export function AddUserModal({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
                 onClick={onClose}
-                className="w-full mt-12 py-5 bg-gradient-to-r from-indigo-600 to-blue-700 hover:from-indigo-500 hover:to-blue-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-indigo-900/20"
+                className="w-full mt-12 py-5 bg-gradient-to-r from-indigo-600 to-primary/90 hover:from-indigo-500 hover:to-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-indigo-900/20"
               >
                 Finalize & Close
               </motion.button>
@@ -296,7 +296,7 @@ export function AddUserModal({
         {/* Username and Role row */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="username" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <label htmlFor="username" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
               Username
             </label>
             <input
@@ -305,21 +305,21 @@ export function AddUserModal({
               type="text"
               value={formData.username}
               onChange={(e) => handleChange('username', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+              className="w-full rounded-lg border border-border px-3 py-2 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary font-bold"
               placeholder="username"
               required
               disabled={saving}
             />
           </div>
           <div>
-            <label htmlFor="role" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <label htmlFor="role" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
               Role
             </label>
             <select
               id="role"
               value={formData.role}
               onChange={(e) => handleChange('role', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+              className="w-full rounded-lg border border-border px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
               required
               disabled={roleNames.length === 0 || saving}
             >
@@ -337,10 +337,10 @@ export function AddUserModal({
 
         {/* Names Section */}
         <div className="space-y-4 pt-2">
-          <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-100 pb-1">Personal Information</p>
+          <p className="text-[10px] font-black text-foreground uppercase tracking-widest border-b border-border pb-1">Personal Information</p>
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label htmlFor="surname" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <label htmlFor="surname" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                 Surname
               </label>
               <input
@@ -348,7 +348,7 @@ export function AddUserModal({
                 type="text"
                 value={formData.surname}
                 onChange={(e) => handleChange('surname', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Dela Cruz"
                 required
                 disabled={saving}
@@ -356,7 +356,7 @@ export function AddUserModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <label htmlFor="firstName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                   First Name
                 </label>
                 <input
@@ -364,14 +364,14 @@ export function AddUserModal({
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => handleChange('firstName', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Juan"
                   required
                   disabled={saving}
                 />
               </div>
               <div>
-                <label htmlFor="middleName" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <label htmlFor="middleName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
                   Middle Name
                 </label>
                 <input
@@ -379,7 +379,7 @@ export function AddUserModal({
                   type="text"
                   value={formData.middleName}
                   onChange={(e) => handleChange('middleName', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Perez"
                   disabled={saving}
                 />
@@ -390,7 +390,7 @@ export function AddUserModal({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="email" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <label htmlFor="email" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
               Email Address
             </label>
             <input
@@ -398,21 +398,21 @@ export function AddUserModal({
               type="email"
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+              className="w-full rounded-lg border border-border px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary font-bold"
               placeholder="user@jonbrix.com"
               autoComplete="email"
               disabled={saving}
             />
           </div>
           <div>
-            <label htmlFor="status" className="mb-1 block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <label htmlFor="status" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
               Account Status
             </label>
             <select
               id="status"
               value={formData.status}
               onChange={(e) => handleChange('status', e.target.value as 'Active' | 'Inactive')}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+              className="w-full rounded-lg border border-border px-3 py-2.5 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
               disabled={saving}
             >
               <option value="Active">Active</option>
@@ -433,7 +433,7 @@ export function AddUserModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-bold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50 text-sm uppercase tracking-widest"
+            className="flex-1 rounded-lg border border-border bg-card px-4 py-2.5 font-bold text-foreground transition-colors hover:bg-muted/50 disabled:opacity-50 text-sm uppercase tracking-widest"
           >
             Cancel
           </button>
@@ -454,7 +454,7 @@ function RequirementItem({ label, met }: { label: string, met: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-red-400 opacity-50'}`} />
-      <span className={`text-[10px] font-bold uppercase tracking-tight ${met ? 'text-green-600' : 'text-gray-400'}`}>
+      <span className={`text-[10px] font-bold uppercase tracking-tight ${met ? 'text-green-600' : 'text-muted-foreground/70'}`}>
         {label}
       </span>
     </div>

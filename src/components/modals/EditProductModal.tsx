@@ -204,38 +204,38 @@ export function EditProductModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               SKU (Auto-generated)
             </label>
             <input
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Leave blank to auto-generate"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Product Name *
             </label>
             <input
               type="text"
               value={formData.product_name}
               onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="e.g. Motorcycle Chain"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Unit Measurement
             </label>
             <select
               value={formData.unit_of_measurement}
               onChange={(e) => setFormData({ ...formData, unit_of_measurement: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">—</option>
               {UNIT_MEASUREMENT_OPTIONS.map((opt) => (
@@ -249,13 +249,13 @@ export function EditProductModal({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Category
             </label>
             <select
               value={formData.category_id}
               onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isLoadingCategories}
             >
               <option value="">Uncategorized</option>
@@ -267,13 +267,13 @@ export function EditProductModal({
             </select>
           </div>
           <div className="relative" ref={dropdownRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Specific Category
             </label>
             <div className="relative">
               <input
                 type="text"
-                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-3 pr-10 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Search category..."
                 value={formData.specific_category}
                 onFocus={() => setIsDropdownOpen(true)}
@@ -286,19 +286,19 @@ export function EditProductModal({
                 className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isDropdownOpen && "rotate-180")} />
+                <ChevronDown className={cn("w-4 h-4 text-muted-foreground/70 transition-transform", isDropdownOpen && "rotate-180")} />
               </div>
             </div>
             
             {isDropdownOpen && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
                 {filteredSpecificCategories.length > 0 ? (
                   filteredSpecificCategories.map((cat) => (
                     <div
                       key={cat}
                       className={cn(
-                        "px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 flex items-center justify-between",
-                        formData.specific_category === cat && "bg-blue-50 text-blue-600 font-medium"
+                        "px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 flex items-center justify-between",
+                        formData.specific_category === cat && "bg-primary/10 text-primary font-medium"
                       )}
                       onClick={() => {
                         setFormData({ ...formData, specific_category: cat });
@@ -310,19 +310,19 @@ export function EditProductModal({
                     </div>
                   ))
                 ) : (
-                  <div className="px-4 py-2 text-sm text-gray-500">No categories found</div>
+                  <div className="px-4 py-2 text-sm text-muted-foreground">No categories found</div>
                 )}
               </div>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Supplier
             </label>
             <select
               value={formData.supplier_id}
               onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isLoadingSuppliers}
             >
               <option value="">No Supplier</option>
@@ -337,46 +337,46 @@ export function EditProductModal({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Unit Cost *
             </label>
             <input
               type="text"
               value={formatNumberWithCommas(formData.unit_price)}
               onChange={(e) => handleNumericChange("unit_price", e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${mode === "pos" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+              className={`w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${mode === "pos" ? "bg-muted/50 cursor-not-allowed" : ""}`}
               placeholder="0.00"
               required
               disabled={mode === "pos"}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               SRP {mode === "pos" ? "*" : ""}
             </label>
             <input
               type="text"
               value={formatNumberWithCommas(formData.pos_price)}
               onChange={(e) => handleNumericChange("pos_price", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="0.00"
               required={mode === "pos"}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Stock
             </label>
             <input
               type="number"
               value={formData.stock}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-muted/50 text-muted-foreground cursor-not-allowed"
               placeholder="0"
               disabled
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Total Cost
             </label>
             <input
@@ -390,7 +390,7 @@ export function EditProductModal({
                   maximumFractionDigits: 2,
                 });
               })()}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-muted/50 text-muted-foreground"
               disabled
             />
           </div>
@@ -398,13 +398,13 @@ export function EditProductModal({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Status
             </label>
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="Active">Active</option>
               <option value="Archived">Archived</option>
@@ -412,18 +412,18 @@ export function EditProductModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border mt-6">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {isSubmitting ? "Updating..." : submitLabel}
           </button>

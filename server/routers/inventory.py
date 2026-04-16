@@ -38,7 +38,10 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
                 ELSE 'Normal'
             END AS status,
             COALESCE(i.last_updated::text, '') AS last_updated,
-            COALESCE(i.reason_adjustment, '') AS reason_adjustment
+            COALESCE(i.reason_adjustment, '') AS reason_adjustment,
+            i.serial_start,
+            i.serial_end,
+            i.expiry_date::text AS expiry_date
         FROM inventory i
         JOIN products p ON i.product_id = p.product_id
         LEFT JOIN categories c ON p.category_id = c.category_id
@@ -104,13 +107,16 @@ def get_inventory():
                         ELSE 'Normal'
                     END AS status,
                     COALESCE(i.last_updated::text, '') AS last_updated,
-                    COALESCE(i.reason_adjustment, '') AS reason_adjustment
+                    COALESCE(i.reason_adjustment, '') AS reason_adjustment,
+                    i.serial_start,
+                    i.serial_end,
+                    i.expiry_date::text AS expiry_date
                 FROM inventory i
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 WHERE i.status = 'Active'
-                ORDER BY p.product_name
+                ORDER BY i.expiry_date ASC NULLS LAST, p.product_name
                 """
             )
             return [dict(row) for row in cur.fetchall()]
@@ -162,11 +168,13 @@ def add_inventory_item(
                     """
                     UPDATE products SET 
                         product_name = %s, supplier_id = %s, category_id = %s, 
-                        specific_category = %s, unit_of_measurement = %s
+                        specific_category = %s, unit_of_measurement = %s,
+                        unit_price = %s, pos_price = %s
                     WHERE product_id = %s
                     """,
                     (payload.product_name, supplier_id, payload.category_id, 
-                     payload.specific_category, payload.unit_of_measurement, product_id)
+                     payload.specific_category, payload.unit_of_measurement, 
+                     payload.unit_price, payload.pos_price, product_id)
                 )
             else:
                 cur.execute("SELECT COALESCE(MAX(product_id), 0) + 1 AS next_id FROM products")
@@ -175,11 +183,13 @@ def add_inventory_item(
                     """
                     INSERT INTO products (
                         product_id, product_name, sku, supplier_id, category_id, 
-                        specific_category, unit_of_measurement, date_added
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        specific_category, unit_of_measurement, date_added,
+                        unit_price, pos_price
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (product_id, payload.product_name, sku, supplier_id, payload.category_id,
-                     payload.specific_category, payload.unit_of_measurement, date.today())
+                     payload.specific_category, payload.unit_of_measurement, date.today(),
+                     payload.unit_price, payload.pos_price)
                 )
 
             # 3. Handle Inventory
@@ -193,8 +203,9 @@ def add_inventory_item(
             cur.execute(
                 """
                 INSERT INTO inventory (
-                    inventory_id, product_id, quantity, expected, actual, reorder_level, last_updated, reason_adjustment
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    inventory_id, product_id, quantity, expected, actual, reorder_level, 
+                    last_updated, reason_adjustment, serial_start, serial_end, expiry_date
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     inventory_id,
@@ -204,7 +215,10 @@ def add_inventory_item(
                     payload.quantity, # actual = quantity on creation
                     payload.reorder_level,
                     date.today(),
-                    "Initial stock"
+                    "Initial stock",
+                    payload.serial_start,
+                    payload.serial_end,
+                    payload.expiry_date
                 ),
             )
             
@@ -329,7 +343,10 @@ def update_inventory_item(
                     actual = %s,
                     reorder_level = %s, 
                     last_updated = %s,
-                    reason_adjustment = %s
+                    reason_adjustment = %s,
+                    serial_start = %s,
+                    serial_end = %s,
+                    expiry_date = %s
                 WHERE inventory_id = %s
                 """,
                 (
@@ -339,6 +356,9 @@ def update_inventory_item(
                     payload.reorder_level,
                     date.today(),
                     payload.reason_adjustment,
+                    payload.serial_start,
+                    payload.serial_end,
+                    payload.expiry_date,
                     inventory_id
                 ),
             )

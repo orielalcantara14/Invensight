@@ -190,19 +190,19 @@ export function Forecasting() {
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900">
+          <h1 className="text-4xl font-black tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900">
             Forecasting Report
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-3 bg-card p-1.5 rounded-2xl shadow-sm border border-border">
           {(["7d", "30d", "1y"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setResolution(r)}
               className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${resolution === r
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
             >
               {r === "7d" ? "Next 7 Days" : r === "30d" ? "Monthly View" : "Annual View"}
@@ -213,7 +213,7 @@ export function Forecasting() {
 
       {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-indigo-600 to-primary/90 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform duration-500">
             <TrendingUp size={80} />
           </div>
@@ -226,17 +226,17 @@ export function Forecasting() {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col justify-center relative overflow-hidden group">
+        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 text-emerald-500/10 group-hover:scale-110 transition-transform duration-500">
             <Activity size={80} />
           </div>
           <div className="relative z-10">
-            <span className="text-gray-400 font-bold tracking-widest text-xs uppercase mb-2 block">Model Confidence</span>
-            <div className="text-4xl font-black text-gray-900 mb-2">
+            <span className="text-muted-foreground/70 font-bold tracking-widest text-xs uppercase mb-2 block">Model Confidence</span>
+            <div className="text-4xl font-black text-foreground mb-2">
               {loading ? "…" : data?.forecast_accuracy != null ? `${data.forecast_accuracy.toFixed(1)}%` : "N/A"}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 transition-all duration-1000 ease-out"
                   style={{ width: `${data?.forecast_accuracy ?? 0}%` }}
@@ -246,14 +246,14 @@ export function Forecasting() {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col justify-center">
-          <span className="text-gray-400 font-bold tracking-widest text-xs uppercase mb-2 block">Forecast Engine</span>
-          <div className="text-2xl font-black text-gray-900 mb-1 capitalize">
+        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center">
+          <span className="text-muted-foreground/70 font-bold tracking-widest text-xs uppercase mb-2 block">Forecast Engine</span>
+          <div className="text-2xl font-black text-foreground mb-1 capitalize">
             {data?.forecast_engine || "Prophet AI"}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-sm font-bold text-gray-500 uppercase tracking-tighter">Operational</span>
+            <span className="text-sm font-bold text-muted-foreground uppercase tracking-tighter">Operational</span>
           </div>
         </div>
       </div>
@@ -264,7 +264,7 @@ export function Forecasting() {
             <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
             <div className="absolute inset-0 bg-indigo-600/20 blur-xl rounded-full" />
           </div>
-          <span className="font-bold text-gray-400 animate-pulse tracking-widest uppercase text-xs">Synthesizing Prophet Model…</span>
+          <span className="font-bold text-muted-foreground/70 animate-pulse tracking-widest uppercase text-xs">Synthesizing Prophet Model…</span>
         </div>
       )}
 
@@ -280,14 +280,14 @@ export function Forecasting() {
           {/* Main Forecast Chart */}
           <div
             ref={chartRef1}
-            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden relative group cursor-ns-resize"
+            className="bg-card p-8 rounded-[2.5rem] shadow-sm border border-border overflow-hidden relative group cursor-ns-resize"
           >
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Main Sales Interval</h2>
-                <p className="text-sm font-medium text-gray-400">Scroll wheel to zoom • Actual vs Predicted with Confidence Intervals</p>
+                <h2 className="text-2xl font-black text-foreground tracking-tight">Main Sales Interval</h2>
+                <p className="text-sm font-medium text-muted-foreground/70">Scroll wheel to zoom • Actual vs Predicted with Confidence Intervals</p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-2xl text-gray-400 group-hover:text-indigo-600 transition-colors">
+              <div className="p-3 bg-muted/50 rounded-2xl text-muted-foreground/70 group-hover:text-indigo-600 transition-colors">
                 <Calendar className="w-6 h-6" />
               </div>
             </div>
@@ -326,7 +326,7 @@ export function Forecasting() {
                     align="right"
                     height={40}
                     iconType="circle"
-                    formatter={(val) => <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{val}</span>}
+                    formatter={(val) => <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">{val}</span>}
                   />
 
                   <Area
@@ -384,14 +384,14 @@ export function Forecasting() {
           {/* Decomposition Chart */}
           <div
             ref={chartRef2}
-            className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden relative group cursor-ns-resize"
+            className="bg-card p-8 rounded-[2.5rem] shadow-sm border border-border overflow-hidden relative group cursor-ns-resize"
           >
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight font-serif italic">Model Decomposition</h2>
-                <p className="text-sm font-medium text-gray-400">Scroll wheel to zoom • Additive components: Trend + Seasonality + Holidays</p>
+                <h2 className="text-2xl font-black text-foreground tracking-tight font-serif italic">Model Decomposition</h2>
+                <p className="text-sm font-medium text-muted-foreground/70">Scroll wheel to zoom • Additive components: Trend + Seasonality + Holidays</p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-2xl text-gray-400 group-hover:text-indigo-600 transition-colors">
+              <div className="p-3 bg-muted/50 rounded-2xl text-muted-foreground/70 group-hover:text-indigo-600 transition-colors">
                 <Layers className="w-6 h-6" />
               </div>
             </div>
@@ -423,7 +423,7 @@ export function Forecasting() {
                     align="right"
                     height={40}
                     iconType="circle"
-                    formatter={(val) => <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{val}</span>}
+                    formatter={(val) => <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">{val}</span>}
                   />
 
                   <Line
@@ -471,11 +471,11 @@ export function Forecasting() {
 
       {/* Product Highlight */}
       {!loading && !error && data?.product_forecasts && resolution !== "1y" && (
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+        <div className="bg-card rounded-[2.5rem] shadow-sm border border-border overflow-hidden">
+          <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-muted/50/30">
             <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">Demand Velocity Scan</h2>
-              <p className="text-sm font-medium text-gray-400">Products with highest 30-day projected throughput.</p>
+              <h2 className="text-xl font-black text-foreground tracking-tight">Demand Velocity Scan</h2>
+              <p className="text-sm font-medium text-muted-foreground/70">Products with highest 30-day projected throughput.</p>
             </div>
             <div className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest">
               Catalog Insights
@@ -484,24 +484,24 @@ export function Forecasting() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-white">
-                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Product Name</th>
-                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center">Confidence</th>
-                  <th className="py-6 px-8 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">30d Demand Estimate</th>
+                <tr className="bg-card">
+                  <th className="py-6 px-8 text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em]">Product Name</th>
+                  <th className="py-6 px-8 text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] text-center">Confidence</th>
+                  <th className="py-6 px-8 text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] text-right">30d Demand Estimate</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.product_forecasts.slice(0, 6).map(p => (
                   <tr key={p.product_id} className="hover:bg-indigo-50/30 transition-all duration-300 group">
                     <td className="py-6 px-8">
-                      <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-sm">{p.product_name}</div>
+                      <div className="font-bold text-foreground group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-sm">{p.product_name}</div>
                     </td>
                     <td className="py-6 px-8">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-indigo-500" style={{ width: `${p.confidence * 100}%` }} />
                         </div>
-                        <span className="text-[10px] font-black text-gray-400">{(p.confidence * 100).toFixed(0)}%</span>
+                        <span className="text-[10px] font-black text-muted-foreground/70">{(p.confidence * 100).toFixed(0)}%</span>
                       </div>
                     </td>
                     <td className="py-6 px-8 text-right">
@@ -519,10 +519,10 @@ export function Forecasting() {
       )}
 
       {!loading && !error && !showCharts && (
-        <div className="mb-8 rounded-3xl border border-gray-200 bg-gray-50 p-12 text-center flex flex-col items-center">
+        <div className="mb-8 rounded-3xl border border-border bg-muted/50 p-12 text-center flex flex-col items-center">
           <ForecastIcon className="w-16 h-16 text-gray-300 mb-4" />
-          <h3 className="text-lg font-bold text-gray-900">Not Enough Data</h3>
-          <p className="text-gray-500 mt-1 max-w-sm">No series data returned. Ensure the API is running and regular sales exist in the database for the forecast model to generate.</p>
+          <h3 className="text-lg font-bold text-foreground">Not Enough Data</h3>
+          <p className="text-muted-foreground mt-1 max-w-sm">No series data returned. Ensure the API is running and regular sales exist in the database for the forecast model to generate.</p>
         </div>
       )}
     </div>

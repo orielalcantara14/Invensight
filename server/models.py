@@ -107,6 +107,8 @@ class CreatePosProductRequest(BaseModel):
     unit_of_measurement: Optional[str] = None
     stock: int
     status: str = "Active"
+    serial_start: Optional[str] = None
+    expiry_date: Optional[str] = None
 
     @field_validator("product_name", "specific_category", "unit_of_measurement")
     @classmethod
@@ -434,6 +436,9 @@ class InventoryResponse(BaseModel):
     status: str
     last_updated: str
     reason_adjustment: str
+    serial_start: Optional[str] = None
+    serial_end: Optional[str] = None
+    expiry_date: Optional[str] = None
 
 
 class CreateInventoryRequest(BaseModel):
@@ -446,6 +451,11 @@ class CreateInventoryRequest(BaseModel):
     quantity: int
     expected: int
     reorder_level: int
+    serial_start: Optional[str] = None
+    serial_end: Optional[str] = None
+    expiry_date: Optional[str] = None
+    unit_price: float = 0.0
+    pos_price: Optional[float] = None
 
 
 class UpdateInventoryRequest(BaseModel):
@@ -460,6 +470,11 @@ class UpdateInventoryRequest(BaseModel):
     reorder_level: int
     actual: int
     reason_adjustment: str
+    serial_start: Optional[str] = None
+    serial_end: Optional[str] = None
+    expiry_date: Optional[str] = None
+    unit_price: float = 0.0
+    pos_price: Optional[float] = None
 
 
 class InventoryDiscrepancyRequest(BaseModel):

@@ -133,7 +133,8 @@ def init_database_schema():
                     permissions_json JSONB,
                     email VARCHAR(255),
                     address TEXT,
-                    password_changed_at DATE
+                    password_changed_at DATE,
+                    failed_attempts INTEGER DEFAULT 0
                 )
             """)
             cur.execute("""
@@ -148,6 +149,15 @@ def init_database_schema():
                     completed_orders INTEGER DEFAULT 0,
                     status VARCHAR(50) DEFAULT 'Active'
                 )
+            """)
+            # Migration: Ensure failed_attempts column exists
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='failed_attempts') THEN
+                        ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0;
+                    END IF;
+                END $$;
             """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS categories (
@@ -627,6 +637,9 @@ def run_migrations():
 
             # 6. Inventory Schema Fixes
             cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'")
+            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS serial_start VARCHAR(100)")
+            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS serial_end VARCHAR(100)")
+            cur.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS expiry_date DATE")
             cur.execute("UPDATE inventory SET status = 'Active' WHERE status IS NULL OR status = ''")
 
             # 7. POS Terminals Fixes (Critical for seeding)

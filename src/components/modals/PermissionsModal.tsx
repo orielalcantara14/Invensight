@@ -100,20 +100,20 @@ export function PermissionsModal({
       maxWidth="5xl"
     >
       <div className="flex flex-col h-[70vh]">
-        <div className="flex items-center gap-2 mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
-          <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-2 mb-6 p-4 bg-primary/10 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+          <ShieldCheck className="w-5 h-5 text-primary dark:text-blue-400" />
           <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
             Grant or revoke specific actions across system modules. Changes will apply to all users with this role.
           </p>
         </div>
 
-        <div className="flex-1 overflow-auto border border-gray-100 dark:border-gray-800 rounded-2xl shadow-inner bg-white dark:bg-gray-900">
+        <div className="flex-1 overflow-auto border border-border dark:border-gray-800 rounded-2xl shadow-inner bg-card bg-background">
           <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 shadow-sm">
+            <thead className="sticky top-0 z-10 bg-muted/50 bg-card shadow-sm">
               <tr>
-                <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-gray-500 border-b border-gray-100 dark:border-gray-700">Module Access</th>
+                <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground border-b border-border border-border">Module Access</th>
                 {ALL_ACTIONS.map(action => (
-                  <th key={action} className="px-4 py-4 text-center text-xs font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                  <th key={action} className="px-4 py-4 text-center text-xs font-black uppercase tracking-widest text-muted-foreground/70 border-b border-border border-border">
                     {action}
                   </th>
                 ))}
@@ -124,7 +124,7 @@ export function PermissionsModal({
                 const isAllSelected = actions.every(a => isActionChecked(module, a));
                 
                 return (
-                  <tr key={module} className="group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
+                  <tr key={module} className="group hover:bg-primary/10/30 dark:hover:bg-blue-900/10 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <button
@@ -133,13 +133,13 @@ export function PermissionsModal({
                           disabled={isReadOnly}
                           className={`flex items-center justify-center w-5 h-5 rounded-lg border-2 transition-all ${
                             isAllSelected 
-                              ? 'bg-blue-600 border-blue-600' 
+                              ? 'bg-primary border-primary' 
                               : 'border-gray-400 dark:border-gray-600 group-hover:border-blue-400'
                           }`}
                         >
                           {isAllSelected && <Check className="w-3 h-3 text-white" />}
                         </button>
-                        <span className="font-bold text-gray-900 dark:text-gray-100">{module}</span>
+                        <span className="font-bold text-foreground dark:text-gray-100">{module}</span>
                       </div>
                     </td>
                     {ALL_ACTIONS.map(action => {
@@ -155,15 +155,15 @@ export function PermissionsModal({
                               disabled={isReadOnly}
                               className={`inline-flex items-center justify-center w-6 h-6 rounded-md border-2 transition-all ${
                                 isChecked 
-                                  ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-600 dark:text-blue-400' 
-                                  : 'border-gray-300 dark:border-gray-700 text-gray-400 hover:border-gray-400'
+                                  ? 'bg-blue-100 dark:bg-blue-900/40 border-primary text-primary dark:text-blue-400' 
+                                  : 'border-border border-border text-muted-foreground/70 hover:border-gray-400'
                               } ${isReadOnly ? 'opacity-50' : ''}`}
                             >
                               {isChecked ? <Check className="w-4 h-4" /> : <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />}
                             </button>
                           ) : (
                             <div className="flex justify-center">
-                              <div className="w-5 h-1 bg-gray-50 dark:bg-gray-800 rounded-full" />
+                              <div className="w-5 h-1 bg-muted/50 bg-card rounded-full" />
                             </div>
                           )}
                         </td>
@@ -182,11 +182,11 @@ export function PermissionsModal({
           </div>
         )}
 
-        <div className="mt-8 flex items-center justify-between p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
+        <div className="mt-8 flex items-center justify-between p-1 bg-muted bg-card rounded-2xl">
           <button
             type="button"
             onClick={onClose}
-            className="px-8 py-3 text-sm font-bold text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            className="px-8 py-3 text-sm font-bold text-muted-foreground hover:text-foreground dark:hover:text-gray-200 transition-colors"
           >
             Cancel
           </button>
@@ -194,7 +194,7 @@ export function PermissionsModal({
             type="button"
             onClick={() => onSave(selectedPermissions)}
             disabled={saving || isReadOnly}
-            className="flex items-center gap-2 px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50"
+            className="flex items-center gap-2 px-10 py-3 bg-primary hover:bg-primary/90 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/30 disabled:opacity-50"
           >
             {saving ? 'Saving...' : primaryLabel}
           </button>

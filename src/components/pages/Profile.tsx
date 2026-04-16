@@ -78,7 +78,7 @@ function passwordChangedLabel(iso: string | null): string {
   }
 }
 
-const activityDotClass = ["bg-emerald-500", "bg-blue-500", "bg-violet-500"];
+const activityDotClass = ["bg-emerald-500", "bg-primary", "bg-violet-500"];
 
 export function Profile() {
   const session = getSession();
@@ -165,8 +165,16 @@ export function Profile() {
   const handleChangePassword = async () => {
     if (userId == null) return;
     setPwdError(null);
-    if (newPwd.length < 6) {
-      setPwdError("New password must be at least 6 characters.");
+    const requirements = [
+      { label: "Minimum 8 characters", met: newPwd.length >= 8 },
+      { label: "At least one uppercase letter", met: /[A-Z]/.test(newPwd) },
+      { label: "At least one number", met: /[0-9]/.test(newPwd) },
+      { label: "At least one special character", met: /[^a-zA-Z0-9]/.test(newPwd) },
+    ];
+
+    const unmet = requirements.filter((r) => !r.met);
+    if (unmet.length > 0) {
+      setPwdError(`Missing: ${unmet.map((r) => r.label).join(", ")}`);
       return;
     }
     if (newPwd !== confirmPwd) {
@@ -194,7 +202,7 @@ export function Profile() {
   if (userId == null) {
     return (
       <div className="p-8">
-        <p className="text-gray-600">Not signed in.</p>
+        <p className="text-muted-foreground">Not signed in.</p>
       </div>
     );
   }
@@ -202,7 +210,7 @@ export function Profile() {
   if (loading) {
     return (
       <div className="p-8">
-        <p className="text-gray-600">Loading profile…</p>
+        <p className="text-muted-foreground">Loading profile…</p>
       </div>
     );
   }
@@ -237,8 +245,8 @@ export function Profile() {
   return (
     <div className="p-6 sm:p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-        <p className="mt-1 text-gray-600">
+        <h1 className="text-3xl font-bold text-foreground">My Profile</h1>
+        <p className="mt-1 text-muted-foreground">
           View and manage your account information.
         </p>
       </div>
@@ -246,44 +254,44 @@ export function Profile() {
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Sidebar */}
         <aside className="lg:col-span-4">
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex flex-col items-center border-b border-gray-100 px-6 pb-6 pt-8">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex flex-col items-center border-b border-border px-6 pb-6 pt-8">
               <div className="relative">
-                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-b from-violet-500 to-blue-600 text-white shadow-md ring-4 ring-white">
+                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-b from-violet-500 to-primary text-white shadow-md ring-4 ring-white">
                   <User className="h-14 w-14" strokeWidth={1.5} />
                 </div>
                 <span
-                  className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow"
+                  className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-primary text-white shadow"
                   title="Photo upload is not available yet"
                   aria-hidden
                 >
                   <Camera className="h-4 w-4" />
                 </span>
               </div>
-              <h2 className="mt-4 text-center text-lg font-semibold text-gray-900">
+              <h2 className="mt-4 text-center text-lg font-semibold text-foreground">
                 {displayName}
               </h2>
-              <p className="mt-1 text-center text-sm text-gray-500">
+              <p className="mt-1 text-center text-sm text-muted-foreground">
                 {profile.email || "—"}
               </p>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary/90">
                 <Shield className="h-3.5 w-3.5" />
                 {roleLabel}
               </span>
             </div>
-            <ul className="divide-y divide-gray-100 px-6 py-4 text-sm">
+            <ul className="divide-y divide-border px-6 py-4 text-sm">
               <li className="flex justify-between gap-4 py-3">
-                <span className="text-gray-500">Member since</span>
-                <span className="text-right font-medium text-gray-900">
+                <span className="text-muted-foreground">Member since</span>
+                <span className="text-right font-medium text-foreground">
                   {formatMemberSince(profile.created_date)}
                 </span>
               </li>
               <li className="flex items-start justify-between gap-4 py-3">
-                <span className="flex items-center gap-1 text-gray-500">
+                <span className="flex items-center gap-1 text-muted-foreground">
                   <MapPin className="h-4 w-4 flex-shrink-0" />
                   Location
                 </span>
-                <span className="max-w-[60%] text-right font-medium text-gray-900">
+                <span className="max-w-[60%] text-right font-medium text-foreground">
                   {locationShort}
                 </span>
               </li>
@@ -293,9 +301,9 @@ export function Profile() {
 
         {/* Main */}
         <div className="space-y-6 lg:col-span-8">
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 Profile information
               </h3>
               {!editing ? (
@@ -320,7 +328,7 @@ export function Profile() {
                       setEmail(profile.email ?? "");
                       setAddress(profile.address ?? "");
                     }}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
                   >
                     Cancel
                   </button>
@@ -328,7 +336,7 @@ export function Profile() {
                     type="button"
                     disabled={saving}
                     onClick={() => void handleSaveProfile()}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
                   >
                     {saving ? "Saving…" : "Save changes"}
                   </button>
@@ -344,39 +352,39 @@ export function Profile() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   First name
                 </label>
                 {editing ? (
                   <input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 ) : (
-                  <p className="mt-1 text-sm text-gray-900">
+                  <p className="mt-1 text-sm text-foreground">
                     {splitFullName(profile.full_name).first || "—"}
                   </p>
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Last name
                 </label>
                 {editing ? (
                   <input
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 ) : (
-                  <p className="mt-1 text-sm text-gray-900">
+                  <p className="mt-1 text-sm text-foreground">
                     {splitFullName(profile.full_name).last || "—"}
                   </p>
                 )}
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Email address
                 </label>
                 {editing ? (
@@ -384,16 +392,16 @@ export function Profile() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 ) : (
-                  <p className="mt-1 text-sm text-gray-900">
+                  <p className="mt-1 text-sm text-foreground">
                     {profile.email?.trim() || "—"}
                   </p>
                 )}
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Address
                 </label>
                 {editing ? (
@@ -401,10 +409,10 @@ export function Profile() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     rows={2}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 ) : (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
                     {profile.address?.trim() || "—"}
                   </p>
                 )}
@@ -412,15 +420,15 @@ export function Profile() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">
               Security settings
             </h3>
             <div className="space-y-4">
-              <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">Password</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-foreground">Password</p>
+                  <p className="text-sm text-muted-foreground">
                     Last changed {passwordChangedLabel(profile.password_changed_at)}
                   </p>
                 </div>
@@ -430,38 +438,20 @@ export function Profile() {
                     setPwdOpen(true);
                     setPwdError(null);
                   }}
-                  className="shrink-0 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                  className="shrink-0 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50"
                 >
                   Change password
-                </button>
-              </div>
-              <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Two-factor authentication
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Add an extra layer of security.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled
-                  title="Not available yet"
-                  className="shrink-0 cursor-not-allowed rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-400"
-                >
-                  Enable 2FA
                 </button>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">
               Recent activity
             </h3>
             {activity.length === 0 ? (
-              <p className="text-sm text-gray-500">No recent activity yet.</p>
+              <p className="text-sm text-muted-foreground">No recent activity yet.</p>
             ) : (
               <ul className="space-y-4">
                 {activity.map((item, i) => (
@@ -476,15 +466,15 @@ export function Profile() {
                       aria-hidden
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {item.action}
                       </p>
                       {item.details ? (
-                        <p className="mt-0.5 text-sm text-gray-600">
+                        <p className="mt-0.5 text-sm text-muted-foreground">
                           {item.details}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-muted-foreground/70">
                         {formatActivityTime(item.timestamp)}
                       </p>
                     </div>
@@ -503,14 +493,14 @@ export function Profile() {
           aria-modal="true"
           aria-labelledby="pwd-dialog-title"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl">
             <h2
               id="pwd-dialog-title"
-              className="text-lg font-semibold text-gray-900"
+              className="text-lg font-semibold text-foreground"
             >
               Change password
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-muted-foreground">
               Enter your current password and choose a new one.
             </p>
             {pwdError ? (
@@ -520,7 +510,7 @@ export function Profile() {
             ) : null}
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500">
+                <label className="block text-xs font-medium text-muted-foreground">
                   Current password
                 </label>
                 <input
@@ -528,11 +518,11 @@ export function Profile() {
                   autoComplete="current-password"
                   value={currentPwd}
                   onChange={(e) => setCurrentPwd(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500">
+                <label className="block text-xs font-medium text-muted-foreground">
                   New password
                 </label>
                 <input
@@ -540,11 +530,11 @@ export function Profile() {
                   autoComplete="new-password"
                   value={newPwd}
                   onChange={(e) => setNewPwd(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500">
+                <label className="block text-xs font-medium text-muted-foreground">
                   Confirm new password
                 </label>
                 <input
@@ -552,10 +542,29 @@ export function Profile() {
                   autoComplete="new-password"
                   value={confirmPwd}
                   onChange={(e) => setConfirmPwd(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
                 />
               </div>
             </div>
+
+            {/* Password Requirements */}
+            <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border space-y-3">
+              <h3 className="text-sm font-bold text-foreground">Password Requirements</h3>
+              <ul className="space-y-2">
+                {[
+                  { label: "Minimum 8 characters", met: newPwd.length >= 8 },
+                  { label: "At least one uppercase letter", met: /[A-Z]/.test(newPwd) },
+                  { label: "At least one number", met: /[0-9]/.test(newPwd) },
+                  { label: "At least one special character", met: /[^a-zA-Z0-9]/.test(newPwd) },
+                ].map((req, idx) => (
+                  <li key={idx} className="flex items-center gap-2 text-xs font-medium transition-colors">
+                    <div className={`w-2 h-2 rounded-full ${req.met ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-gray-300'}`} />
+                    <span className={req.met ? 'text-foreground' : 'text-muted-foreground/70'}>{req.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
@@ -566,7 +575,7 @@ export function Profile() {
                   setNewPwd("");
                   setConfirmPwd("");
                 }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
               >
                 Cancel
               </button>

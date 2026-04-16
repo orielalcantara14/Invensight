@@ -251,3 +251,40 @@ def profile_activity(
             )
         )
     return out
+
+
+@router.get("/profile/security-logs", response_model=list[ActivityItem])
+def security_logs(
+    user_id: int = Depends(get_request_user_id),
+    limit: int = 15,
+):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT log_id, action, details, "timestamp"
+                FROM auditlog
+                WHERE user_id = %s 
+                  AND action IN ('LOGIN', 'FAILED_LOGIN', 'ACCOUNT_LOCKOUT', 'VERIFY_OTP', 'CHANGE_PASSWORD', 'UPDATE_PROFILE')
+                ORDER BY "timestamp" DESC
+                LIMIT %s
+                """,
+                (user_id, min(limit, 50)),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    out = []
+    for r in rows:
+        ts = r["timestamp"]
+        out.append(
+            ActivityItem(
+                log_id=r["log_id"],
+                action=r["action"],
+                details=r.get("details"),
+                timestamp=ts.isoformat() if ts else "",
+            )
+        )
+    return out

@@ -31,10 +31,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (isVerifying) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen w-screen items-center justify-center bg-muted/50">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-          <p className="text-gray-500 font-medium">Verifying session...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground font-medium">Verifying session...</p>
         </div>
       </div>
     );

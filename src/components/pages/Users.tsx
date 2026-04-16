@@ -284,8 +284,8 @@ export function Users() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            <p className="text-gray-600 mt-1">Manage users and role-based access control</p>
+            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <p className="text-muted-foreground mt-1">Manage users and role-based access control</p>
           </div>
           <button
             onClick={() => {
@@ -293,7 +293,7 @@ export function Users() {
               setIsAddUserModalOpen(true);
             }}
             disabled={!canManageAccounts}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add User
@@ -302,35 +302,35 @@ export function Users() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Total Users</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : users.length}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Total Users</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : users.length}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Active Users</div>
-          <div className="text-2xl font-bold text-gray-900">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Active Users</div>
+          <div className="text-2xl font-bold text-foreground">
             {loading ? "…" : users.filter((u) => u.status === "Active").length}
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">User Roles</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : roles.length}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">User Roles</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : roles.length}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="text-sm text-gray-600 mb-1">Inactive Users</div>
-          <div className="text-2xl font-bold text-gray-900">{loading ? "…" : inactiveCount}</div>
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <div className="text-sm text-muted-foreground mb-1">Inactive Users</div>
+          <div className="text-2xl font-bold text-foreground">{loading ? "…" : inactiveCount}</div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="border-b border-gray-200">
+      <div className="bg-card rounded-lg shadow border border-border">
+        <div className="border-b border-border">
           <div className="flex">
             <button
               onClick={() => setActiveTab("users")}
               className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "users"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -342,8 +342,8 @@ export function Users() {
               onClick={() => setActiveTab("roles")}
               className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "roles"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -356,68 +356,68 @@ export function Users() {
 
         {activeTab === "users" && (
           <>
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-border">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
+                  <h2 className="text-lg font-semibold text-foreground">All Users</h2>
                   {/* Selection counter removed */}
                 </div>
                 <button 
                   onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
                 >
                   <Download className="w-4 h-4" />
                   Export Users
                 </button>
               </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                 <input
                   type="text"
                   placeholder="Search by username, name, or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-muted/50 border-b border-border">
                   <tr>
                     <th className="px-6 py-3 text-left">
                       {/* Header checkbox removed */}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       User ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Username
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Full Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Last Login
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-card divide-y divide-border">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                         Loading users…
                       </td>
                     </tr>
@@ -425,8 +425,8 @@ export function Users() {
                     <tr>
                       <td colSpan={9} className="px-6 py-12 text-center">
                         <UsersIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                        <p className="text-gray-500 font-medium">No users available</p>
-                        <p className="text-sm text-gray-400 mt-1">Add users to manage system access</p>
+                        <p className="text-muted-foreground font-medium">No users available</p>
+                        <p className="text-sm text-muted-foreground/70 mt-1">Add users to manage system access</p>
                       </td>
                     </tr>
                   ) : (
@@ -435,33 +435,33 @@ export function Users() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           {/* Row selection handled in Export Wizard */}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{user.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                           {user.username || "—"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.fullName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{user.fullName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {user.email || "—"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.role}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{user.role}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               user.status === "Active"
                                 ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-700"
+                                : "bg-muted text-muted-foreground"
                             }`}
                           >
                             {user.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastLogin}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{user.lastLogin}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                           {canManageTargetUser(user) ? (
                             <>
                               <button
                                 type="button"
-                                className="mr-2 inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-900"
+                                className="mr-2 inline-flex items-center justify-center rounded p-1 text-primary hover:bg-primary/10 hover:text-blue-900"
                                 title="Edit user"
                                 onClick={() => {
                                   setEditError(null);
@@ -483,7 +483,7 @@ export function Users() {
                               )}
                             </>
                           ) : (
-                            <span className="text-xs text-gray-400">No access</span>
+                            <span className="text-xs text-muted-foreground/70">No access</span>
                           )}
                         </td>
                       </tr>
@@ -498,7 +498,7 @@ export function Users() {
         {activeTab === "roles" && (
           <div className="p-6">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">User Roles</h2>
+              <h2 className="text-lg font-semibold text-foreground">User Roles</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -513,26 +513,26 @@ export function Users() {
               </button>
             </div>
             {loading ? (
-              <p className="text-gray-500 text-center py-8">Loading roles…</p>
+              <p className="text-muted-foreground text-center py-8">Loading roles…</p>
             ) : roles.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No roles yet. Add a role to get started.</p>
+              <p className="text-muted-foreground text-center py-8">No roles yet. Add a role to get started.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {roles.map((role) => (
                   <div
                     key={role.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition-colors"
+                    className="border border-border rounded-lg p-4 hover:border-primary transition-colors"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-blue-600" />
-                        <h3 className="font-semibold text-gray-900">{role.name}</h3>
+                        <Shield className="w-5 h-5 text-primary" />
+                        <h3 className="font-semibold text-foreground">{role.name}</h3>
                       </div>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                      <span className="px-2 py-1 bg-muted text-muted-foreground rounded text-xs">
                         {role.userCount} users
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3 text-ellipsis overflow-hidden break-words line-clamp-2">
+                    <p className="text-sm text-muted-foreground mb-3 text-ellipsis overflow-hidden break-words line-clamp-2">
                        {role.permissions && Object.keys(role.permissions).length > 0
                          ? Object.keys(role.permissions).join(", ")
                          : "—"}
@@ -540,7 +540,7 @@ export function Users() {
                     <div className="flex gap-4">
                       <button
                         type="button"
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        className="text-sm font-medium text-primary hover:text-blue-800"
                         disabled={!canManageAccounts}
                         onClick={() => {
                           setEditRoleError(null);
@@ -551,7 +551,7 @@ export function Users() {
                       </button>
                       <button
                         type="button"
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground"
                         onClick={() => setViewUsersForRole(role)}
                       >
                         View Users

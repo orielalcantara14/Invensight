@@ -171,8 +171,8 @@ export function Products() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Products & Categories</h1>
-            <p className="text-gray-500 mt-1">Manage product catalog and categories</p>
+            <h1 className="text-3xl font-bold text-foreground">Products & Categories</h1>
+            <p className="text-muted-foreground mt-1">Manage product catalog and categories</p>
           </div>
           <div className="flex gap-3">
             <ProtectedAction module="Archive" action="View">
@@ -205,7 +205,7 @@ export function Products() {
             <ProtectedAction module="Products" action="Add">
               <button 
                 onClick={() => setIsAddProductOpen(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
+                className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-all shadow-sm font-medium"
               >
                 <Plus className="w-4 h-4" />
                 Add Product
@@ -216,20 +216,20 @@ export function Products() {
       </div>
 
       {/* Categories Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-8">
         <div className="flex items-center gap-2 mb-6">
-          <LayoutGrid className="w-5 h-5 text-gray-400" />
-          <h2 className="text-lg font-bold text-gray-900">Product Categories</h2>
+          <LayoutGrid className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-bold text-foreground">Product Categories</h2>
         </div>
         
         {categories.length === 0 ? (
-          <div className="flex items-center justify-center py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+          <div className="flex items-center justify-center py-12 bg-muted/50 rounded-2xl border border-dashed border-border">
             <div className="text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <LayoutGrid className="w-6 h-6 text-gray-300" />
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                <LayoutGrid className="w-6 h-6 text-muted-foreground" />
               </div>
-              <p className="text-gray-900 font-bold text-sm">No categories available</p>
-              <p className="text-xs text-gray-400 mt-1">Add categories to organize your products</p>
+              <p className="text-foreground font-bold text-sm">No categories available</p>
+              <p className="text-xs text-muted-foreground mt-1">Add categories to organize your products</p>
             </div>
           </div>
         ) : (
@@ -237,13 +237,13 @@ export function Products() {
             {categories.map((cat) => (
               <div 
                 key={cat.category_id} 
-                className="group p-4 bg-white border border-gray-100 rounded-2xl hover:border-blue-200 hover:shadow-md transition-all relative overflow-hidden shadow-sm"
+                className="group p-4 bg-card border border-border rounded-2xl hover:border-primary/50 hover:shadow-md transition-all relative overflow-hidden shadow-sm"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-900 truncate text-sm">{cat.category_name}</span>
+                  <span className="font-bold text-foreground truncate text-sm">{cat.category_name}</span>
                   <button 
                     onClick={() => handleDeleteCategory(cat.category_id, cat.category_name)}
-                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -255,30 +255,30 @@ export function Products() {
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
-            <h2 className="text-lg font-bold text-gray-900">Product List</h2>
+            <h2 className="text-lg font-bold text-foreground">Product List</h2>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-2 bg-muted p-1 rounded-xl border border-border">
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="bg-transparent px-3 py-1.5 text-sm focus:outline-none"
+                  className="bg-transparent px-3 py-1.5 text-sm focus:outline-none text-foreground"
                 />
-                <span className="text-gray-400 text-xs font-medium uppercase">to</span>
+                <span className="text-muted-foreground text-xs font-medium uppercase">to</span>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="bg-transparent px-3 py-1.5 text-sm focus:outline-none"
+                  className="bg-transparent px-3 py-1.5 text-sm focus:outline-none text-foreground"
                 />
               </div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-gray-50 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                className="bg-muted px-4 py-2 border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none text-foreground"
               >
                 <option value="All">All Categories</option>
                 {categories.map((cat) => (
@@ -288,7 +288,7 @@ export function Products() {
               <ProtectedAction module="Products" action="Export">
                   <button 
                     onClick={() => setIsExportModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-all shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary border border-primary rounded-xl text-sm font-medium text-white hover:bg-primary/90 transition-all shadow-sm"
                   >
                     <Download className="w-4 h-4" />
                     Export Products
@@ -297,13 +297,13 @@ export function Products() {
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search by product name or SKU..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+              className="w-full pl-11 pr-4 py-2.5 bg-muted border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-foreground"
             />
           </div>
         </div>
@@ -311,77 +311,77 @@ export function Products() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1500px]">
             <thead>
-              <tr className="bg-gray-50/50">
+              <tr className="bg-muted/50">
                 <th className="px-6 py-4 text-left">
                   {/* Header checkbox removed */}
                 </th>
-                <th className="min-w-[320px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
-                <th className="w-[130px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SKU</th>
-                <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Category</th>
-                <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Specific Category</th>
-                <th className="w-[170px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Unit Cost</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Total Cost</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">SRP</th>
-                <th className="w-[160px] px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Date Added</th>
-                <th className="w-[140px] px-6 py-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                <th className="min-w-[320px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Product Name</th>
+                <th className="w-[130px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">SKU</th>
+                <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Category</th>
+                <th className="min-w-[220px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Specific Category</th>
+                <th className="w-[170px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Unit Cost</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Total Cost</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">SRP</th>
+                <th className="w-[160px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Added</th>
+                <th className="w-[140px] px-6 py-4 text-center text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-400">Loading products...</td>
+                  <td colSpan={10} className="px-6 py-12 text-center text-muted-foreground">Loading products...</td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-16 text-center">
-                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Package className="w-8 h-8 text-gray-200" />
+                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Package className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <p className="text-gray-900 font-bold text-sm">No products available</p>
-                    <p className="text-xs text-gray-400 mt-1">Add products to your catalog to get started</p>
+                    <p className="text-foreground font-bold text-sm">No products available</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add products to your catalog to get started</p>
                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map((product) => (
-                  <tr key={product.pos_id} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr key={product.pos_id} className="hover:bg-muted/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {/* Row selection handled in Export Wizard */}
                     </td>
                     <td
-                      className="px-6 py-4 max-w-[320px] truncate text-sm font-bold text-gray-900"
+                      className="px-6 py-4 max-w-[320px] truncate text-sm font-bold text-foreground"
                       title={product.product_name}
                     >
-                      {product.product_name}
+                      {product.product_name} <span className="text-xs font-normal text-muted-foreground ml-1">(ID: {product.pos_id})</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{product.sku}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">{product.sku}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
                       <span
-                        className="inline-block max-w-[200px] truncate rounded-full bg-blue-50 px-3 py-1 align-middle text-xs font-bold text-blue-600"
+                        className="inline-block max-w-[200px] truncate rounded-full bg-primary/10 px-3 py-1 align-middle text-xs font-bold text-primary"
                         title={product.category}
                       >
                         {product.category}
                       </span>
                     </td>
                     <td
-                      className="px-6 py-4 max-w-[220px] truncate text-sm text-gray-600 font-medium"
+                      className="px-6 py-4 max-w-[220px] truncate text-sm text-muted-foreground font-medium"
                       title={product.specific_category || undefined}
                     >
                       {product.specific_category || "—"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
                       {product.unit_of_measurement || "—"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-foreground">
                       ₱{(product.unit_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-foreground">
                       ₱{((product.unit_price ?? 0) * (product.stock ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-foreground">
                       ₱{(product.pos_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-medium">
                       {product.date_added ? new Date(product.date_added).toLocaleDateString() : "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -389,13 +389,13 @@ export function Products() {
                         <Link
                           to={`/inventory?search=${product.sku}&from=products`}
                           onClick={() => sessionStorage.setItem("fromProducts", "true")}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          className="p-1.5 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                           title="View in Inventory"
                         >
                           <ArrowRight className="w-4 h-4" />
                         </Link>
                         <button 
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors" 
+                          className="p-1.5 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors" 
                           title="Edit"
                           onClick={() => handleEditProduct(product)}
                         >

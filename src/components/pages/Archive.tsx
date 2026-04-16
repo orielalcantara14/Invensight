@@ -31,23 +31,23 @@ function ConfirmModal({ dialog, onClose }: { dialog: ConfirmDialog; onClose: () 
   if (!dialog.open) return null;
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className={`p-6 border-b ${dialog.danger ? "border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/30" : "border-gray-100 dark:border-gray-800"}`}>
+      <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
+        <div className={`p-6 border-b ${dialog.danger ? "border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/30" : "border-border dark:border-gray-800"}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${dialog.danger ? "bg-red-100 dark:bg-red-900/40" : "bg-blue-100 dark:bg-blue-900/40"}`}>
-              <AlertTriangle className={`w-5 h-5 ${dialog.danger ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`} />
+              <AlertTriangle className={`w-5 h-5 ${dialog.danger ? "text-red-600 dark:text-red-400" : "text-primary dark:text-blue-400"}`} />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{dialog.title}</h3>
+            <h3 className="text-lg font-semibold text-foreground text-foreground">{dialog.title}</h3>
           </div>
         </div>
         <div className="p-6">
-          <p className="text-gray-600 dark:text-gray-400">{dialog.message}</p>
+          <p className="text-muted-foreground dark:text-muted-foreground/70">{dialog.message}</p>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors">
             Cancel
           </button>
-          <button onClick={() => { dialog.onConfirm(); onClose(); }} className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${dialog.danger ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`}>
+          <button onClick={() => { dialog.onConfirm(); onClose(); }} className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${dialog.danger ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"}`}>
             Confirm
           </button>
         </div>
@@ -166,7 +166,7 @@ export function ArchivePage() {
   });
 
   return (
-    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-50 via-primary/10/30 to-indigo-50/20 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-foreground dark:text-gray-100">
       <ConfirmModal dialog={confirm} onClose={() => setConfirm(p => ({ ...p, open: false }))} />
 
       <div className="max-w-7xl mx-auto">
@@ -178,22 +178,22 @@ export function ArchivePage() {
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight">{stage === "Archived" ? "Archive" : "Deleted Folder"}</h1>
-              <p className="text-gray-500 dark:text-gray-400 font-medium">
+              <p className="text-muted-foreground dark:text-muted-foreground/70 font-medium">
                 {stage === "Archived" ? "Manage and restore soft-archived records" : "Review items for permanent deletion"}
               </p>
             </div>
           </div>
 
-          <div className="flex bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex bg-card bg-card p-1 rounded-xl shadow-sm border border-border border-border">
             <button
               onClick={() => setSearchParams({ stage: "Archived" })}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Archived" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"}`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Archived" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground dark:hover:text-gray-200"}`}
             >
               <Archive className="w-4 h-4" /> Archive
             </button>
             <button
               onClick={() => setSearchParams({ stage: "Deleted" })}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Deleted" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"}`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Deleted" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:text-foreground dark:hover:text-gray-200"}`}
             >
               <Trash2 className="w-4 h-4" /> Deleted Folder
             </button>
@@ -201,9 +201,9 @@ export function ArchivePage() {
         </div>
 
         {/* Action Bar */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-          <div className="flex flex-col lg:flex-row border-b border-gray-100 dark:border-gray-800">
-            <div className="flex flex-1 overflow-x-auto no-scrollbar bg-gray-50/50 dark:bg-gray-800/10">
+        <div className="bg-card bg-background rounded-3xl shadow-xl border border-border dark:border-gray-800 overflow-hidden">
+          <div className="flex flex-col lg:flex-row border-b border-border dark:border-gray-800">
+            <div className="flex flex-1 overflow-x-auto no-scrollbar bg-muted/50/50 bg-card/10">
               {TABS.map(tab => (
                 <button
                   key={tab.key}
@@ -211,8 +211,8 @@ export function ArchivePage() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-2.5 px-6 py-5 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
                     activeTab === tab.key
-                      ? stage === "Archived" ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-white dark:bg-gray-900" : "border-red-500 text-red-600 dark:text-red-400 bg-white dark:bg-gray-900"
-                      : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      ? stage === "Archived" ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-card bg-background" : "border-red-500 text-red-600 dark:text-red-400 bg-card bg-background"
+                      : "border-transparent text-muted-foreground/70 dark:text-muted-foreground hover:text-muted-foreground dark:hover:text-gray-300"
                   } ${tab.key === "users" && stage === "Archived" ? "opacity-30 cursor-not-allowed" : ""}`}
                 >
                   <tab.icon className="w-4 h-4" />
@@ -222,20 +222,20 @@ export function ArchivePage() {
             </div>
           </div>
 
-          <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-900">
+          <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card bg-background">
             <div className="relative group flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-amber-500 transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70 group-focus-within:text-amber-500 transition-colors" />
               <input
                 type="text"
                 placeholder={`Search ${activeTab}...`}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-sm focus:ring-2 focus:ring-amber-500/20 transition-all dark:placeholder-gray-500"
+                className="w-full pl-12 pr-4 py-3 bg-muted/50 bg-card border-none rounded-2xl text-sm focus:ring-2 focus:ring-amber-500/20 transition-all dark:placeholder-gray-500"
               />
             </div>
             <button
               onClick={loadData}
-              className="px-5 py-3 flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              className="px-5 py-3 flex items-center gap-2 text-sm font-bold text-muted-foreground dark:text-gray-300 bg-muted/50 bg-card rounded-2xl hover:bg-muted dark:hover:bg-gray-700 transition-all"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-amber-500" : ""}`} />
               Refresh Records
@@ -245,24 +245,24 @@ export function ArchivePage() {
           {/* Table */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-32 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground/70">
                 <RefreshCw className="w-12 h-12 animate-spin mb-4 text-amber-500 opacity-50" />
                 <p className="animate-pulse font-medium">Crunching data...</p>
               </div>
             ) : filteredData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 text-gray-300 dark:text-gray-700">
+              <div className="flex flex-col items-center justify-center py-32 text-gray-300 dark:text-muted-foreground">
                 <Archive className="w-24 h-24 mb-6 opacity-10" />
                 <h3 className="text-xl font-bold">No records found</h3>
-                <p className="text-sm text-gray-500 mt-2">Try a different search or change the stage</p>
+                <p className="text-sm text-muted-foreground mt-2">Try a different search or change the stage</p>
               </div>
             ) : (
               <table className="w-full text-left">
-                <thead className="bg-gray-50/50 dark:bg-gray-800/30 border-y border-gray-100 dark:border-gray-800">
+                <thead className="bg-muted/50/50 bg-card/30 border-y border-border dark:border-gray-800">
                   <tr>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-gray-400">Details</th>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-gray-400">Info</th>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-gray-400">Date/Status</th>
-                    <th className="px-8 py-4 text-right text-xs font-black uppercase tracking-widest text-gray-400">Actions</th>
+                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Details</th>
+                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Info</th>
+                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Date/Status</th>
+                    <th className="px-8 py-4 text-right text-xs font-black uppercase tracking-widest text-muted-foreground/70">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -271,17 +271,17 @@ export function ArchivePage() {
                     const name = item.product_name || item.supplier_name || item.username || item.full_name || id;
                     
                     return (
-                      <tr key={id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-all">
+                      <tr key={id} className="group hover:bg-muted/50/50 dark:hover:bg-gray-800/20 transition-all">
                         <td className="px-8 py-6">
                           <div className="flex flex-col">
-                            <span className="font-bold text-gray-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{name}</span>
-                            <span className="text-xs font-mono text-gray-400 mt-1 uppercase">{item.sku || id}</span>
+                            <span className="font-bold text-foreground text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{name}</span>
+                            <span className="text-xs font-mono text-muted-foreground/70 mt-1 uppercase">{item.sku || id}</span>
                           </div>
                         </td>
                         <td className="px-8 py-6">
                           <div className="flex flex-col gap-1">
-                            <span className="text-sm text-gray-600 dark:text-gray-300">{item.category_name || item.email || item.reason || "—"}</span>
-                            <span className="text-xs text-gray-400">{item.supplier_name || item.contact_number || (item.total_items ? `${item.total_items} items` : "")}</span>
+                            <span className="text-sm text-muted-foreground dark:text-gray-300">{item.category_name || item.email || item.reason || "—"}</span>
+                            <span className="text-xs text-muted-foreground/70">{item.supplier_name || item.contact_number || (item.total_items ? `${item.total_items} items` : "")}</span>
                           </div>
                         </td>
                         <td className="px-8 py-6">

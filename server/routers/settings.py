@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Header, HTTPException, Body
 import logging
+import psycopg2.extras
 from database import get_connection
 
 router = APIRouter()
@@ -12,7 +13,7 @@ def get_user_settings(x_actor_user_id: str | None = Header(default=None, alias="
     user_id = int(x_actor_user_id)
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT setting_key, setting_value FROM user_settings WHERE user_id = %s", (user_id,))
             return {r['setting_key']: r['setting_value'] for r in cur.fetchall()}
     except Exception as e:

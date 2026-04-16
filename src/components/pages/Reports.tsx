@@ -192,26 +192,26 @@ export function Reports() {
 
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Reports</h1>
-          <p className="text-gray-500 mt-1 font-medium">Generate professional high-fidelity reports for JonBrix Motor Parts</p>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Reports</h1>
+          <p className="text-muted-foreground mt-1 font-medium">Generate professional high-fidelity reports for JonBrix Motor Parts</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
 
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
-              <FileText className="w-6 h-6 text-blue-600" />
+          <div className="bg-card p-8 rounded-2xl shadow-xl border border-border">
+            <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-2">
+              <FileText className="w-6 h-6 text-primary" />
               Generate New Report
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-1">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Report Type</label>
+                <label className="block text-xs font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Report Type</label>
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-gray-700"
+                  className="w-full px-4 py-3 bg-muted/50 border-2 border-border rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-primary transition-all font-bold text-muted-foreground"
                 >
                   <option value="">Select Type</option>
                   {reportTypes.map((type) => (
@@ -221,22 +221,22 @@ export function Reports() {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Start Date</label>
+                <label className="block text-xs font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Start Date</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold"
+                  className="w-full px-4 py-3 bg-muted/50 border-2 border-border rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-primary transition-all font-bold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">End Date</label>
+                <label className="block text-xs font-black text-muted-foreground/70 uppercase tracking-widest mb-2">End Date</label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold"
+                  className="w-full px-4 py-3 bg-muted/50 border-2 border-border rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-primary transition-all font-bold"
                 />
               </div>
 
@@ -255,14 +255,14 @@ export function Reports() {
 
             {/* Dynamic Filters Section */}
             {selectedType && (
-              <div className="mt-8 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="mt-8 pt-6 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-300">
                 {(selectedType === "inventory" || selectedType === "product_category" || selectedType === "sales") && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Filter by Category</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Filter by Category</label>
                     <select
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                      className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
                     >
                       <option value="">All Categories</option>
                       {categories.map(c => (
@@ -274,11 +274,11 @@ export function Reports() {
 
                 {(selectedType === "supplier" || selectedType === "orders_returns") && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Select Supplier</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Select Supplier</label>
                     <select
                       value={filterSupplier}
                       onChange={(e) => setFilterSupplier(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                      className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
                     >
                       <option value="">All Suppliers</option>
                       {suppliers.map(s => (
@@ -290,11 +290,11 @@ export function Reports() {
 
                 {selectedType === "sales" && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Status</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Payment Status</label>
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                      className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
                     >
                       <option value="">All Transactions</option>
                       <option value="Completed">Completed</option>
@@ -306,11 +306,11 @@ export function Reports() {
 
                 {selectedType === "supplier" && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Supplier Status</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Supplier Status</label>
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                      className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
                     >
                       <option value="">All Statuses</option>
                       <option value="Active">Active</option>
@@ -321,11 +321,11 @@ export function Reports() {
 
                 {(selectedType === "orders_returns") && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Record Filter</label>
+                    <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest mb-2">Record Filter</label>
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                      className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
                     >
                       <option value="">All Statuses</option>
                       <option value="Received">Received (PO)</option>
@@ -341,66 +341,66 @@ export function Reports() {
 
 
           {/* Generated Reports History */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="p-8 border-b border-gray-50 bg-gray-50/50">
-              <h2 className="text-xl font-black text-gray-900">Recently Compiled History</h2>
-              <p className="text-sm text-gray-500 font-medium">View or export previously generated business snapshots</p>
+          <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
+            <div className="p-8 border-b border-gray-50 bg-muted/50/50">
+              <h2 className="text-xl font-black text-foreground">Recently Compiled History</h2>
+              <p className="text-sm text-muted-foreground font-medium">View or export previously generated business snapshots</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-white border-b-2 border-gray-100">
-                    <th className="px-8 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Report Detail</th>
-                    <th className="px-8 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Date Range</th>
-                    <th className="px-8 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Generated At</th>
-                    <th className="px-8 py-4 text-right text-xs font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                  <tr className="bg-card border-b-2 border-border">
+                    <th className="px-8 py-4 text-left text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Report Detail</th>
+                    <th className="px-8 py-4 text-left text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Date Range</th>
+                    <th className="px-8 py-4 text-left text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Generated At</th>
+                    <th className="px-8 py-4 text-right text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {loading ? (
                     <tr>
-                      <td colSpan={4} className="px-8 py-16 text-center text-gray-400 font-bold italic">Loading historical records...</td>
+                      <td colSpan={4} className="px-8 py-16 text-center text-muted-foreground/70 font-bold italic">Loading historical records...</td>
                     </tr>
                   ) : generatedReports.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-8 py-20 text-center">
                         <FileText className="w-16 h-16 mx-auto mb-4 text-gray-100" />
-                        <p className="text-gray-900 font-black text-lg">No reports generated yet</p>
-                        <p className="text-sm text-gray-400 font-medium mt-1">Select criteria above to compile your first report</p>
+                        <p className="text-foreground font-black text-lg">No reports generated yet</p>
+                        <p className="text-sm text-muted-foreground/70 font-medium mt-1">Select criteria above to compile your first report</p>
                       </td>
                     </tr>
                   ) : (
                     generatedReports.map((report) => (
-                      <tr key={report.id} className="hover:bg-blue-50/30 transition-colors group">
+                      <tr key={report.id} className="hover:bg-primary/10/30 transition-colors group">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/70 group-hover:bg-blue-100 group-hover:text-primary transition-colors">
                               {reportTypes.find(t => t.name === report.reportType)?.icon ?
                                 <span className="w-5 h-5">{React.createElement(reportTypes.find(t => t.name === report.reportType)!.icon, { className: "w-5 h-5" })}</span> :
                                 <FileText className="w-5 h-5" />
                               }
                             </div>
                             <div>
-                              <p className="font-black text-gray-900">{report.reportType}</p>
-                              <p className="text-xs text-gray-400 font-bold">By {report.generatedBy}</p>
+                              <p className="font-black text-foreground">{report.reportType}</p>
+                              <p className="text-xs text-muted-foreground/70 font-bold">By {report.generatedBy}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-5">
-                          <p className="text-sm font-bold text-gray-600 italic bg-gray-50 px-3 py-1 rounded-lg inline-block border border-gray-100">{report.dateRange}</p>
+                          <p className="text-sm font-bold text-muted-foreground italic bg-muted/50 px-3 py-1 rounded-lg inline-block border border-border">{report.dateRange}</p>
                         </td>
-                        <td className="px-8 py-5 text-sm font-bold text-gray-500">{report.generatedDate}</td>
+                        <td className="px-8 py-5 text-sm font-bold text-muted-foreground">{report.generatedDate}</td>
                         <td className="px-8 py-5">
                           <div className="flex justify-end items-center gap-4">
                             <button
                               onClick={() => setPreviewReport(report)}
-                              className="text-blue-600 hover:text-blue-800 font-black text-xs uppercase tracking-widest flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
+                              className="text-primary hover:text-blue-800 font-black text-xs uppercase tracking-widest flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-all border border-transparent hover:border-blue-100"
                             >
                               <Eye className="w-4 h-4" /> View
                             </button>
                             <button
                               onClick={() => downloadAsExcel(report)}
-                              className="text-gray-600 hover:text-gray-900 font-black text-xs uppercase tracking-widest flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all"
+                              className="text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-widest flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-all"
                             >
                               <Download className="w-4 h-4" /> XLS
                             </button>
@@ -422,12 +422,12 @@ export function Reports() {
 
         {/* Right Sidebar - Analytics Highlights */}
         <div className="space-y-8">
-          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-gray-900/5 relative overflow-hidden group">
+          <div className="bg-card rounded-3xl p-8 shadow-2xl border-4 border-gray-900/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
               <TrendingUp className="w-32 h-32" />
             </div>
 
-            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3 relative z-10">
+            <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-3 relative z-10">
               <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center">
                 <Crown className="w-5 h-5 text-white" />
               </div>
@@ -440,8 +440,8 @@ export function Reports() {
                   <div key={idx} className="flex items-center gap-4 group/item">
                     <div className="text-sm font-black text-gray-300 group-hover/item:text-indigo-600 transition-colors w-4">{idx + 1}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-gray-900 truncate">{item.name}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.category || "Uncategorized"}</p>
+                      <p className="text-sm font-black text-foreground truncate">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-widest">{item.category || "Uncategorized"}</p>
                     </div>
                     <div className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
                       {formatCurrency(item.revenue)}
@@ -449,18 +449,18 @@ export function Reports() {
                   </div>
                 ))
               ) : (
-                <div className="text-center text-gray-400 py-12 font-bold italic bg-gray-50 rounded-2xl border-2 border-dashed">
+                <div className="text-center text-muted-foreground/70 py-12 font-bold italic bg-muted/50 rounded-2xl border-2 border-dashed">
                   No recent sales data.
                 </div>
               )}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="mt-8 pt-6 border-t border-border">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Inventory Status</span>
-                <span className="text-xs font-black text-gray-900 uppercase tracking-widest">{overview ? (overview.items_out + overview.items_low + overview.items_ok) : 0} Total</span>
+                <span className="text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Inventory Status</span>
+                <span className="text-xs font-black text-foreground uppercase tracking-widest">{overview ? (overview.items_out + overview.items_low + overview.items_ok) : 0} Total</span>
               </div>
-              <div className="flex h-3 rounded-full overflow-hidden bg-gray-100 shadow-inner">
+              <div className="flex h-3 rounded-full overflow-hidden bg-muted shadow-inner">
                 <div style={{ width: `${(overview?.items_out || 0) / (overview ? (overview.items_out + overview.items_low + overview.items_ok || 1) : 1) * 100}%` }} className="bg-red-500" />
                 <div style={{ width: `${(overview?.items_low || 0) / (overview ? (overview.items_out + overview.items_low + overview.items_ok || 1) : 1) * 100}%` }} className="bg-amber-400" />
                 <div style={{ width: `${(overview?.items_ok || 0) / (overview ? (overview.items_out + overview.items_low + overview.items_ok || 1) : 1) * 100}%` }} className="bg-green-500" />

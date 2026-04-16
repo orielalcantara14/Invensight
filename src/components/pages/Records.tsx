@@ -95,10 +95,10 @@ export function Records() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Records</h1>
-            <p className="text-gray-600 mt-1">Track product inspections and manage quarantine stock</p>
+            <h1 className="text-3xl font-bold text-foreground">Records</h1>
+            <p className="text-muted-foreground mt-1">Track product inspections and manage quarantine stock</p>
           </div>
-          <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+          <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" />
             New Inspection
           </button>
@@ -107,49 +107,49 @@ export function Records() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Total Inspected</span>
-            <ClipboardCheck className="w-5 h-5 text-blue-600" />
+            <span className="text-muted-foreground">Total Inspected</span>
+            <ClipboardCheck className="w-5 h-5 text-primary" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">N/A</div>
-          <div className="text-sm text-gray-500 mt-1">No data available</div>
+          <div className="text-3xl font-bold text-foreground">N/A</div>
+          <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Passed</span>
+            <span className="text-muted-foreground">Passed</span>
             <CheckCircle className="w-5 h-5 text-green-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-400">N/A</div>
-          <div className="text-sm text-gray-500 mt-1">No data available</div>
+          <div className="text-3xl font-bold text-muted-foreground/70">N/A</div>
+          <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Failed</span>
+            <span className="text-muted-foreground">Failed</span>
             <XCircle className="w-5 h-5 text-red-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-400">N/A</div>
-          <div className="text-sm text-gray-500 mt-1">No data available</div>
+          <div className="text-3xl font-bold text-muted-foreground/70">N/A</div>
+          <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">In Quarantine</span>
+            <span className="text-muted-foreground">In Quarantine</span>
             <AlertTriangle className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-400">N/A</div>
-          <div className="text-sm text-gray-500 mt-1">No data available</div>
+          <div className="text-3xl font-bold text-muted-foreground/70">N/A</div>
+          <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Inspection Trend */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Inspection Results Trend</h2>
-          <div className="flex items-center justify-center h-[300px] text-gray-400">
+        <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Inspection Results Trend</h2>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground/70">
             <div className="text-center">
               <ClipboardCheck className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">No inspection data available</p>
@@ -159,9 +159,9 @@ export function Records() {
         </div>
 
         {/* Issue Distribution */}
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Issue Types Distribution</h2>
-          <div className="flex items-center justify-center h-[300px] text-gray-400">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Issue Types Distribution</h2>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground/70">
             <div className="text-center">
               <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">No issue data</p>
@@ -172,15 +172,15 @@ export function Records() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="border-b border-gray-200">
+      <div className="bg-card rounded-lg shadow border border-border">
+        <div className="border-b border-border">
           <div className="flex">
             <button
               onClick={() => setActiveTab("inspection")}
               className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "inspection"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -192,8 +192,8 @@ export function Records() {
               onClick={() => setActiveTab("quarantine")}
               className={`px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "quarantine"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -205,24 +205,24 @@ export function Records() {
         </div>
 
         {/* Search and Actions */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-foreground">
               {activeTab === "inspection" ? "All Inspection Records" : "Quarantine Inventory"}
             </h2>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button className="flex items-center gap-2 px-4 py-2 text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
                 <Filter className="w-4 h-4" />
                 Filter
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button className="flex items-center gap-2 px-4 py-2 text-muted-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors">
                 <Download className="w-4 h-4" />
                 Export
               </button>
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
             <input
               type="text"
               placeholder={
@@ -232,7 +232,7 @@ export function Records() {
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -242,72 +242,72 @@ export function Records() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-muted/50 border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Inspection ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Product Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Total Received
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Passed Qty
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Failed Qty
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Pass Rate
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Inspected By
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-card divide-y divide-border">
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center">
                       <ClipboardCheck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-gray-500 font-medium">No inspection records available</p>
-                      <p className="text-sm text-gray-400 mt-1">Create a new inspection to start tracking quality</p>
+                      <p className="text-muted-foreground font-medium">No inspection records available</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">Create a new inspection to start tracking quality</p>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
             {totalPages > 1 && activeTab === "inspection" && (
-              <div className="px-6 py-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm">
+              <div className="px-6 py-4 border-t border-border bg-card/50 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-muted-foreground">
                       Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
                       <span className="font-medium">{Math.min(endIndex, filteredInspections.length)}</span> of{" "}
                       <span className="font-medium">{filteredInspections.length}</span> results
                     </p>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">Show:</span>
+                      <span className="text-sm text-muted-foreground">Show:</span>
                       <select
                         value={itemsPerPage}
                         onChange={(e) => {
                           setItemsPerPage(Number(e.target.value));
                           setCurrentPage(1);
                         }}
-                        className="bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                        className="bg-muted/50 px-3 py-1.5 border border-border rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none"
                       >
                         <option value={3}>3</option>
                         <option value={5}>5</option>
                         <option value={10}>10</option>
                       </select>
-                      <span className="text-sm text-gray-600">per page</span>
+                      <span className="text-sm text-muted-foreground">per page</span>
                     </div>
                   </div>
                   <Pagination>
@@ -364,40 +364,40 @@ export function Records() {
         {activeTab === "quarantine" && (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-muted/50 border-b border-border">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Quarantine ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Product Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Quantity
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Issue Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Discovery Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Supplier
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No quarantined items</p>
-                    <p className="text-sm text-gray-400 mt-1">Items that fail quality checks will appear here</p>
+                    <p className="text-muted-foreground font-medium">No quarantined items</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">Items that fail quality checks will appear here</p>
                   </td>
                 </tr>
               </tbody>

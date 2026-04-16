@@ -27,12 +27,12 @@ export function DeleteConfirmationModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+      <div className="relative bg-card rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
         <div className="absolute top-4 right-4">
           <button
             onClick={onClose}
             disabled={isDeleting}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50"
+            className="p-1 text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted rounded-lg transition-all disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -44,24 +44,24 @@ export function DeleteConfirmationModal({
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
+              <h3 className="text-lg font-bold text-foreground mb-2">
                 {title}
               </h3>
               {itemName && (
-                <p className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded-lg mb-3">
+                <p className="text-sm font-medium text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg mb-3">
                   {itemName}
                 </p>
               )}
-              <p className="text-sm text-gray-600">{message}</p>
+              <p className="text-sm text-muted-foreground">{message}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+        <div className="bg-muted/50 px-6 py-4 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>

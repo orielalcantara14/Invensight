@@ -109,8 +109,8 @@ export function Suppliers() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Supplier Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage suppliers and vendor relationships</p>
+            <h1 className="text-3xl font-bold text-foreground text-foreground">Supplier Management</h1>
+            <p className="text-muted-foreground dark:text-muted-foreground/70 mt-1">Manage suppliers and vendor relationships</p>
           </div>
           <div className="flex items-center gap-3">
             <ProtectedAction module="Archive" action="View">
@@ -134,7 +134,7 @@ export function Suppliers() {
             <ProtectedAction module="Suppliers" action="Add">
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 Add Supplier
@@ -145,66 +145,66 @@ export function Suppliers() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-primary/10 dark:bg-blue-900/30 rounded-lg">
+              <Users className="w-5 h-5 text-primary dark:text-blue-400" />
             </div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Suppliers</span>
+            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Suppliers</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
+          <div className="text-2xl font-bold text-foreground text-foreground">{stats.total}</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
               <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Suppliers</span>
+            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Active Suppliers</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.active}</div>
+          <div className="text-2xl font-bold text-foreground text-foreground">{stats.active}</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
               <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Product Lines</span>
+            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Product Lines</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalProducts}</div>
+          <div className="text-2xl font-bold text-foreground text-foreground">{stats.totalProducts}</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
               <ShoppingCart className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Orders</span>
+            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Orders</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalOrders}</div>
+          <div className="text-2xl font-bold text-foreground text-foreground">{stats.totalOrders}</div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-card bg-card rounded-xl shadow-sm border border-border border-border overflow-hidden">
+        <div className="p-6 border-b border-border border-border">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Supplier List</h2>
+            <h2 className="text-lg font-semibold text-foreground text-foreground">Supplier List</h2>
             <div className="flex gap-3 w-full md:w-auto">
               <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
                 <input
                   type="text"
                   placeholder="Search by name, email or contact..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-muted/50 bg-background/50 border border-border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-foreground transition-all"
                 />
               </div>
               <ProtectedAction module="Suppliers" action="Export">
                 <button
                   onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
                 >
                   <Download className="w-4 h-4" />
                   Export Suppliers
@@ -216,55 +216,55 @@ export function Suppliers() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[#F8F9FA] border-b border-gray-200 dark:bg-gray-900/50 dark:border-gray-700">
+            <thead className="bg-[#F8F9FA] border-b border-border bg-background/50 border-border">
               <tr>
                 <th className="px-6 py-4 text-left">
                   {/* Header checkbox removed */}
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Supplier Name
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Address
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-border dark:divide-gray-700">
               {isLoading ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
-                      <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                     </div>
                   </td>
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
-                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">No suppliers found</p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add your first supplier to get started</p>
+                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-muted-foreground" />
+                    <p className="text-muted-foreground dark:text-muted-foreground/70 font-medium">No suppliers found</p>
+                    <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground mt-1">Add your first supplier to get started</p>
                   </td>
                 </tr>
               ) : (
                 paginatedSuppliers.map((supplier) => (
-                  <tr key={supplier.supplier_id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                  <tr key={supplier.supplier_id} className="hover:bg-muted/50 dark:hover:bg-gray-900/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {/* Row selection handled in Export Wizard */}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="text-sm font-medium text-foreground text-foreground">
                         {supplier.supplier_name}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">
                         {supplier.address || "N/A"}
                       </span>
                     </td>
@@ -280,14 +280,14 @@ export function Suppliers() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => setViewingSupplier(supplier)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          className="p-2 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setEditingSupplier(supplier)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          className="p-2 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                           title="Edit Supplier"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -340,7 +340,7 @@ export function Suppliers() {
       {/* Archive Confirm Modal */}
       {archiveTarget && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
               <div className="flex items-center gap-3">
@@ -348,7 +348,7 @@ export function Suppliers() {
                   <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Archive Supplier</h3>
+                  <h3 className="text-lg font-semibold text-foreground text-foreground">Archive Supplier</h3>
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
                 </div>
               </div>
@@ -356,11 +356,11 @@ export function Suppliers() {
 
             {/* Body */}
             <div className="p-6">
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-muted-foreground dark:text-gray-300">
                 Are you sure you want to archive{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">"{archiveTarget.name}"</span>?
+                <span className="font-semibold text-foreground text-foreground">"{archiveTarget.name}"</span>?
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
                 They will be moved to the Archive module and can be fully restored at any time.
               </p>
             </div>
@@ -370,7 +370,7 @@ export function Suppliers() {
               <button
                 onClick={() => setArchiveTarget(null)}
                 disabled={archiving}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -96,8 +96,8 @@ export function UserManagement() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            <p className="text-gray-600 mt-1">Manage users, roles, and system access with comprehensive audit trails</p>
+            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <p className="text-muted-foreground mt-1">Manage users, roles, and system access with comprehensive audit trails</p>
           </div>
           <ProtectedAction module="User Management" action="Add">
             <button
@@ -107,7 +107,7 @@ export function UserManagement() {
                 setIsAddUserModalOpen(true);
               }}
               disabled={!canManageAccounts}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add User
@@ -117,65 +117,65 @@ export function UserManagement() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Total Users</span>
-            <Users className="w-5 h-5 text-blue-600" />
+            <span className="text-muted-foreground">Total Users</span>
+            <Users className="w-5 h-5 text-primary" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{userCount}</div>
-          <div className="text-sm text-gray-500 mt-1">Active accounts</div>
+          <div className="text-3xl font-bold text-foreground">{userCount}</div>
+          <div className="text-sm text-muted-foreground mt-1">Active accounts</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Active Sessions</span>
+            <span className="text-muted-foreground">Active Sessions</span>
             <UserCheck className="w-5 h-5 text-green-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{activeSessions}</div>
-          <div className="text-sm text-gray-500 mt-1">Logged in today</div>
+          <div className="text-3xl font-bold text-foreground">{activeSessions}</div>
+          <div className="text-sm text-muted-foreground mt-1">Logged in today</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">User Roles</span>
+            <span className="text-muted-foreground">User Roles</span>
             <Shield className="w-5 h-5 text-purple-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{roleCount}</div>
-          <div className="text-sm text-gray-500 mt-1">Defined roles</div>
+          <div className="text-3xl font-bold text-foreground">{roleCount}</div>
+          <div className="text-sm text-muted-foreground mt-1">Defined roles</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">Audit Logs</span>
+            <span className="text-muted-foreground">Audit Logs</span>
             <Activity className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{auditLogCount}</div>
-          <div className="text-sm text-gray-500 mt-1">Recorded in audit log</div>
+          <div className="text-3xl font-bold text-foreground">{auditLogCount}</div>
+          <div className="text-sm text-muted-foreground mt-1">Recorded in audit log</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ProtectedAction module="User Management" action="View">
           <Link to="/users" className="block group">
-            <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-blue-500 transition-all hover:shadow-lg">
+            <div className="bg-card p-6 rounded-lg shadow border border-border hover:border-primary transition-all hover:shadow-lg">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-blue-100 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600" />
+                    <Users className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
                       Users & Roles
                     </h3>
-                    <p className="text-sm text-gray-500">Access Control Management</p>
+                    <p className="text-sm text-muted-foreground">Access Control Management</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 group-hover:text-primary transition-colors" />
               </div>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Manage user accounts, assign roles, and configure permissions with role-based access control for secure system operations.
               </p>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-green-600" />
                   <span>Create and manage user accounts</span>
@@ -185,7 +185,7 @@ export function UserManagement() {
                   <span>Define roles and permissions</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-gray-600" />
+                  <Settings className="w-4 h-4 text-muted-foreground" />
                   <span>Configure access controls</span>
                 </div>
               </div>
@@ -195,27 +195,27 @@ export function UserManagement() {
 
         <ProtectedAction module="Audit Log" action="View">
           <Link to="/audit-log" className="block group">
-            <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:border-orange-500 transition-all hover:shadow-lg">
+            <div className="bg-card p-6 rounded-lg shadow border border-border hover:border-orange-500 transition-all hover:shadow-lg">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-orange-100 rounded-lg">
                     <Activity className="w-6 h-6 text-orange-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                    <h3 className="text-lg font-semibold text-foreground group-hover:text-orange-600 transition-colors">
                       Audit Log
                     </h3>
-                    <p className="text-sm text-gray-500">System Activity Tracking</p>
+                    <p className="text-sm text-muted-foreground">System Activity Tracking</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 group-hover:text-orange-600 transition-colors" />
               </div>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Comprehensive audit trail of all system activities, tracking user actions, data changes, and security events for compliance.
               </p>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
+                  <Clock className="w-4 h-4 text-primary" />
                   <span>Track all user activities</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -223,7 +223,7 @@ export function UserManagement() {
                   <span>Monitor system events</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-gray-600" />
+                  <Settings className="w-4 h-4 text-muted-foreground" />
                   <span>Security and compliance logs</span>
                 </div>
               </div>
@@ -232,44 +232,44 @@ export function UserManagement() {
         </ProtectedAction>
       </div>
 
-      <div className="mt-8 bg-white rounded-lg shadow border border-gray-200 p-6">
+      <div className="mt-8 bg-card rounded-lg shadow border border-border p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-          <Link to="/audit-log" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
+          <Link to="/audit-log" className="text-sm text-primary hover:text-primary/90 font-medium">
             View All Logs
           </Link>
         </div>
         
         {recentLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-gray-400">
+          <div className="flex items-center justify-center py-8 text-muted-foreground/70">
             <div className="text-center">
               <Activity className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-500 font-medium">No recent activities</p>
-              <p className="text-sm text-gray-400 mt-1">User actions will appear here</p>
+              <p className="text-muted-foreground font-medium">No recent activities</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">User actions will appear here</p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             {recentLogs.map((log) => (
-              <div key={log.log_id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+              <div key={log.log_id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
                 <div className={`p-2 rounded-lg ${
                   log.action.includes('CREATE') ? 'bg-green-100 text-green-600' :
                   log.action.includes('DELETE') || log.action.includes('DEACTIVATE') ? 'bg-red-100 text-red-600' :
-                  'bg-blue-100 text-blue-600'
+                  'bg-blue-100 text-primary'
                 }`}>
                   <FileText className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-foreground truncate">
                       {log.username}
                     </p>
-                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                       {new Date(log.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-blue-600">{log.action}</span>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-primary">{log.action}</span>
                     {" • "}
                     {log.details}
                   </p>

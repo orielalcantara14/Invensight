@@ -28,8 +28,8 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
     <div className="space-y-8">
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-6">
-        <div className="p-5 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-2xl text-center shadow-sm">
-          <p className="text-[10px] text-blue-500 font-black uppercase tracking-[0.15em] mb-1">Gross Revenue</p>
+        <div className="p-5 bg-gradient-to-br from-primary/10 to-white border border-blue-100 rounded-2xl text-center shadow-sm">
+          <p className="text-[10px] text-primary font-black uppercase tracking-[0.15em] mb-1">Gross Revenue</p>
           <p className="text-2xl font-black text-blue-900 leading-tight">₱{Number(sales.summary.total_revenue_gross).toLocaleString()}</p>
         </div>
         <div className="p-5 bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-2xl text-center shadow-sm">
@@ -44,7 +44,7 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
 
       {/* Chart */}
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Monthly Sales Breakdown ({report.dateRange.substring(0, 4)})</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">Monthly Sales Breakdown ({report.dateRange.substring(0, 4)})</h3>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={sales.trends.annual}>
@@ -61,10 +61,10 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
       {/* Ranking Tables */}
       <div className="grid grid-cols-2 gap-8">
         <div>
-          <h4 className="text-md font-bold text-gray-700 mb-2 border-b-2 border-green-500 pb-1">Top Selling Products</h4>
+          <h4 className="text-md font-bold text-muted-foreground mb-2 border-b-2 border-green-500 pb-1">Top Selling Products</h4>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-muted-foreground border-b">
                 <th className="py-2">Product</th>
                 <th className="py-2 text-right">Units</th>
                 <th className="py-2 text-right">Revenue</th>
@@ -72,7 +72,7 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
             </thead>
             <tbody>
               {sales.top_products.map((p, i) => (
-                <tr key={i} className="border-b border-gray-100">
+                <tr key={i} className="border-b border-border">
                   <td className="py-2 font-medium">{p.product_name}</td>
                   <td className="py-2 text-right">{p.units_sold}</td>
                   <td className="py-2 text-right">₱{Number(p.revenue).toLocaleString()}</td>
@@ -82,17 +82,17 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
           </table>
         </div>
         <div>
-          <h4 className="text-md font-bold text-gray-700 mb-2 border-b-2 border-amber-500 pb-1">Lowest Selling Products</h4>
+          <h4 className="text-md font-bold text-muted-foreground mb-2 border-b-2 border-amber-500 pb-1">Lowest Selling Products</h4>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-muted-foreground border-b">
                 <th className="py-2">Product</th>
                 <th className="py-2 text-right">Units Sold</th>
               </tr>
             </thead>
             <tbody>
               {sales.lowest_products.map((p, i) => (
-                <tr key={i} className="border-b border-gray-100">
+                <tr key={i} className="border-b border-border">
                   <td className="py-2 font-medium">{p.product_name}</td>
                   <td className="py-2 text-right">{p.units_sold || 0}</td>
                 </tr>
@@ -109,7 +109,7 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
       {/* Visual Breakdown */}
       <div className="grid grid-cols-2 gap-8 items-center">
         <div>
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Stock Status Overview</h3>
+          <h3 className="text-lg font-bold text-foreground mb-4">Stock Status Overview</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -134,10 +134,10 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Highest Stock-out Frequency</h3>
+          <h3 className="text-lg font-bold text-foreground mb-4">Highest Stock-out Frequency</h3>
           <ul className="space-y-2">
             {inv.critical_frequency.map((item, i) => (
-              <li key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded border-l-4 border-red-500">
+              <li key={i} className="flex justify-between items-center bg-muted/50 p-2 rounded border-l-4 border-red-500">
                 <span className="font-medium text-sm">{item.product_name}</span>
                 <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">{item.incident_count} events</span>
               </li>
@@ -148,9 +148,9 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
 
       {/* Detailed Table */}
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Inventory Detail & Discrepancy Analysis</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">Inventory Detail & Discrepancy Analysis</h3>
         <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-muted">
             <tr>
               <th className="py-2 px-3 text-left">Product Name</th>
               <th className="py-2 px-3 text-left">SKU</th>
@@ -164,13 +164,13 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
             {inv.detailed_inventory.map((p, i) => (
               <tr key={i} className="border-b">
                 <td className="py-2 px-3 font-medium">{p.product_name} {p.actual <= p.reorder_level && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded ml-1">RESTOCK</span>}</td>
-                <td className="py-2 px-3 text-gray-500">{p.sku}</td>
+                <td className="py-2 px-3 text-muted-foreground">{p.sku}</td>
                 <td className="py-2 px-3 text-right">{p.expected}</td>
                 <td className="py-2 px-3 text-right font-bold">{p.actual}</td>
-                <td className={`py-2 px-3 text-right font-bold ${p.difference !== 0 ? 'text-red-600 bg-red-50' : 'text-gray-400'}`}>
+                <td className={`py-2 px-3 text-right font-bold ${p.difference !== 0 ? 'text-red-600 bg-red-50' : 'text-muted-foreground/70'}`}>
                   {p.difference > 0 ? `+${p.difference}` : p.difference}
                 </td>
-                <td className="py-2 px-3 text-right text-gray-600 italic">{p.reorder_level}</td>
+                <td className="py-2 px-3 text-right text-muted-foreground italic">{p.reorder_level}</td>
               </tr>
             ))}
           </tbody>
@@ -182,11 +182,11 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
   const renderProductSections = (pc: ProductCategoryReportData) => (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Procurement & Investment Summary</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">Procurement & Investment Summary</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {pc.investment_summary.map((cat, i) => (
-            <div key={i} className="p-3 bg-gray-50 border rounded-lg">
-              <p className="text-xs text-gray-500 uppercase font-bold">{cat.category}</p>
+            <div key={i} className="p-3 bg-muted/50 border rounded-lg">
+              <p className="text-xs text-muted-foreground uppercase font-bold">{cat.category}</p>
               <p className="text-lg font-bold text-indigo-700">₱{Number(cat.total_category_cost).toLocaleString()}</p>
             </div>
           ))}
@@ -210,8 +210,8 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
         </thead>
         <tbody className="divide-y">
           {pc.products.map((p, i) => (
-            <tr key={i} className="hover:bg-gray-50">
-              <td className="py-1 px-2 font-bold text-gray-400">{p.category}</td>
+            <tr key={i} className="hover:bg-muted/50">
+              <td className="py-1 px-2 font-bold text-muted-foreground/70">{p.category}</td>
               <td className="py-1 px-2 font-medium">{p.product_name}</td>
               <td className="py-1 px-2 text-right">₱{Number(p.unit_cost).toLocaleString()}</td>
               <td className="py-1 px-2 text-right">₱{Number(p.srp).toLocaleString()}</td>
@@ -226,9 +226,9 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
 
   const renderSupplierSections = (sup: SupplierReportData) => (
     <div className="space-y-6">
-      <h3 className="text-lg font-bold text-gray-800">Supplier Directory & Performance</h3>
+      <h3 className="text-lg font-bold text-foreground">Supplier Directory & Performance</h3>
       <table className="w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-muted">
           <tr>
             <th className="py-2 px-3 text-left">Supplier Info</th>
             <th className="py-2 px-3 text-center">Status</th>
@@ -241,12 +241,12 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
           {sup.suppliers.map((s, i) => (
             <tr key={i} className="align-top">
               <td className="py-3 px-3">
-                <p className="font-bold text-gray-900">{s.supplier_name}</p>
-                <p className="text-xs text-gray-500">{s.email}</p>
-                <p className="text-xs text-gray-500">{s.contact_number}</p>
+                <p className="font-bold text-foreground">{s.supplier_name}</p>
+                <p className="text-xs text-muted-foreground">{s.email}</p>
+                <p className="text-xs text-muted-foreground">{s.contact_number}</p>
               </td>
               <td className="py-3 px-3 text-center">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${s.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${s.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
                   {s.status}
                 </span>
               </td>
@@ -265,10 +265,10 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
   const renderReturnSections = (ret: OrdersReturnsReportData) => (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-2 border-l-4 border-indigo-600 pl-3">Recent Purchase Orders</h3>
+        <h3 className="text-lg font-bold text-foreground mb-2 border-l-4 border-indigo-600 pl-3">Recent Purchase Orders</h3>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b">
+            <tr className="text-left text-muted-foreground border-b">
               <th className="py-2">PO ID</th>
               <th className="py-2">Date</th>
               <th className="py-2 text-center">Status</th>
@@ -278,14 +278,14 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
           <tbody className="divide-y">
             {ret.purchase_orders.map((po, i) => (
               <tr key={i}>
-                <td className="py-2 font-bold text-gray-700">{po.order_id}</td>
+                <td className="py-2 font-bold text-muted-foreground">{po.order_id}</td>
                 <td className="py-2">{format(new Date(po.created_at), 'MMM dd, yyyy')}</td>
                 <td className="py-2 text-center">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${po.status === 'Received' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                     {po.status}
                   </span>
                 </td>
-                <td className="py-2 text-right text-gray-500">{po.expected_delivery || '---'}</td>
+                <td className="py-2 text-right text-muted-foreground">{po.expected_delivery || '---'}</td>
               </tr>
             ))}
           </tbody>
@@ -293,10 +293,10 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-2 border-l-4 border-red-500 pl-3">Customer Return/RMA Log</h3>
+        <h3 className="text-lg font-bold text-foreground mb-2 border-l-4 border-red-500 pl-3">Customer Return/RMA Log</h3>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b">
+            <tr className="text-left text-muted-foreground border-b">
               <th className="py-2">RMA #</th>
               <th className="py-2">Customer</th>
               <th className="py-2">Type</th>
@@ -309,14 +309,14 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
                 <td className="py-2 font-bold text-red-700">{cr.rma_number}</td>
                 <td className="py-2">
                   <p className="font-medium">{cr.customer_name}</p>
-                  <p className="text-[10px] text-gray-400">Sale ID: {cr.sale_id}</p>
+                  <p className="text-[10px] text-muted-foreground/70">Sale ID: {cr.sale_id}</p>
                 </td>
                 <td className="py-2">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${cr.return_type === 'Refund' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${cr.return_type === 'Refund' ? 'bg-red-50 text-red-600' : 'bg-primary/10 text-primary'}`}>
                     {cr.return_type}
                   </span>
                 </td>
-                <td className="py-2 text-xs italic text-gray-600 truncate max-w-[200px]">{cr.reason}</td>
+                <td className="py-2 text-xs italic text-muted-foreground truncate max-w-[200px]">{cr.reason}</td>
               </tr>
             ))}
           </tbody>
@@ -326,19 +326,19 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm print:bg-white print:p-0 p-4 flex justify-center items-center">
-      <div className="bg-white w-full max-w-[1000px] max-h-[90vh] shadow-2xl relative print:my-0 print:shadow-none flex flex-col rounded-xl overflow-hidden min-w-[300px]">
+    <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm print:bg-card print:p-0 p-4 flex justify-center items-center">
+      <div className="bg-card w-full max-w-[1000px] max-h-[90vh] shadow-2xl relative print:my-0 print:shadow-none flex flex-col rounded-xl overflow-hidden min-w-[300px]">
         {/* Report Controls (Hidden during print) */}
         <div className="bg-gray-900 text-white px-8 py-4 flex justify-between items-center sticky top-0 z-[60] print:hidden">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-bold">Report Preview</h2>
             <div className="h-6 w-px bg-gray-700" />
-            <p className="text-sm text-gray-400">{report.reportType} - {report.dateRange}</p>
+            <p className="text-sm text-muted-foreground/70">{report.reportType} - {report.dateRange}</p>
           </div>
           <div className="flex items-center gap-3">
             <button 
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="bg-primary hover:bg-primary text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
               Print Report
@@ -353,33 +353,33 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
         </div>
 
         {/* The Printable Document */}
-        <div className="flex-1 p-[20mm] bg-white text-gray-900 print:text-black overflow-y-auto">
+        <div className="flex-1 p-[20mm] bg-card text-foreground print:text-black overflow-y-auto">
           {/* Header */}
           <header className="flex justify-between items-start border-b-4 border-gray-900 pb-6 mb-8">
             <div className="flex items-center gap-6">
               <img src={logo} alt="JonBrix Logo" className="h-16 w-auto object-contain" />
               <div>
                 <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">JonBrix</h1>
-                <p className="text-sm font-bold text-gray-500 mt-1 uppercase tracking-widest">Motorcycle Parts & Accessories</p>
-                <div className="mt-2 flex gap-4 text-[10px] text-gray-400">
+                <p className="text-sm font-bold text-muted-foreground mt-1 uppercase tracking-widest">Motorcycle Parts & Accessories</p>
+                <div className="mt-2 flex gap-4 text-[10px] text-muted-foreground/70">
                   <span className="flex items-center gap-1 font-bold">
                     <span className="w-2 h-2 rounded-full bg-green-500" /> SYSTEM PERFORMANCE
                   </span>
                   <span className="flex items-center gap-1 font-bold">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" /> VERIFIED DATA
+                    <span className="w-2 h-2 rounded-full bg-primary" /> VERIFIED DATA
                   </span>
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <h2 className="text-sm font-black text-gray-900 uppercase bg-gray-100 px-3 py-1 rounded inline-block mb-3 tracking-widest">
+              <h2 className="text-sm font-black text-foreground uppercase bg-muted px-3 py-1 rounded inline-block mb-3 tracking-widest">
                 System Generated Report
               </h2>
               <div className="space-y-0.5 text-xs">
-                <p className="flex justify-end gap-2"><span className="text-gray-400 font-bold uppercase tracking-tighter">Report Type:</span> <span className="font-black underline">{report.reportType}</span></p>
-                <p className="flex justify-end gap-2"><span className="text-gray-400 font-bold uppercase tracking-tighter">Generated By:</span> <span className="font-black">{report.generatedBy}</span></p>
-                <p className="flex justify-end gap-2"><span className="text-gray-400 font-bold uppercase tracking-tighter">Date Range:</span> <span className="font-black italic">{report.dateRange}</span></p>
-                <p className="flex justify-end gap-2"><span className="text-gray-400 font-bold uppercase tracking-tighter">Created At:</span> <span className="font-black">{report.generatedDate}</span></p>
+                <p className="flex justify-end gap-2"><span className="text-muted-foreground/70 font-bold uppercase tracking-tighter">Report Type:</span> <span className="font-black underline">{report.reportType}</span></p>
+                <p className="flex justify-end gap-2"><span className="text-muted-foreground/70 font-bold uppercase tracking-tighter">Generated By:</span> <span className="font-black">{report.generatedBy}</span></p>
+                <p className="flex justify-end gap-2"><span className="text-muted-foreground/70 font-bold uppercase tracking-tighter">Date Range:</span> <span className="font-black italic">{report.dateRange}</span></p>
+                <p className="flex justify-end gap-2"><span className="text-muted-foreground/70 font-bold uppercase tracking-tighter">Created At:</span> <span className="font-black">{report.generatedDate}</span></p>
               </div>
             </div>
           </header>
@@ -394,15 +394,15 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
 
             {Object.keys(data).length === 0 && (
               <div className="py-20 text-center">
-                <p className="text-gray-400 font-bold italic">No specialized data available for this report type.</p>
+                <p className="text-muted-foreground/70 font-bold italic">No specialized data available for this report type.</p>
               </div>
             )}
           </main>
 
           {/* Footer */}
-          <footer className="mt-12 border-t border-gray-200 pt-6 text-gray-400 text-[10px] flex justify-between items-end">
+          <footer className="mt-12 border-t border-border pt-6 text-muted-foreground/70 text-[10px] flex justify-between items-end">
             <div>
-              <p className="font-black uppercase tracking-widest mb-1 text-gray-500">JonBrix Motor Parts</p>
+              <p className="font-black uppercase tracking-widest mb-1 text-muted-foreground">JonBrix Motor Parts</p>
               <div className="flex gap-4">
                 <span>Print Copy Generated: {format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</span>
                 <span>System: InvenSight CMS</span>

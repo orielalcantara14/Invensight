@@ -40,7 +40,7 @@ def login(body: LoginRequest):
                 SELECT 
                     u.user_id, u.username, u.full_name, u.employee_id, u.role, 
                     u.is_active, u.password_hash, u.email,
-                    u.permissions_json, u.must_change_password,
+                    u.permissions_json, u.must_change_password, u.failed_attempts,
                     r.permissions_text
                 FROM users u
                 LEFT JOIN roles r ON LOWER(u.role) = LOWER(r.role_name) AND r.user_id IS NULL
@@ -59,7 +59,7 @@ def login(body: LoginRequest):
                         SELECT 
                             u.user_id, u.username, u.full_name, u.employee_id, u.role, 
                             u.is_active, u.password_hash, u.email,
-                            u.permissions_json, u.must_change_password,
+                            u.permissions_json, u.must_change_password, u.failed_attempts,
                             r.permissions_text
                         FROM users u
                         LEFT JOIN roles r ON LOWER(u.role) = LOWER(r.role_name) AND r.user_id IS NULL
@@ -84,7 +84,22 @@ def login(body: LoginRequest):
                 stored.encode("utf-8") if isinstance(stored, str) else stored,
             )
             if not ok:
+                cur.execute("UPDATE users SET failed_attempts = failed_attempts + 1 WHERE user_id = %s RETURNING failed_attempts", (row["user_id"],))
+                attempts_row = cur.fetchone()
+                attempts = attempts_row["failed_attempts"] if attempts_row else 0
+                
+                if attempts >= 4:
+                    cur.execute("UPDATE users SET is_active = FALSE WHERE user_id = %s", (row["user_id"],))
+                    add_audit_log(cur, row["user_id"], "ACCOUNT_LOCKOUT", "user", row["user_id"], f"Account deactivated after {attempts} failed login attempts.")
+                else:
+                    add_audit_log(cur, row["user_id"], "FAILED_LOGIN", "user", row["user_id"], f"Failed login attempt ({attempts}/4)")
+                
+                conn.commit()
                 raise HTTPException(status_code=401, detail="Invalid username or password")
+
+            # Reset failed attempts on successful login
+            if row["failed_attempts"] > 0:
+                cur.execute("UPDATE users SET failed_attempts = 0 WHERE user_id = %s", (row["user_id"],))
 
             # Check if user is rootadmin or has already changed their password to bypass MFA
             username_val = row["username"]
