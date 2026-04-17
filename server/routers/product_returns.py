@@ -207,24 +207,25 @@ def create_product_return(
                         ),
                     )
 
-                quantity_after = quantity_before
-                expected_after = expected_before - item.quantity
-                actual_after = actual_before - item.quantity
+                # NEW LOGIC: When Pending, only reduce 'quantity' (Available to sell).
+                # Keep 'expected' and 'actual' unchanged since the item is still physically in the store.
+                quantity_after = quantity_before - item.quantity
+                expected_after = expected_before
+                actual_after = actual_before
 
-                difference_before = (2 * actual_before) - quantity_before - expected_before
-                difference_after = (2 * actual_after) - quantity_after - expected_after
+                difference_before = actual_before - expected_before
+                difference_after = actual_after - expected_after
 
                 cur.execute(
                     """
                     UPDATE inventory
                     SET
-                        expected = expected - %s,
-                        actual = actual - %s,
+                        quantity = quantity - %s,
                         last_updated = %s,
                         reason_adjustment = %s
                     WHERE product_id = %s
                     """,
-                    (item.quantity, item.quantity, today, f"Return allocated: {reason}", item.product_id),
+                    (item.quantity, today, f"Return allocated: {reason}", item.product_id),
                 )
 
                 cur.execute(
@@ -367,23 +368,25 @@ def approve_product_return(
                             ),
                         )
 
-                    quantity_after = quantity_before - item["quantity"]
-                    expected_after = expected_before
-                    actual_after = actual_before
+                    # NEW LOGIC: When Approved, keep 'quantity' as is (already reduced) and subtract from 'expected' and 'actual'.
+                    quantity_after = quantity_before
+                    expected_after = expected_before - item["quantity"]
+                    actual_after = actual_before - item["quantity"]
 
-                    difference_before = (2 * actual_before) - quantity_before - expected_before
-                    difference_after = (2 * actual_after) - quantity_after - expected_after
+                    difference_before = actual_before - expected_before
+                    difference_after = actual_after - expected_after
 
                     cur.execute(
                         """
                         UPDATE inventory
                         SET
-                            quantity = quantity - %s,
+                            expected = expected - %s,
+                            actual = actual - %s,
                             last_updated = %s,
                             reason_adjustment = %s
                         WHERE product_id = %s
                         """,
-                        (item["quantity"], today, f"Return removed: #{return_id}", item["product_id"]),
+                        (item["quantity"], item["quantity"], today, f"Return removed: #{return_id}", item["product_id"]),
                     )
 
                     cur.execute(
@@ -521,22 +524,22 @@ def reject_product_return(
                     expected_before = inv["expected"]
                     actual_before = inv["actual"]
 
+                    # NEW LOGIC: When Rejected, restore 'quantity' (Available) allocation.
                     cur.execute(
                         """
                         UPDATE inventory
                         SET
-                            expected = expected + %s,
-                            actual = actual + %s,
+                            quantity = quantity + %s,
                             last_updated = %s,
                             reason_adjustment = %s
                         WHERE product_id = %s
                         """,
-                        (item["quantity"], item["quantity"], today, f"Return rejected: #{return_id}", item["product_id"]),
+                        (item["quantity"], today, f"Return rejected: #{return_id}", item["product_id"]),
                     )
 
-                    quantity_after = quantity_before
-                    expected_after = expected_before + item["quantity"]
-                    actual_after = actual_before + item["quantity"]
+                    quantity_after = quantity_before + item["quantity"]
+                    expected_after = expected_before
+                    actual_after = actual_before
 
                     difference_before = (2 * actual_before) - quantity_before - expected_before
                     difference_after = (2 * actual_after) - quantity_after - expected_after

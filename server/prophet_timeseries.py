@@ -13,6 +13,56 @@ log = logging.getLogger("invensight.prophet_ts")
 MIN_DAYS_FOR_PROPHET = 8
 
 
+def run_ssa_denoise(series: List[float], L: int = 14, keep_components: int = 4) -> np.ndarray:
+    """
+    Applies Singular Spectrum Analysis (SSA) to denoise a time series.
+    Returns the reconstructed denoised series as a numpy array.
+    """
+    y = np.array(series, dtype=float)
+    N = len(y)
+    
+    # Validation: N must be at least L
+    if N < L:
+        L = N // 2
+        if L < 2: return y # Not enough data to denoise
+        
+    K = N - L + 1
+    
+    # 1. Embedding
+    X = np.zeros((L, K))
+    for i in range(K):
+        X[:, i] = y[i : i + L]
+        
+    # 2. Decomposition (SVD)
+    U, S, V = np.linalg.svd(X, full_matrices=False)
+    
+    # 3. Grouping & Reconstruction
+    # Keep up to 'keep_components' significant components
+    r = min(keep_components, L, K)
+    X_reconstructed = np.zeros((L, K))
+    for i in range(r):
+        X_reconstructed += S[i] * np.outer(U[:, i], V[i, :])
+        
+    # 4. Diagonal Averaging
+    y_denoised = np.zeros(N)
+    for i in range(N):
+        j_min = max(0, i - K + 1)
+        j_max = min(i, L - 1)
+        count = 0
+        for j in range(j_min, j_max + 1):
+            y_denoised[i] += X_reconstructed[j, i - j]
+            count += 1
+        y_denoised[i] /= count
+            
+    return y_denoised
+
+
+def smooth_series(series: np.ndarray, window: int = 3) -> np.ndarray:
+    """Applies a simple rolling mean to smooth out jitter in predictions and bounds."""
+    if len(series) < window: return series
+    return np.convolve(series, np.ones(window)/window, mode='same')
+
+
 def run_prophet_daily_forecast(
     start: date,
     days: int,
@@ -28,8 +78,15 @@ def run_prophet_daily_forecast(
     if days < MIN_DAYS_FOR_PROPHET or len(actuals) != days:
         return None
 
+    # Apply SSA Denoising before Prophet processing
+    try:
+        denoised_y = run_ssa_denoise(actuals, L=14, keep_components=4)
+    except Exception as e:
+        log.warning("SSA Denoising failed, falling back to raw actuals: %s", e)
+        denoised_y = np.array(actuals)
+
     ds_list = [start + timedelta(days=i) for i in range(days)]
-    df = pd.DataFrame({"ds": pd.to_datetime(ds_list), "y": actuals})
+    df = pd.DataFrame({"ds": pd.to_datetime(ds_list), "y": denoised_y})
 
     use_weekly = days >= 14
     use_yearly = days >= 366
@@ -51,18 +108,19 @@ def run_prophet_daily_forecast(
         return None
 
     # Extraction of components
-    yhat = fc_in["yhat"].to_numpy(dtype=float)
-    yhat_lower = fc_in["yhat_lower"].to_numpy(dtype=float)
-    yhat_upper = fc_in["yhat_upper"].to_numpy(dtype=float)
-    trend = fc_in["trend"].to_numpy(dtype=float)
+    yhat = smooth_series(fc_in["yhat"].to_numpy(dtype=float))
+    yhat_lower = smooth_series(fc_in["yhat_lower"].to_numpy(dtype=float))
+    yhat_upper = smooth_series(fc_in["yhat_upper"].to_numpy(dtype=float))
+    trend = smooth_series(fc_in["trend"].to_numpy(dtype=float))
     
     # Seasonality components
-    weekly = fc_in["weekly"].to_numpy(dtype=float) if "weekly" in fc_in.columns else np.zeros(days)
-    yearly = fc_in["yearly"].to_numpy(dtype=float) if "yearly" in fc_in.columns else np.zeros(days)
+    weekly = smooth_series(fc_in["weekly"].to_numpy(dtype=float)) if "weekly" in fc_in.columns else np.zeros(days)
+    yearly = smooth_series(fc_in["yearly"].to_numpy(dtype=float)) if "yearly" in fc_in.columns else np.zeros(days)
     
     # Total Seasonal = s(t)
     seasonal = fc_in["multiplicative_terms" if m.seasonality_mode == 'multiplicative' else "additive_terms"].to_numpy(dtype=float) \
                - (fc_in["holidays"].to_numpy(dtype=float) if "holidays" in fc_in.columns else 0.0)
+    seasonal = smooth_series(seasonal)
     
     holidays = fc_in["holidays"].to_numpy(dtype=float) if "holidays" in fc_in.columns else np.zeros(days)
 
@@ -78,15 +136,16 @@ def run_prophet_daily_forecast(
         future = m.make_future_dataframe(periods=30, include_history=False)
         fc_out = m.predict(future)
         next_30d_sum = float(fc_out["yhat"].sum())
-        fyhat = fc_out["yhat"].to_numpy(dtype=float)
-        flo = fc_out["yhat_lower"].to_numpy(dtype=float)
-        fhi = fc_out["yhat_upper"].to_numpy(dtype=float)
-        ftrend = fc_out["trend"].to_numpy(dtype=float)
-        fweekly = fc_out["weekly"].to_numpy(dtype=float) if "weekly" in fc_out.columns else np.zeros(len(fyhat))
-        fyearly = fc_out["yearly"].to_numpy(dtype=float) if "yearly" in fc_out.columns else np.zeros(len(fyhat))
-        fholidays = fc_out["holidays"].to_numpy(dtype=float) if "holidays" in fc_out.columns else np.zeros(len(fyhat))
+        fyhat = smooth_series(fc_out["yhat"].to_numpy(dtype=float))
+        flo = smooth_series(fc_out["yhat_lower"].to_numpy(dtype=float))
+        fhi = smooth_series(fc_out["yhat_upper"].to_numpy(dtype=float))
+        ftrend = smooth_series(fc_out["trend"].to_numpy(dtype=float))
+        fweekly = smooth_series(fc_out["weekly"].to_numpy(dtype=float)) if "weekly" in fc_out.columns else np.zeros(len(fyhat))
+        fyearly = smooth_series(fc_out["yearly"].to_numpy(dtype=float)) if "yearly" in fc_out.columns else np.zeros(len(fyhat))
+        fholidays = smooth_series(fc_out["holidays"].to_numpy(dtype=float)) if "holidays" in fc_out.columns else np.zeros(len(fyhat))
         fseasonal = fc_out["multiplicative_terms" if m.seasonality_mode == 'multiplicative' else "additive_terms"].to_numpy(dtype=float) \
                     - (fc_out["holidays"].to_numpy(dtype=float) if "holidays" in fc_out.columns else 0.0)
+        fseasonal = smooth_series(fseasonal)
         
         f_mid = 15
         f1 = float(np.mean(fc_out["yhat"][:f_mid]))
@@ -101,5 +160,6 @@ def run_prophet_daily_forecast(
         yhat, yhat_lower, yhat_upper, 
         trend, weekly, yearly, seasonal, holidays, 
         next_30d_sum, accuracy, direction, 
-        fyhat, flo, fhi, ftrend, fweekly, fyearly, fseasonal, fholidays
+        fyhat, flo, fhi, ftrend, fweekly, fyearly, fseasonal, fholidays,
+        denoised_y
     )

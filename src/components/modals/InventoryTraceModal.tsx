@@ -246,7 +246,7 @@ export function InventoryTraceModal({
             disabled={isSaving}
             className="rounded-lg bg-[#040B2A] px-6 py-2 text-white hover:bg-[#0B143D]"
           >
-            {isSaving ? "Adding..." : "Add Discrepancy Record"}
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

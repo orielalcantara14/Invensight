@@ -54,6 +54,8 @@ export function EditInventoryModal({
     expiry_date: "",
   });
 
+  const isAdjustmentMode = formData.reason_adjustment !== "";
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -96,7 +98,7 @@ export function EditInventoryModal({
         expected: String(item.expected),
         reorder_level: String(item.reorder_level),
         actual: String(item.actual),
-        reason_adjustment: "Lost",
+        reason_adjustment: "", // Start with Select Reason (None)
         expiry_date: item.expiry_date || "",
       });
     }
@@ -120,7 +122,7 @@ export function EditInventoryModal({
         expected: parseInt(formData.expected),
         reorder_level: parseInt(formData.reorder_level),
         actual: parseInt(formData.actual),
-        reason_adjustment: formData.reason_adjustment,
+        reason_adjustment: formData.reason_adjustment || undefined,
         expiry_date: formData.expiry_date || undefined,
         unit_price: item.unit_price,
         pos_price: item.pos_price,
@@ -144,7 +146,7 @@ export function EditInventoryModal({
            product_id: item.product_id
         });
         toast.success(`Restock successful: Added ${addedQty} items as a new batch`);
-      } else {
+      } else if (isAdjustmentMode) {
         const inputActual = parseInt(formData.actual);
         if (inputActual >= item.quantity) {
           toast.error(`Deduction must be lower than current quantity (${item.quantity}). Enter the new physical count.`);
@@ -154,6 +156,10 @@ export function EditInventoryModal({
 
         await api.updateInventoryItem(item.inventory_id, payload);
         toast.success("Inventory updated successfully");
+      } else {
+        // Metadata-only update (e.g. Supplier, SKU)
+        await api.updateInventoryItem(item.inventory_id, payload);
+        toast.success("Item details updated successfully");
       }
       onSuccess();
       onClose();
@@ -340,7 +346,9 @@ export function EditInventoryModal({
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Physical Count (Actual) {formData.reason_adjustment === "Restock" ? (
+              Physical Count (Actual) {!isAdjustmentMode ? (
+                <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
+              ) : formData.reason_adjustment === "Restock" ? (
                 <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Quantity)</span>
               ) : (
                 <span className="text-xs text-red-500 font-normal">(Must be less than {item?.quantity || 0})</span>
@@ -350,10 +358,10 @@ export function EditInventoryModal({
               type="number"
               className={cn(
                 "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none",
-                (formData.reason_adjustment === "Restock") ? "bg-muted/50 border-border" : "border-border"
+                (!isAdjustmentMode || formData.reason_adjustment === "Restock") ? "bg-muted/50 border-border" : "border-border"
               )}
               value={formData.actual}
-              readOnly={formData.reason_adjustment === "Restock"}
+              readOnly={!isAdjustmentMode || formData.reason_adjustment === "Restock"}
               onChange={(e) => {
                 const val = e.target.value;
                 const update = { ...formData, actual: val };
@@ -369,7 +377,9 @@ export function EditInventoryModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Quantity {formData.reason_adjustment === "Restock" ? (
+              Quantity {!isAdjustmentMode ? (
+                <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
+              ) : formData.reason_adjustment === "Restock" ? (
                 <span className="text-xs text-green-600 font-normal">(Must be more than {item?.quantity || 0})</span>
               ) : (
                 <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Actual)</span>
@@ -379,10 +389,10 @@ export function EditInventoryModal({
               type="number"
               className={cn(
                 "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none",
-                (formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") ? "bg-muted/50 border-border" : "border-border"
+                (!isAdjustmentMode || formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") ? "bg-muted/50 border-border" : "border-border"
               )}
               value={formData.quantity}
-              readOnly={formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged"}
+              readOnly={!isAdjustmentMode || formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged"}
               onChange={(e) => {
                 const val = e.target.value;
                 const update = { ...formData, quantity: val };
@@ -420,7 +430,11 @@ export function EditInventoryModal({
             onChange={(e) => {
               const reason = e.target.value;
               const update = { ...formData, reason_adjustment: reason };
-              if (reason === "Restock") {
+              if (reason === "") {
+                // If switching back to "Select Reason", reset to item original counts
+                update.actual = String(item?.actual || 0);
+                update.quantity = String(item?.quantity || 0);
+              } else if (reason === "Restock") {
                 update.actual = formData.quantity;
               } else {
                 // For Manual Count, Lost, Damaged, sync Actual and Quantity
@@ -429,6 +443,7 @@ export function EditInventoryModal({
               setFormData(update);
             }}
           >
+            <option value="">-- Select Reason --</option>
             <option value="Lost">Lost</option>
             <option value="Damaged">Damaged</option>
             <option value="Restock">Restock (Add New Batch)</option>
@@ -462,7 +477,7 @@ export function EditInventoryModal({
             disabled={isSubmitting}
             className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? "Processing..." : "Confirm Adjustment"}
+            {isSubmitting ? "Processing..." : "Save Changes"}
           </button>
         </div>
       </form>

@@ -5,7 +5,6 @@ import {
   Loader2,
   TrendingDown,
   Activity as ForecastIcon,
-  ChevronDown,
   Layers,
 } from "lucide-react";
 import {
@@ -105,21 +104,17 @@ export function Forecasting() {
     }));
   }, [data, resolution]);
 
-  // Reset zoom when resolution or data changes
   useEffect(() => {
     if (rawChartData.length > 0) {
       setZoomRange({ start: 0, end: rawChartData.length - 1 });
     }
   }, [rawChartData]);
 
-  // Use manual non-passive listener to block page scroll
   useEffect(() => {
     if (!zoomRange || rawChartData.length === 0) return;
 
     const handleWheelManual = (e: WheelEvent) => {
-      // Block page scroll completely while wheeling over chart
       e.preventDefault();
-
       const delta = e.deltaY;
       const currentRange = zoomRange.end - zoomRange.start;
       const step = Math.max(1, Math.floor(currentRange * 0.1));
@@ -130,11 +125,9 @@ export function Forecasting() {
         let newEnd = prev.end;
 
         if (delta < 0) {
-          // Zoom In
           newStart = Math.min(newEnd - 5, newStart + step);
           newEnd = Math.max(newStart + 5, newEnd - step);
         } else {
-          // Zoom Out
           newStart = Math.max(0, newStart - step);
           newEnd = Math.min(rawChartData.length - 1, newEnd + step);
         }
@@ -159,7 +152,6 @@ export function Forecasting() {
     return rawChartData.slice(zoomRange.start, zoomRange.end + 1);
   }, [rawChartData, zoomRange]);
 
-  // Calculate dynamic Y-axis domains based on visible data
   const yDomainMain = useMemo(() => {
     if (!chartData.length) return [0, 'auto'];
     const mins = chartData.map(d => d.lower_bound ?? 0);
@@ -187,7 +179,6 @@ export function Forecasting() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
-      {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900">
@@ -211,7 +202,6 @@ export function Forecasting() {
         </div>
       </div>
 
-      {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-indigo-600 to-primary/90 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform duration-500">
@@ -277,17 +267,16 @@ export function Forecasting() {
 
       {!loading && !error && showCharts && (
         <div className="space-y-8">
-          {/* Main Forecast Chart */}
-          <div
+          <div 
             ref={chartRef1}
-            className="bg-card p-8 rounded-[2.5rem] shadow-sm border border-border overflow-hidden relative group cursor-ns-resize"
+            className="bg-[#0f172a] p-8 rounded-[2.5rem] shadow-2xl border border-slate-800 overflow-hidden relative group cursor-ns-resize"
           >
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-black text-foreground tracking-tight">Main Sales Interval</h2>
-                <p className="text-sm font-medium text-muted-foreground/70">Scroll wheel to zoom • Actual vs Predicted with Confidence Intervals</p>
+                <h2 className="text-2xl font-black text-white tracking-tight">Main Sales Interval</h2>
+                <p className="text-sm font-medium text-slate-400">Scroll wheel to zoom • Actual vs Predicted with Confidence Intervals</p>
               </div>
-              <div className="p-3 bg-muted/50 rounded-2xl text-muted-foreground/70 group-hover:text-indigo-600 transition-colors">
+              <div className="p-3 bg-slate-800/50 rounded-2xl text-slate-400 group-hover:text-blue-400 transition-colors">
                 <Calendar className="w-6 h-6" />
               </div>
             </div>
@@ -297,14 +286,14 @@ export function Forecasting() {
                 <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
                   <defs>
                     <linearGradient id="colorInterval" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.15} />
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" strokeOpacity={0.3} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                     dy={10}
@@ -312,13 +301,20 @@ export function Forecasting() {
                   <YAxis
                     domain={yDomainMain}
                     tickFormatter={(v) => `₱${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                    tick={{ fontSize: 11, fontWeight: 600, fill: '#9ca3af' }}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip
-                    cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                    contentStyle={{ borderRadius: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                    cursor={{ stroke: '#334155', strokeWidth: 1 }}
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      borderRadius: '1.5rem', 
+                      border: '1px solid #334155', 
+                      boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)',
+                      color: '#fff' 
+                    }}
+                    itemStyle={{ color: '#fff' }}
                     formatter={(v: number, name: string) => [formatPhp(v), name]}
                   />
                   <Legend
@@ -326,19 +322,42 @@ export function Forecasting() {
                     align="right"
                     height={40}
                     iconType="circle"
-                    formatter={(val) => <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">{val}</span>}
+                    formatter={(val) => <span className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">{val}</span>}
                   />
 
                   <Area
                     type="monotone"
                     dataKey="interval"
-                    stroke="#6366f1"
-                    strokeWidth={1}
-                    strokeOpacity={0.2}
+                    stroke="none"
                     fill="url(#colorInterval)"
-                    name="Confidence Band"
+                    fillOpacity={1}
+                    name="Prediction Interval"
                     activeDot={false}
                     tooltipType="none"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="upper_bound"
+                    name="Upper Bound"
+                    stroke="#a855f7"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
+                    tooltipType="none"
+                    legendType="none"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="lower_bound"
+                    name="Lower Bound"
+                    stroke="#a855f7"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
+                    tooltipType="none"
+                    legendType="none"
                   />
 
                   <Line
@@ -346,9 +365,10 @@ export function Forecasting() {
                     dataKey="actual_sales"
                     name="Observed"
                     stroke="#10b981"
-                    strokeWidth={3}
-                    dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                    strokeWidth={2}
+                    strokeOpacity={0.9}
+                    dot={{ r: 2, fill: '#10b981', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
                     connectNulls
                   />
 
@@ -356,24 +376,23 @@ export function Forecasting() {
                     type="monotone"
                     dataKey="forecast_sales"
                     name="AI Predicted"
-                    stroke="#6366f1"
+                    stroke="#3b82f6"
                     strokeWidth={3}
-                    strokeDasharray="6 6"
                     dot={false}
-                    activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
                   />
 
                   <Brush
                     dataKey="date"
                     height={40}
-                    stroke="#e2e8f0"
-                    fill="#fff"
+                    stroke="#334155"
+                    fill="#1e293b"
                     travellerWidth={12}
                     startIndex={0}
                     endIndex={chartData.length - 1}
                   >
                     <ComposedChart data={chartData}>
-                      <Area type="monotone" dataKey="forecast_sales" fill="#6366f1" fillOpacity={0.1} stroke="none" />
+                      <Area type="monotone" dataKey="forecast_sales" fill="#3b82f6" fillOpacity={0.1} stroke="none" />
                     </ComposedChart>
                   </Brush>
                 </ComposedChart>
@@ -381,14 +400,13 @@ export function Forecasting() {
             </div>
           </div>
 
-          {/* Decomposition Chart */}
           <div
             ref={chartRef2}
             className="bg-card p-8 rounded-[2.5rem] shadow-sm border border-border overflow-hidden relative group cursor-ns-resize"
           >
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-black text-foreground tracking-tight font-serif italic">Model Decomposition</h2>
+                <h2 className="text-2xl font-black text-foreground tracking-tight italic">Model Decomposition</h2>
                 <p className="text-sm font-medium text-muted-foreground/70">Scroll wheel to zoom • Additive components: Trend + Seasonality + Holidays</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-2xl text-muted-foreground/70 group-hover:text-indigo-600 transition-colors">
@@ -469,7 +487,6 @@ export function Forecasting() {
         </div>
       )}
 
-      {/* Product Highlight */}
       {!loading && !error && data?.product_forecasts && resolution !== "1y" && (
         <div className="bg-card rounded-[2.5rem] shadow-sm border border-border overflow-hidden">
           <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-muted/50/30">

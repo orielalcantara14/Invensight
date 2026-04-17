@@ -36,9 +36,26 @@ def load_daily_revenue(cur, days: int) -> Tuple[date, List[float]]:
     )
     rows = cur.fetchall()
     by_day = {r["d"]: float(r["revenue"] or 0) for r in rows}
-    start = date.today() - timedelta(days=days - 1)
-    actuals = [float(by_day.get(start + timedelta(days=i), 0.0)) for i in range(days)]
-    return start, actuals
+    
+    # Calculate initial full range start
+    base_start = date.today() - timedelta(days=days - 1)
+    full_actuals = [float(by_day.get(base_start + timedelta(days=i), 0.0)) for i in range(days)]
+    
+    # Find first non-zero sale to avoid fake 'growth trend' from 0 for new businesses
+    first_sale_idx = 0
+    for i, val in enumerate(full_actuals):
+        if val > 1.0: # Using 1.0 as a threshold for real revenue
+            first_sale_idx = i
+            break
+            
+    trimmed_actuals = full_actuals[first_sale_idx:]
+    actual_start = base_start + timedelta(days=first_sale_idx)
+    
+    # If we trimmed everything (no sales), return at least 1 day of 0
+    if not trimmed_actuals:
+        return date.today(), [0.0]
+        
+    return actual_start, trimmed_actuals
 
 
 def _rolling_mean_series(
@@ -114,7 +131,8 @@ def build_sales_series(
             yhat, yhat_lo, yhat_hi, 
             tr, wk, yr, seas, hols, 
             next_30d, acc, trend_dir, 
-            fyhat, flo, fhi, ftrend, fwk, fyr, fseas, fhols
+            fyhat, flo, fhi, ftrend, fwk, fyr, fseas, fhols,
+            denoised_y
         ) = prophet
         fa: Optional[float] = None
         try:
@@ -130,7 +148,7 @@ def build_sales_series(
             series.append(
                 ForecastSeriesPoint(
                     date=d.isoformat(),
-                    actual_sales=float(actuals[i]),
+                    actual_sales=float(denoised_y[i]),
                     forecast_sales=float(max(0.0, yhat[i])),
                     lower_bound=float(max(0.0, yhat_lo[i])),
                     upper_bound=float(max(0.0, yhat_hi[i])),
@@ -255,6 +273,8 @@ def build_product_forecasts(cur) -> List[ProductForecastItem]:
 def assemble_sales_forecast(cur, days: int) -> SalesForecastResponse:
     days = max(7, min(days, 365))
     start, actuals = load_daily_revenue(cur, days)
+    # Update days to the actual length returned (it may be trimmed)
+    days = len(actuals)
     series, engine, next_fc, fa, trend = build_sales_series(start, days, actuals)
     products = build_product_forecasts(cur)
     return SalesForecastResponse(

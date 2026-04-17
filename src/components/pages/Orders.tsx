@@ -273,6 +273,39 @@ export function Orders() {
     }
   };
 
+  const handleReturnDamagedItems = async () => {
+    if (!selectedOrder || !selectedOrder.items) return;
+
+    const damagedItems = selectedOrder.items
+      .filter((item: any) => (item.damage_count || 0) > 0)
+      .map((item: any) => ({
+        product_id: item.product_id,
+        quantity: item.damage_count,
+      }));
+
+    if (damagedItems.length === 0) {
+      toast.error("No damaged items found in this order to return.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.createProductReturn({
+        supplier_id: selectedOrder.supplier_id,
+        reason: `Automated return for damaged items from order ${formatOrderId(selectedOrder.order_id)}`,
+        items: damagedItems,
+      });
+
+      toast.success("Supplier return created for all damaged items");
+      setShowViewModal(false);
+      setActiveTab("returns"); // Switch to returns tab to see it
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create supplier return");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleExport = () => {
     setIsExportModalOpen(true);
   };
@@ -842,10 +875,19 @@ export function Orders() {
               {selectedOrder.status === "Pending" && (
                 <button
                   onClick={() => handleMarkAsReceived(selectedOrder.order_id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm"
                 >
                   <CheckCircle className="w-4 h-4" />
                   Mark as Received
+                </button>
+              )}
+              {selectedOrder.status === "Received" && selectedOrder.items?.some((i: any) => (i.damage_count || 0) > 0) && (
+                <button
+                  onClick={handleReturnDamagedItems}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm"
+                >
+                  <Archive className="w-4 h-4" />
+                  Return Damaged to Supplier
                 </button>
               )}
             </div>
