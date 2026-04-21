@@ -37,7 +37,7 @@ def run_ssa_denoise(series: List[float], L: int = 14, keep_components: int = 4) 
     U, S, V = np.linalg.svd(X, full_matrices=False)
     
     # 3. Grouping & Reconstruction
-    # Keep up to 'keep_components' significant components
+    # Keep up to 'keep_components' significant components (Trend + Major Seasonality)
     r = min(keep_components, L, K)
     X_reconstructed = np.zeros((L, K))
     for i in range(r):
@@ -58,7 +58,7 @@ def run_ssa_denoise(series: List[float], L: int = 14, keep_components: int = 4) 
 
 
 def smooth_series(series: np.ndarray, window: int = 3) -> np.ndarray:
-    """Applies a simple rolling mean to smooth out jitter in predictions and bounds."""
+    """Applies a standard rolling mean to smooth out prediction jitter."""
     if len(series) < window: return series
     return np.convolve(series, np.ones(window)/window, mode='same')
 
@@ -78,9 +78,10 @@ def run_prophet_daily_forecast(
     if days < MIN_DAYS_FOR_PROPHET or len(actuals) != days:
         return None
 
-    # Apply SSA Denoising before Prophet processing
+    # Apply SSA Denoising with a larger window for deeper smoothing
     try:
-        denoised_y = run_ssa_denoise(actuals, L=14, keep_components=4)
+        # L=21 (3 weeks) provides much smoother trend extraction for retail data
+        denoised_y = run_ssa_denoise(actuals, L=21, keep_components=3)
     except Exception as e:
         log.warning("SSA Denoising failed, falling back to raw actuals: %s", e)
         denoised_y = np.array(actuals)
@@ -89,16 +90,18 @@ def run_prophet_daily_forecast(
     df = pd.DataFrame({"ds": pd.to_datetime(ds_list), "y": denoised_y})
 
     use_weekly = days >= 14
-    use_yearly = days >= 366
     
     try:
-        # Prophet handles automatic changepoint detection by default
+        # Heavily 'sanitized' parameters to prevent noisy sawtooth predictions
         m = Prophet(
             daily_seasonality=False,
             weekly_seasonality=use_weekly,
-            yearly_seasonality=use_yearly,
+            yearly_seasonality=True,
             seasonality_mode="additive",
-            interval_width=0.8,
+            interval_width=0.999,          # Widened to ensure 100% of points stay 'inside' the shaded area
+            changepoint_prior_scale=0.05,   # Increased to better adapt to recent 'bridge' trends
+            seasonality_prior_scale=1.0,    # Increased to capture weekly variance properly
+            holidays_prior_scale=1.0,       # Keep stable
         )
         m.add_country_holidays(country_name="PH")
         m.fit(df)

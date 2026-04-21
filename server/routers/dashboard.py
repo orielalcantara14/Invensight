@@ -75,26 +75,27 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
     elif view == "annual":
         cur.execute(
             """
-            WITH years AS (
+            WITH months AS (
                 SELECT generate_series(
-                    (EXTRACT(YEAR FROM CURRENT_DATE)::int - 5),
-                    EXTRACT(YEAR FROM CURRENT_DATE)::int,
-                    1
-                ) AS y
+                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
+                    date_trunc('month', CURRENT_DATE)::date,
+                    INTERVAL '1 month'
+                )::date AS m
             ),
             agg AS (
-                SELECT EXTRACT(YEAR FROM invoice_date)::int AS y,
+                SELECT date_trunc('month', invoice_date)::date AS m,
                        COALESCE(SUM(total_amount), 0)::float AS revenue,
                        COUNT(*)::int AS cnt
                 FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'
                 GROUP BY 1
             )
-            SELECT years.y::text AS label,
+            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
                    COALESCE(agg.revenue, 0)::float AS revenue,
                    COALESCE(agg.cnt, 0)::int AS transactions
-            FROM years
-            LEFT JOIN agg ON agg.y = years.y
-            ORDER BY years.y
+            FROM months
+            LEFT JOIN agg ON agg.m = months.m
+            ORDER BY months.m
             """
         )
     else:
@@ -224,30 +225,31 @@ def _fetch_sales_trend_series(cur, view: str) -> list[SalesTrendItem]:
     if view == "annual":
         cur.execute(
             """
-            WITH years AS (
+            WITH months AS (
                 SELECT generate_series(
-                    (EXTRACT(YEAR FROM CURRENT_DATE)::int - 5),
-                    EXTRACT(YEAR FROM CURRENT_DATE)::int,
-                    1
-                ) AS y
+                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
+                    date_trunc('month', CURRENT_DATE)::date,
+                    INTERVAL '1 month'
+                )::date AS m
             ),
             agg AS (
-                SELECT EXTRACT(YEAR FROM invoice_date)::int AS y,
+                SELECT date_trunc('month', invoice_date)::date AS m,
                        COALESCE(SUM(total_amount), 0)::float AS revenue
                 FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'
                 GROUP BY 1
             )
-            SELECT years.y::text AS label,
+            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
                    COALESCE(agg.revenue, 0)::float AS revenue
-            FROM years
-            LEFT JOIN agg ON agg.y = years.y
-            ORDER BY years.y
+            FROM months
+            LEFT JOIN agg ON agg.m = months.m
+            ORDER BY months.m
             """
         )
         rows = cur.fetchall()
         labels = [str(r["label"]).strip() for r in rows]
         actuals = [float(r["revenue"]) for r in rows]
-        return _build_sales_trend_from_rows(labels, actuals, window=2)
+        return _build_sales_trend_from_rows(labels, actuals, window=3)
 
     # monthly (default): last 6 calendar months including current
     cur.execute(
