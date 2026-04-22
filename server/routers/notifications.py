@@ -15,7 +15,7 @@ def dispatch_notification(type: str, title: str, message: str, link: Optional[st
     conn = get_connection()
     try:
         conn.autocommit = True
-        with conn.cursor() as cur:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT user_id, role FROM users WHERE is_active = TRUE")
             all_users = cur.fetchall()
             

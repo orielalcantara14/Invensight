@@ -625,6 +625,7 @@ class SalesByCategoryItem(BaseModel):
 class TopProductItem(BaseModel):
     name: str
     units_sold: int
+    revenue: float
     current_stock: int
     status: str
 

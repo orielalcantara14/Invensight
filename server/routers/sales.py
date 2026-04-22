@@ -374,7 +374,7 @@ def create_sale(
                 item_subtotal = round(item.unit_price * item.quantity, 2)
 
                 cur.execute(
-                    "SELECT inventory_id, quantity, expected, actual FROM inventory WHERE product_id = %s FOR UPDATE",
+                    "SELECT inventory_id, quantity, expected, actual, reorder_level FROM inventory WHERE product_id = %s FOR UPDATE",
                     (item.product_id,)
                 )
                 inv_row = cur.fetchone()
@@ -487,7 +487,15 @@ def create_sale(
                         dispatch_notification(
                             type="out_of_stock",
                             title="Out of Stock Alert",
-                            message=f"Product ID {item.product_id} has reached 0 or less stock.",
+                            message=f"{prod_row['product_name']} is now out of stock!",
+                            link=f"/inventory?id={inv_id}",
+                            target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                        )
+                    elif updated_actual <= inv_row["reorder_level"]:
+                        dispatch_notification(
+                            type="out_of_stock",
+                            title="Low Stock Alert",
+                            message=f"{prod_row['product_name']} is running low ({updated_actual} left).",
                             link=f"/inventory?id={inv_id}",
                             target_roles=["Administrator", "Manager", "Warehouse Staff"]
                         )
@@ -530,6 +538,14 @@ def create_sale(
                     invoice_id,
                     f"POS sale completed. Invoice: {invoice_number}. Method: {sale.payment_method}. Total: ₱{total_amount:.2f}"
                 )
+
+            dispatch_notification(
+                type="order_completed",
+                title="New Sale Completed",
+                message=f"Sale {invoice_number} for ₱{total_amount:,.2f} has been processed successfully.",
+                link=f"/sales",
+                target_roles=["Administrator", "Manager"]
+            )
 
             _invalidate_analytics_cache(cur)
             conn.commit()

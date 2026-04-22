@@ -226,6 +226,7 @@ export function Reports() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  max={endDate || undefined}
                   className="w-full px-4 py-3 bg-muted/50 border-2 border-border rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-primary transition-all font-bold"
                 />
               </div>
@@ -236,6 +237,7 @@ export function Reports() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || undefined}
                   className="w-full px-4 py-3 bg-muted/50 border-2 border-border rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-primary transition-all font-bold"
                 />
               </div>

@@ -869,58 +869,77 @@ def permanent_delete_user(
 
 
 @router.get("/audit-logs", response_model=list[AuditLogEntryResponse])
-def get_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
+def get_audit_logs(
+    entity_type: Optional[str] = None,
+    user_id: Optional[int] = None,
+    x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")
+):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # Check if requester is root admin
             actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
             actor = _get_actor_or_403(cur, actor_user_id)
             is_root = actor.get("is_root_admin")
 
-            if is_root:
-                # Root sees everything
-                cur.execute(
-                    """
-                    SELECT 
-                        a.log_id, 
-                        a.user_id, 
-                        COALESCE(u.username, 'Deleted User') as username, 
-                        u.role as role,
-                        a.action, 
-                        a.entity_type, 
-                        a.entity_id, 
-                        a.timestamp::text as timestamp, 
-                        a.details
-                    FROM auditlog a
-                    LEFT JOIN users u ON a.user_id = u.user_id
-                    ORDER BY a.timestamp DESC
-                    LIMIT 400
-                    """
-                )
-            else:
-                # Non-root sees everything EXCEPT root admin's activities
-                cur.execute(
-                    """
-                    SELECT 
-                        a.log_id, 
-                        a.user_id, 
-                        COALESCE(u.username, 'Deleted User') as username, 
-                        u.role as role,
-                        a.action, 
-                        a.entity_type, 
-                        a.entity_id, 
-                        a.timestamp::text as timestamp, 
-                        a.details
-                    FROM auditlog a
-                    LEFT JOIN users u ON a.user_id = u.user_id
-                    WHERE (u.username IS NULL OR (LOWER(TRIM(u.username)) <> %s AND LOWER(TRIM(u.username)) <> 'rootadmin'))
-                      AND (u.role IS NULL OR LOWER(TRIM(u.role)) <> 'root admin')
-                    ORDER BY a.timestamp DESC
-                    LIMIT 400
-                    """,
-                    (_root_admin_username(),)
-                )
+            # Build WHERE clause
+            where_clauses = []
+            params = []
+
+            # Privacy filters for non-root
+            if not is_root:
+                where_clauses.append("(u.username IS NULL OR (LOWER(TRIM(u.username)) <> %s AND LOWER(TRIM(u.username)) <> 'rootadmin'))")
+                params.append(_root_admin_username())
+                where_clauses.append("(u.role IS NULL OR LOWER(TRIM(u.role)) <> 'root admin')")
+
+            # Entity Type filter
+            if entity_type and entity_type.lower() != "all":
+                # Map frontend labels to DB values
+                mapping = {
+                    "sale": "sales",
+                    "return": ["return", "customer_returns"]
+                }
+                key = entity_type.lower()
+                if key in mapping:
+                    mapped = mapping[key]
+                    if isinstance(mapped, list):
+                        placeholders = ",".join(["%s"] * len(mapped))
+                        where_clauses.append(f"a.entity_type IN ({placeholders})")
+                        params.extend(mapped)
+                    else:
+                        where_clauses.append("a.entity_type = %s")
+                        params.append(mapped)
+                else:
+                    where_clauses.append("LOWER(a.entity_type) = %s")
+                    params.append(key)
+
+            # User filter
+            if user_id:
+                where_clauses.append("a.user_id = %s")
+                params.append(user_id)
+
+            where_sql = ""
+            if where_clauses:
+                where_sql = "WHERE " + " AND ".join(where_clauses)
+
+            query = f"""
+                SELECT 
+                    a.log_id, 
+                    a.user_id, 
+                    COALESCE(u.username, 'Deleted User') as username, 
+                    u.role as role,
+                    a.action, 
+                    a.entity_type, 
+                    a.entity_id, 
+                    a.timestamp::text as timestamp, 
+                    a.details
+                FROM auditlog a
+                LEFT JOIN users u ON a.user_id = u.user_id
+                {where_sql}
+                ORDER BY a.timestamp DESC
+                LIMIT 400
+            """
+            
+            cur.execute(query, tuple(params))
             return [dict(row) for row in cur.fetchall()]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -101,6 +101,11 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 @app.on_event("startup")
+def startup_event():
+    verify_database_connection()
+    init_database_schema()
+    start_scheduler()
+
 def init_database_schema():
     """Create all base tables and sequences (Deterministic schema for new environments)."""
     conn = get_connection()
@@ -372,6 +377,8 @@ def init_database_schema():
                 )
             """)
             cur.execute("CREATE INDEX IF NOT EXISTS idx_analytics_model_runs_key_time ON analytics_model_runs(model_key, started_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_sales_invoice_date ON sales(invoice_date)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_sold_items_invoice_id ON sold_items(invoice_id)")
             
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (

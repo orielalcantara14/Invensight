@@ -188,6 +188,7 @@ export function ExportPreviewModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                max={endDate || undefined}
                 className="bg-transparent border-none text-xs focus:ring-0 px-2 font-bold dark:text-gray-300"
               />
               <span className="text-gray-300 font-light">to</span>
@@ -195,6 +196,7 @@ export function ExportPreviewModal({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || undefined}
                 className="bg-transparent border-none text-xs focus:ring-0 px-2 font-bold dark:text-gray-300"
               />
             </div>

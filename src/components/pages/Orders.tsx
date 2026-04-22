@@ -12,6 +12,7 @@ import { CustomerReturns } from "./CustomerReturns";
 import { ProtectedAction } from "@/components/ProtectedAction";
 import { ReceiveOrderModal } from "@/components/modals/ReceiveOrderModal";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface OrderItemInput {
   product_id: number;
@@ -445,6 +446,7 @@ export function Orders() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo || undefined}
                   className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
                 />
                 <span className="text-muted-foreground/70">to</span>
@@ -452,6 +454,7 @@ export function Orders() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom || undefined}
                   className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
                 />
               </div>
@@ -671,27 +674,27 @@ export function Orders() {
                   {newOrder.items.map((item, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 bg-muted/50 dark:bg-gray-700 rounded-lg">
                       <div className="flex-1">
-                        <select
+                        <SearchableSelect
                           value={item.product_id}
-                          onChange={(e) => updateOrderItem(index, "product_id", Number(e.target.value))}
-                          className="w-full border border-border dark:border-gray-600 rounded px-2 py-1 text-sm bg-card dark:bg-gray-600 text-foreground text-foreground"
-                        >
-                          <option value={0}>Select Product</option>
-                          {products
+                          onValueChange={(val) => updateOrderItem(index, "product_id", val)}
+                          options={products
                             .filter((p) => p.supplier_id === newOrder.supplier_id)
-                            .map((p) => (
-                              <option key={p.product_id} value={p.product_id}>
-                                {p.product_name}
-                              </option>
-                            ))}
-                        </select>
+                            .map((p) => ({
+                              value: p.product_id,
+                              label: p.product_name,
+                            }))}
+                          placeholder="Select Product"
+                        />
                       </div>
                       <div className="w-24">
                         <input
                           type="number"
                           min="1"
                           value={item.quantity}
-                          onChange={(e) => updateOrderItem(index, "quantity", Number(e.target.value))}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateOrderItem(index, "quantity", val === "" ? "" : Number(val));
+                          }}
                           className="w-full border border-border dark:border-gray-600 rounded px-2 py-1 text-sm bg-card dark:bg-gray-600 text-foreground text-foreground"
                           placeholder="Qty"
                         />

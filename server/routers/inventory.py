@@ -6,8 +6,8 @@ from datetime import date
 import logging
 import re
 from utils.sku import build_sku
-from utils.audit import add_audit_log
 from routers.notifications import dispatch_notification
+from utils.audit import add_audit_log
 
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
@@ -404,6 +404,16 @@ def update_inventory_item(
                     )
                 )
 
+                # --- Stock Movement Notification ---
+                msg = f"Stock adjustment for {payload.product_name}: {qty_delta:+} units (Reason: {payload.reason_adjustment})"
+                dispatch_notification(
+                    type="stock_movement",
+                    title="Inventory Adjusted",
+                    message=msg,
+                    link=f"/inventory?id={inventory_id}",
+                    target_roles=["Administrator", "Manager"]
+                )
+
             # --- Audit log ---
             if x_actor_user_id:
                 add_audit_log(
@@ -413,6 +423,24 @@ def update_inventory_item(
                     "inventory",
                     inventory_id,
                     f"Updated inventory item: {payload.product_name} (Reason: {payload.reason_adjustment}, New Qty: {new_quantity})"
+                )
+
+            # --- Out of Stock / Low Stock Check ---
+            if new_actual <= 0:
+                dispatch_notification(
+                    type="out_of_stock",
+                    title="Out of Stock Alert",
+                    message=f"{payload.product_name} is now OUT OF STOCK!",
+                    link=f"/inventory?id={inventory_id}",
+                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                )
+            elif new_actual <= payload.reorder_level:
+                dispatch_notification(
+                    type="out_of_stock",
+                    title="Low Stock Alert",
+                    message=f"{payload.product_name} is running low ({new_actual} left).",
+                    link=f"/inventory?id={inventory_id}",
+                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
                 )
 
             _invalidate_analytics_cache(cur)

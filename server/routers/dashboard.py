@@ -397,6 +397,7 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                 SELECT 
                     p.product_name as name, 
                     SUM(si.quantity) as units_sold, 
+                    SUM(si.total_amount) as revenue,
                     i.quantity as current_stock,
                     i.reorder_level
                 FROM sold_items si
@@ -405,7 +406,7 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                 JOIN sales s ON si.invoice_id = s.invoice_id
                 WHERE 1=1 {date_filter.replace('invoice_date', 's.invoice_date')}
                 GROUP BY p.product_name, i.quantity, i.reorder_level
-                ORDER BY units_sold DESC
+                ORDER BY revenue DESC
                 LIMIT 5
             """)
             top_products_raw = cur.fetchall()
@@ -422,6 +423,7 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                 top_products.append(TopProductItem(
                     name=row['name'],
                     units_sold=int(row['units_sold'] or 0),
+                    revenue=float(row['revenue'] or 0),
                     current_stock=stock,
                     status=status
                 ))

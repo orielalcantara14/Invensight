@@ -254,6 +254,7 @@ export function Dashboard() {
             <thead className="bg-muted border-b border-border">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Product Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Revenue</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Units Sold</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Stock</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
@@ -264,6 +265,7 @@ export function Dashboard() {
                 stats.top_products.map((product, idx) => (
                   <tr key={idx}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">₱{product.revenue.toLocaleString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.units_sold}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.current_stock}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">

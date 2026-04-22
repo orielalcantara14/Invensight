@@ -265,6 +265,7 @@ export function Products() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo || undefined}
                   className="bg-transparent px-3 py-1.5 text-sm focus:outline-none text-foreground"
                 />
                 <span className="text-muted-foreground text-xs font-medium uppercase">to</span>
@@ -272,6 +273,7 @@ export function Products() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom || undefined}
                   className="bg-transparent px-3 py-1.5 text-sm focus:outline-none text-foreground"
                 />
               </div>

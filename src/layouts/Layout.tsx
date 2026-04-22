@@ -32,6 +32,8 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [shopName, setShopName] = useState("Jonbrix");
+  const [shopTagline, setShopTagline] = useState("Motorcycle Parts & Accessories");
 
   const displayName = session?.full_name?.trim() || session?.username || "User";
   const roleLabel = session?.role || "—";
@@ -42,6 +44,20 @@ export function Layout() {
       navigate("/pos", { replace: true });
     }
   }, [session, navigate]);
+
+  // Fetch shop identity from system settings
+  useEffect(() => {
+    const fetchShopIdentity = async () => {
+      try {
+        const res = await api.get<Record<string, string>>("/api/settings/system");
+        if (res.shop_name) setShopName(res.shop_name);
+        if (res.shop_tagline) setShopTagline(res.shop_tagline);
+      } catch (e) {
+        // Defaults remain
+      }
+    };
+    fetchShopIdentity();
+  }, []);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -214,115 +230,185 @@ export function Layout() {
       {/* Sidebar */}
       <aside
         className={`${
-          sidebarOpen ? "w-64" : "w-20"
+          sidebarOpen ? "w-[260px]" : "w-[72px]"
         } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col`}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-sidebar-border">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <div>
-                <h1 className="font-bold text-lg text-foreground">Jonbrix</h1>
-                <p className="text-xs text-muted-foreground">Motorcycle Parts & Accessories</p>
-                {session && (
-                  <p className="text-xs text-gray-400 mt-2 truncate" title={session.full_name}>
-                    {session.full_name}
-                    {session.role ? ` · ${session.role}` : ""}
-                  </p>
-                )}
+        {/* Header — Brand section */}
+        <div className={`border-b border-sidebar-border transition-all duration-300 ${sidebarOpen ? "px-4 py-4" : "px-2 py-3"}`}>
+          <div className="flex items-center justify-between gap-2">
+            {sidebarOpen ? (
+              <>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+                    <span className="text-white font-black text-sm">{shopName.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="font-bold text-base text-foreground leading-tight tracking-tight truncate">{shopName}</h1>
+                    <p className="text-[10px] text-muted-foreground/70 font-medium truncate">{shopTagline}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors shrink-0"
+                  title="Collapse sidebar"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <div className="w-full flex flex-col items-center gap-2">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+                  <span className="text-white font-black text-sm">{shopName.charAt(0).toUpperCase()}</span>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
+                  title="Expand sidebar"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
               </div>
             )}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-muted-foreground transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
           </div>
+          {sidebarOpen && session && (
+            <div className="mt-3 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-muted/40">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <p className="text-[10px] text-muted-foreground font-semibold truncate" title={session.full_name}>
+                {session.full_name}
+                {session.role ? ` · ${session.role}` : ""}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {filteredNavigation.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.path ? location.pathname === item.path : false;
-            const isExpanded = expandedMenus.includes(item.name);
-            const hasSubmenu = !!item.submenu;
-            
-            return (
-              <div key={item.name}>
-                {/* Main menu item */}
-                <div className="relative">
-                  <Link
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-accent/20 text-foreground border-r-4 border-primary"
-                        : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    {sidebarOpen && <span className="text-sm font-medium flex-1">{item.name}</span>}
-                    {sidebarOpen && hasSubmenu && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleMenu(item.name);
-                        }}
-                        className="p-1 hover:bg-gray-200/50 rounded transition-colors"
-                      >
-                        <ChevronDown
-                          className={`w-4 h-4 flex-shrink-0 transition-transform ${
-                            isExpanded ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </button>
-                    )}
-                  </Link>
-                </div>
-                
-                {/* Submenu items */}
-                {hasSubmenu && sidebarOpen && isExpanded && (
-                  <div className="mt-1 space-y-1">
-                    {item.submenu!.map(subitem => {
-                      const SubIcon = subitem.icon;
-                      const isSubActive = location.pathname === subitem.path;
-                      return (
-                        <Link
-                          key={subitem.path}
-                          to={subitem.path}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ml-6 ${
-                            isSubActive
-                              ? "bg-accent/20 text-foreground"
-                              : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-foreground"
-                          }`}
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${sidebarOpen ? 'px-3 py-4' : 'px-2 py-4'}`}>
+          {/* Section label */}
+          {sidebarOpen && (
+            <p className="px-3 mb-3 text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em]">Navigation</p>
+          )}
+          
+          <div className="space-y-0.5">
+            {filteredNavigation.map((item, index) => {
+              const Icon = item.icon;
+              const isActive = item.path ? location.pathname === item.path : false;
+              const isExpanded = expandedMenus.includes(item.name);
+              const hasSubmenu = !!item.submenu;
+              
+              // Add visual separators between logical groups
+              const showDivider = sidebarOpen && (
+                item.name === "Suppliers" || 
+                item.name === "Reports" ||
+                item.name === "Users & Roles"
+              );
+              
+              return (
+                <div key={item.name}>
+                  {showDivider && (
+                    <div className="my-3 mx-3 h-px bg-sidebar-border" />
+                  )}
+                  <div className="relative group">
+                    <Link
+                      to={item.path}
+                      className={`flex items-center ${sidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 relative ${
+                        isActive
+                          ? "bg-primary/10 dark:bg-primary/15 text-primary font-semibold"
+                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      }`}
+                    >
+                      {/* Active left indicator */}
+                      {isActive && (
+                        <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
+                      )}
+                      
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 shrink-0 ${
+                        isActive 
+                          ? "bg-primary text-white shadow-md shadow-primary/20" 
+                          : "text-muted-foreground group-hover:text-foreground"
+                      }`}>
+                        <Icon className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                      </div>
+                      
+                      {sidebarOpen && (
+                        <span className={`text-[13px] flex-1 truncate ${isActive ? "font-bold" : "font-medium"}`}>
+                          {item.name}
+                        </span>
+                      )}
+                      
+                      {sidebarOpen && hasSubmenu && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleMenu(item.name);
+                          }}
+                          className="p-1 hover:bg-gray-200/50 rounded transition-colors"
                         >
-                          <SubIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm font-medium">{subitem.name}</span>
-                        </Link>
-                      );
-                    })}
+                          <ChevronDown
+                            className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                              isExpanded ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      )}
+                    </Link>
+                    
+                    {/* Tooltip for collapsed sidebar */}
+                    {!sidebarOpen && (
+                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center pointer-events-none">
+                        <div className="bg-foreground text-background text-xs font-semibold px-3 py-1.5 rounded-lg shadow-xl whitespace-nowrap">
+                          {item.name}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  
+                  {/* Submenu items */}
+                  {hasSubmenu && sidebarOpen && isExpanded && (
+                    <div className="mt-1 space-y-1">
+                      {item.submenu!.map(subitem => {
+                        const SubIcon = subitem.icon;
+                        const isSubActive = location.pathname === subitem.path;
+                        return (
+                          <Link
+                            key={subitem.path}
+                            to={subitem.path}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ml-6 ${
+                              isSubActive
+                                ? "bg-accent/20 text-foreground"
+                                : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-foreground"
+                            }`}
+                          >
+                            <SubIcon className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">{subitem.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className={`border-t border-sidebar-border ${sidebarOpen ? 'p-4' : 'p-2'}`}>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-gray-600 hover:bg-red-50 hover:text-red-600 w-full"
+            className={`flex items-center ${sidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 w-full group`}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span className="text-sm font-medium">Logout</span>}
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors group-hover:bg-red-100 dark:group-hover:bg-red-900/30">
+              <LogOut className="w-[18px] h-[18px]" strokeWidth={1.8} />
+            </div>
+            {sidebarOpen && <span className="text-[13px] font-medium">Logout</span>}
           </button>
           {sidebarOpen && (
-            <div className="text-xs text-gray-400 mt-4">
-              <p>© 2026 Jonbrix</p>
-              <p>Version 1.0</p>
+            <div className="flex items-center gap-2 mt-3 px-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <p className="text-[10px] text-muted-foreground/50 font-semibold">© 2026 Jonbrix · v1.0</p>
             </div>
           )}
         </div>

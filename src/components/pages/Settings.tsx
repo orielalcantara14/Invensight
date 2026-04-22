@@ -5,7 +5,10 @@ import { useTheme } from "@/components/ThemeProvider";
 import { api, type ProfileActivityItem } from "@/services/api";
 import { getSession, setStoredTimeout } from "@/auth/session";
 import { toast } from "sonner";
-import { ShieldCheck, History, Clock, KeyRound, Palette, Check, Monitor, Sun, Moon, Save } from "lucide-react";
+import { 
+  ShieldCheck, History, Clock, KeyRound, Palette, Check, Monitor, 
+  Sun, Moon, Save, Store, Percent, BrainCircuit, RotateCw, MapPin, Phone, FileText
+} from "lucide-react";
 
 function NotificationSettings() {
   const [settings, setSettings] = useState<Record<string, boolean>>({});
@@ -448,17 +451,271 @@ function AppearanceSettings() {
   );
 }
 
+function SystemSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get<Record<string, string>>("/api/settings/system");
+      setSettings(res);
+    } catch (e) {
+      toast.error("Failed to load system settings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await api.put("/api/settings/system", settings);
+      toast.success("System settings updated");
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to update settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearCache = async () => {
+    try {
+      setClearing(true);
+      await api.post("/api/analytics/clear-cache", {});
+      toast.success("Analytics cache cleared. Data will refresh on next visit.");
+    } catch (e) {
+      toast.error("Failed to clear cache");
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  if (loading) return <div className="p-12 text-center text-muted-foreground">Loading system settings...</div>;
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSave} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <SettingsIcon className="w-6 h-6 text-foreground" strokeWidth={2.5} />
+            <div className="space-y-0.5">
+              <h2 className="text-xl font-bold text-foreground">Global System Settings</h2>
+              <p className="text-xs text-muted-foreground font-medium">Configure core parameters for the entire organization</p>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl font-bold text-sm hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 shadow-md"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? "Saving..." : "Save All Changes"}
+          </button>
+        </div>
+
+        <div className="p-6 space-y-8">
+          {/* Shop Identity */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Store className="w-4 h-4 text-cyan-500" />
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Shop Identity</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  Shop Name
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={settings.shop_name || "Jonbrix"}
+                    onChange={(e) => setSettings({ ...settings, shop_name: e.target.value })}
+                    className="w-full rounded-xl border border-border p-3 pl-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                  />
+                  <Store className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground/60" />
+                </div>
+                <p className="text-[10px] text-muted-foreground/70">Displayed on the sidebar header and receipts.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  Shop Tagline
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={settings.shop_tagline || "Motorcycle Parts & Accessories"}
+                    onChange={(e) => setSettings({ ...settings, shop_tagline: e.target.value })}
+                    className="w-full rounded-xl border border-border p-3 pl-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                  />
+                  <FileText className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground/60" />
+                </div>
+                <p className="text-[10px] text-muted-foreground/70">Short description shown below the shop name in the sidebar.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  Contact Number
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={settings.shop_contact || "+63 912 345 6789"}
+                    onChange={(e) => setSettings({ ...settings, shop_contact: e.target.value })}
+                    className="w-full rounded-xl border border-border p-3 pl-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                  />
+                  <Phone className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground/60" />
+                </div>
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  Business Address
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={settings.shop_address || "Cebu City, Philippines"}
+                    onChange={(e) => setSettings({ ...settings, shop_address: e.target.value })}
+                    className="w-full rounded-xl border border-border p-3 pl-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                  />
+                  <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground/60" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="h-px bg-muted" />
+
+          {/* Financial Settings */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Percent className="w-4 h-4 text-emerald-500" />
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Financial & POS</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground">Sales Tax Rate (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={parseFloat(settings.tax_rate || "0.03") * 100}
+                    onChange={(e) => setSettings({ ...settings, tax_rate: (parseFloat(e.target.value) / 100).toString() })}
+                    className="w-full rounded-xl border border-border p-3 pr-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20 font-mono"
+                  />
+                  <span className="absolute right-3.5 top-3.5 text-muted-foreground/60 font-bold">%</span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground">Receipt Footer Note</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={settings.receipt_footer || "Thank you for shopping with us!"}
+                    onChange={(e) => setSettings({ ...settings, receipt_footer: e.target.value })}
+                    className="w-full rounded-xl border border-border p-3 pl-10 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                  />
+                  <FileText className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground/60" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="h-px bg-muted" />
+
+          {/* Analytics Settings */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <BrainCircuit className="w-4 h-4 text-purple-500" />
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">AI Analytics Engine</h3>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                These values are pre-configured for optimal accuracy. Modifying them may affect forecasting reliability. Only change if you fully understand the impact.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-muted-foreground">Prediction Confidence (%)</label>
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full">Recommended: 99.9%</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.1"
+                  max="99.9"
+                  min="50"
+                  value={parseFloat(settings.forecast_confidence || "0.999") * 100}
+                  onChange={(e) => setSettings({ ...settings, forecast_confidence: (parseFloat(e.target.value) / 100).toString() })}
+                  className="w-full rounded-xl border border-border p-3 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                />
+                <p className="text-[10px] text-muted-foreground/70">Controls the width of the prediction range on forecasting charts. Higher = wider, safer range.</p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-muted-foreground">Forecast Horizon (Days)</label>
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full">Recommended: 30</span>
+                </div>
+                <input
+                  type="number"
+                  value={settings.forecast_horizon || "30"}
+                  onChange={(e) => setSettings({ ...settings, forecast_horizon: e.target.value })}
+                  className="w-full rounded-xl border border-border p-3 text-sm focus:ring-2 focus:ring-cyan-500 outline-none bg-muted/20"
+                />
+                <p className="text-[10px] text-muted-foreground/70">How many days into the future the AI predicts. Shorter = more accurate, longer = more planning time.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </form>
+
+      {/* Maintenance */}
+      <div className="bg-orange-50/50 dark:bg-orange-950/20 rounded-2xl border border-orange-100 dark:border-orange-900/50 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+            <RotateCw className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-bold text-orange-900 dark:text-orange-100">System Maintenance</h3>
+            <p className="text-xs text-orange-800/70 dark:text-orange-400/70 max-w-md">
+              Manually clear the analytics cache if you notice data discrepancies. 
+              The system will re-calculate all forecasts on the next request.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={clearCache}
+          disabled={clearing}
+          className="whitespace-nowrap flex items-center gap-2 bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
+        >
+          <RotateCw className={`w-4 h-4 ${clearing ? "animate-spin" : ""}`} />
+          {clearing ? "Clearing..." : "Force Refresh Cache"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Settings() {
   const [activeTab, setActiveTab] = useState("Display Theme");
   const { theme, setTheme } = useTheme();
   const isDarkMode = theme === "dark";
 
   const tabs = [
-    { name: "Notifications", icon: Bell },
-    { name: "Security", icon: Lock },
-    { name: "Display Theme", icon: LayoutGrid },
-    { name: "System", icon: Database },
+    { name: "Notifications", icon: Bell, description: "Alerts & preferences", accent: "from-blue-500 to-cyan-500", activeBg: "bg-blue-50 dark:bg-blue-950/30", activeText: "text-blue-600 dark:text-blue-400", activeBorder: "border-blue-500" },
+    { name: "Security", icon: Lock, description: "Password & sessions", accent: "from-amber-500 to-orange-500", activeBg: "bg-amber-50 dark:bg-amber-950/30", activeText: "text-amber-600 dark:text-amber-400", activeBorder: "border-amber-500" },
+    { name: "Display Theme", icon: LayoutGrid, description: "Appearance & colors", accent: "from-violet-500 to-purple-500", activeBg: "bg-violet-50 dark:bg-violet-950/30", activeText: "text-violet-600 dark:text-violet-400", activeBorder: "border-violet-500" },
+    { name: "System", icon: Database, description: "AI engine & store info", accent: "from-emerald-500 to-teal-500", activeBg: "bg-emerald-50 dark:bg-emerald-950/30", activeText: "text-emerald-600 dark:text-emerald-400", activeBorder: "border-emerald-500" },
   ];
+
+  const activeTabData = tabs.find(t => t.name === activeTab) || tabs[0];
 
   const toggleDarkMode = (checked: boolean) => {
     setTheme(checked ? "dark" : "light");
@@ -466,28 +723,60 @@ export function Settings() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold text-foreground mb-8">Settings</h1>
+      {/* Header with gradient accent */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1">Configure your InvenSight experience</p>
+      </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar */}
-        <aside className="w-full md:w-72 flex-shrink-0">
-          <div className="bg-card rounded-2xl border border-border shadow-sm p-3">
-            <nav className="space-y-1">
-              {tabs.map((tab) => {
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Redesigned Sidebar — Vertical pill rail with colored accents */}
+        <aside className="w-full md:w-80 flex-shrink-0">
+          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            {/* Sidebar header */}
+            <div className="px-5 py-4 border-b border-border bg-muted/30">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Configuration</p>
+            </div>
+            <nav className="p-2">
+              {tabs.map((tab, index) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.name;
                 return (
                   <button
                     key={tab.name}
                     onClick={() => setActiveTab(tab.name)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-semibold ${
+                    className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden ${
                       isActive
-                        ? "bg-cyan-100 text-cyan-500"
-                        : "text-foreground hover:bg-muted/50"
+                        ? `${tab.activeBg} ${tab.activeText}`
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? "text-cyan-500" : "text-foreground"}`} strokeWidth={2.5} />
-                    {tab.name}
+                    {/* Active indicator strip */}
+                    {isActive && (
+                      <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b ${tab.accent} transition-all`} />
+                    )}
+                    
+                    {/* Icon with gradient background when active */}
+                    <div className={`relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-300 ${
+                      isActive
+                        ? `bg-gradient-to-br ${tab.accent} shadow-lg shadow-current/10`
+                        : "bg-muted/50 group-hover:bg-muted"
+                    }`}>
+                      <Icon className={`w-4.5 h-4.5 ${isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"}`} strokeWidth={2} />
+                    </div>
+
+                    {/* Text */}
+                    <div className="text-left flex-1 min-w-0">
+                      <p className={`text-sm font-bold leading-tight ${isActive ? "" : "text-foreground"}`}>{tab.name}</p>
+                      <p className={`text-[10px] mt-0.5 truncate ${isActive ? "opacity-70" : "text-muted-foreground/70"}`}>{tab.description}</p>
+                    </div>
+
+                    {/* Active chevron */}
+                    {isActive && (
+                      <svg className={`w-4 h-4 shrink-0 ${tab.activeText}`} fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                      </svg>
+                    )}
                   </button>
                 );
               })}
@@ -496,13 +785,15 @@ export function Settings() {
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1">
+        <main className="flex-1 min-w-0">
           {activeTab === "Display Theme" ? (
             <AppearanceSettings />
           ) : activeTab === "Notifications" ? (
             <NotificationSettings />
           ) : activeTab === "Security" ? (
             <SecuritySettings />
+          ) : activeTab === "System" ? (
+            <SystemSettings />
           ) : (
             <div className="bg-card rounded-2xl border border-border shadow-sm p-12 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 text-gray-300 mb-4">

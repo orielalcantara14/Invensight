@@ -286,6 +286,20 @@ def retrain_analytics_models() -> AnalyticsRetrainResponse:
             title="Analytics Models Retrained",
             message="The forecasting models have been manually retrained and the cache is now up to date.",
             link="/forecasting",
-            target_roles=["administrator", "manager"]
+            target_roles=["administrator"]
         )
     return AnalyticsRetrainResponse(ok=ok, message=msg)
+
+@router.post("/clear-cache")
+def clear_analytics_cache():
+    """Manually marks all analytics cache as stale."""
+    conn = get_connection()
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("UPDATE analytics_model_cache SET status = 'stale'")
+        return {"status": "success", "message": "Cache marked as stale. Data will refresh on next request."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

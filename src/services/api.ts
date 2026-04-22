@@ -73,7 +73,6 @@ export interface PosProductPayload {
   unit_of_measurement?: string;
   stock: number;
   status: "Active" | "Archived";
-  expiry_date?: string | null;
 }
 
 export interface CartItemPayload {
@@ -228,7 +227,6 @@ export interface InventoryItem {
   status: 'Normal' | 'Low' | 'Out of Stock' | 'Archived' | 'Deleted' | 'Active';
   last_updated: string;
   reason_adjustment: string;
-  expiry_date?: string | null;
 }
 
 export interface InventoryStockEvent {
@@ -261,7 +259,6 @@ export interface InventoryPayload {
   quantity: number;
   expected: number;
   reorder_level: number;
-  expiry_date?: string | null;
   unit_price: number;
   pos_price?: number;
 }
@@ -278,7 +275,6 @@ export interface UpdateInventoryPayload {
   reorder_level: number;
   actual: number;
   reason_adjustment: string;
-  expiry_date?: string | null;
   unit_price: number;
   pos_price?: number;
 }
@@ -423,7 +419,7 @@ export interface DashboardStats {
   sales_performance: Array<{ label: string; revenue: number; transactions: number }>;
   sales_trend: Array<{ month: string; actual_sales: number; forecast_sales: number }>;
   sales_by_category: Array<{ category: string; value: number; percentage: number }>;
-  top_products: Array<{ name: string; units_sold: number; current_stock: number; status: string }>;
+  top_products: Array<{ name: string; units_sold: number; revenue: number; current_stock: number; status: string }>;
 }
 
 export interface AnalyticsOverview {

@@ -99,6 +99,7 @@ export function CustomerReturns() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
+              max={dateTo || undefined}
               className="bg-transparent border-none text-sm focus:ring-0"
             />
             <span className="text-muted-foreground/70">to</span>
@@ -106,6 +107,7 @@ export function CustomerReturns() {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
+              min={dateFrom || undefined}
               className="bg-transparent border-none text-sm focus:ring-0"
             />
           </div>
