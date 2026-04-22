@@ -29,6 +29,7 @@ from routers.notifications import router as notifications_router
 from routers.settings import router as settings_router
 from routers.reports import router as reports_router
 from database import get_connection, verify_database_connection
+from analytics_cache_jobs import start_scheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -586,6 +587,7 @@ def connect_database_on_startup():
     """Verify PostgreSQL is up and initialize schema."""
     verify_database_connection()
     init_database_schema()
+    start_scheduler()
 
 
 @app.on_event("startup")

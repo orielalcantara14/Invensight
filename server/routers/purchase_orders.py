@@ -19,6 +19,14 @@ logger = logging.getLogger("invensight.purchase_orders")
 
 router = APIRouter()
 
+def _invalidate_analytics_cache(cur):
+    """
+    Marks the analytics cache as stale and clears the payload
+    so that the next request will re-calculate based on new stock.
+    """
+    cur.execute(
+        "UPDATE analytics_model_cache SET status = 'stale', payload = '{}'::jsonb WHERE model_key = 'stock_prediction'"
+    )
 
 @router.get("/upcoming-deliveries")
 def get_upcoming_deliveries():
@@ -419,6 +427,7 @@ def mark_order_as_received(
                     f"Received PO: {order_id} (Receipt: {payload.receipt_number})"
                 )
 
+            _invalidate_analytics_cache(cur)
             conn.commit()
             return {"ok": True}
     except HTTPException:

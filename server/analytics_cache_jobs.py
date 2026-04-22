@@ -27,6 +27,7 @@ MODEL_KEYS = ("overview", "forecast_30d", "stock_prediction")
 CACHED_FORECAST_DAYS = int(os.getenv("ANALYTICS_CACHED_FORECAST_DAYS", "90"))
 CACHE_TTL_SECONDS = int(os.getenv("ANALYTICS_CACHE_TTL_SECONDS", "3600"))
 REFRESH_INTERVAL_SECONDS = int(os.getenv("ANALYTICS_CACHE_REFRESH_SECONDS", str(CACHE_TTL_SECONDS)))
+PH_TIMEZONE_OFFSET = 8  # UTC+8
 
 
 def _utc_now_iso() -> str:
@@ -177,7 +178,7 @@ def load_cached_stock_prediction(
     cur, *, allow_stale: bool = False
 ) -> Optional[StockPredictionResponse]:
     cur.execute(
-        "SELECT payload FROM analytics_model_cache WHERE model_key = 'stock_prediction'"
+        "SELECT payload, status FROM analytics_model_cache WHERE model_key = 'stock_prediction'"
     )
     row = cur.fetchone()
     if not row or not row.get("payload"):
@@ -185,7 +186,8 @@ def load_cached_stock_prediction(
     payload = row["payload"]
     if isinstance(payload, str):
         payload = json.loads(payload)
-    if not allow_stale and not _cache_fresh(payload):
+    status = row.get("status") or "ready"
+    if status == "stale" or not payload or (not allow_stale and not _cache_fresh(payload)):
         return None
     inner = payload.get("response")
     if not inner:
@@ -222,12 +224,51 @@ def load_overview_extras(cur, *, allow_stale: bool = False) -> Dict[str, Any]:
     }
 
 
+def calculate_seconds_until_12am_ph() -> float:
+    """
+    Calculates the number of seconds from 'now' (UTC) until the next 12:00 AM 
+    in Philippines Time (UTC+8).
+    """
+    from datetime import timedelta
+    
+    # 12 AM PH is 4 PM UTC of the current or previous day
+    # Get current UTC time
+    now_utc = datetime.now(timezone.utc)
+    
+    # Target is today at 16:00 UTC
+    target_utc = now_utc.replace(hour=16, minute=0, second=0, microsecond=0)
+    
+    # If it's already past 4 PM UTC, the next 12 AM PH is tomorrow's 4 PM UTC
+    if now_utc >= target_utc:
+        target_utc += timedelta(days=1)
+        
+    return (target_utc - now_utc).total_seconds()
+
+
+def run_daily_forecast_job() -> None:
+    """Runs at 12 AM PH to refresh models and notify administrators."""
+    log.info("Running daily 12 AM PH forecasting job...")
+    ok, msg = run_refresh_job()
+    if ok:
+        dispatch_notification(
+            type="sales_forecast",
+            title="Daily Sales Forecast Updated",
+            message="The automated daily sales forecast for Jonbrix has been generated. View the analytics dashboard for details.",
+            link="/forecasting",
+            target_roles=["administrator", "manager"]
+        )
+        log.info("Daily forecast notification dispatched.")
+    else:
+        log.error("Daily forecast refresh failed: %s", msg)
+
+
 def start_scheduler() -> None:
     if os.getenv("ANALYTICS_DISABLE_SCHEDULER", "").lower() in ("1", "true", "yes"):
         log.info("Analytics scheduler disabled (ANALYTICS_DISABLE_SCHEDULER)")
         return
 
-    def loop() -> None:
+    def interval_loop() -> None:
+        """Handles the recurring refresh based on CACHE_TTL/REFRESH_INTERVAL."""
         time.sleep(min(10, REFRESH_INTERVAL_SECONDS))
         while True:
             try:
@@ -240,10 +281,27 @@ def start_scheduler() -> None:
                 log.exception("Scheduled analytics refresh error")
             time.sleep(REFRESH_INTERVAL_SECONDS)
 
-    t = threading.Thread(target=loop, daemon=True, name="analytics-scheduler")
-    t.start()
+    def daily_loop() -> None:
+        """Handles the daily 12 AM PH notification job."""
+        while True:
+            try:
+                sleep_seconds = calculate_seconds_until_12am_ph()
+                log.info("Daily job sleeping for %.2f hours until 12 AM PH", sleep_seconds / 3600)
+                time.sleep(sleep_seconds)
+                run_daily_forecast_job()
+                # Sleep a bit to avoid double trigger in case of clock drift
+                time.sleep(60)
+            except Exception:
+                log.exception("Daily forecast job error")
+                time.sleep(300)
+
+    t1 = threading.Thread(target=interval_loop, daemon=True, name="analytics-interval-scheduler")
+    t1.start()
+    
+    t2 = threading.Thread(target=daily_loop, daemon=True, name="analytics-daily-scheduler")
+    t2.start()
+    
     log.info(
-        "Analytics scheduler started (interval=%ss, ttl=%ss)",
-        REFRESH_INTERVAL_SECONDS,
-        CACHE_TTL_SECONDS,
+        "Analytics schedulers started (interval=%ss, daily=12:00 AM PH)",
+        REFRESH_INTERVAL_SECONDS
     )

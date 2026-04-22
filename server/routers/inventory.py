@@ -12,6 +12,15 @@ from routers.notifications import dispatch_notification
 logger = logging.getLogger("invensight.inventory")
 router = APIRouter()
 
+def _invalidate_analytics_cache(cur):
+    """
+    Marks the analytics cache as stale so that the next request
+    will re-calculate based on the new stock levels.
+    """
+    cur.execute(
+        "UPDATE analytics_model_cache SET status = 'stale', payload = '{}'::jsonb WHERE model_key = 'stock_prediction'"
+    )
+
 def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
     cur.execute(
         """
@@ -40,8 +49,7 @@ def _get_inventory_item(cur: psycopg2.extras.RealDictCursor, inventory_id: int):
             COALESCE(i.last_updated::text, '') AS last_updated,
             COALESCE(i.reason_adjustment, '') AS reason_adjustment,
             i.serial_start,
-            i.serial_end,
-            i.expiry_date::text AS expiry_date
+            i.serial_end
         FROM inventory i
         JOIN products p ON i.product_id = p.product_id
         LEFT JOIN categories c ON p.category_id = c.category_id
@@ -109,14 +117,13 @@ def get_inventory():
                     COALESCE(i.last_updated::text, '') AS last_updated,
                     COALESCE(i.reason_adjustment, '') AS reason_adjustment,
                     i.serial_start,
-                    i.serial_end,
-                    i.expiry_date::text AS expiry_date
+                    i.serial_end
                 FROM inventory i
                 JOIN products p ON i.product_id = p.product_id
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 WHERE i.status = 'Active'
-                ORDER BY i.expiry_date ASC NULLS LAST, p.product_name
+                ORDER BY p.product_name
                 """
             )
             return [dict(row) for row in cur.fetchall()]
@@ -204,8 +211,8 @@ def add_inventory_item(
                 """
                 INSERT INTO inventory (
                     inventory_id, product_id, quantity, expected, actual, reorder_level, 
-                    last_updated, reason_adjustment, serial_start, serial_end, expiry_date
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    last_updated, reason_adjustment, serial_start, serial_end
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     inventory_id,
@@ -217,8 +224,7 @@ def add_inventory_item(
                     date.today(),
                     "Initial stock",
                     payload.serial_start,
-                    payload.serial_end,
-                    payload.expiry_date
+                    payload.serial_end
                 ),
             )
             
@@ -235,6 +241,7 @@ def add_inventory_item(
                     f"Added new inventory item: {payload.product_name} (Initial Qty: {payload.quantity})"
                 )
 
+            _invalidate_analytics_cache(cur)
             conn.commit()
             return _get_inventory_item(cur, inventory_id)
     except HTTPException:
@@ -347,8 +354,7 @@ def update_inventory_item(
                     actual = %s,
                     reorder_level = %s, 
                     last_updated = %s,
-                    reason_adjustment = %s,
-                    expiry_date = %s
+                    reason_adjustment = %s
                 WHERE inventory_id = %s
                 """,
                 (
@@ -358,7 +364,6 @@ def update_inventory_item(
                     payload.reorder_level,
                     date.today(),
                     payload.reason_adjustment,
-                    payload.expiry_date,
                     inventory_id
                 ),
             )
@@ -410,6 +415,7 @@ def update_inventory_item(
                     f"Updated inventory item: {payload.product_name} (Reason: {payload.reason_adjustment}, New Qty: {new_quantity})"
                 )
 
+            _invalidate_analytics_cache(cur)
             conn.commit()
             return _get_inventory_item(cur, inventory_id)
     except Exception as e:
@@ -442,6 +448,7 @@ def delete_inventory_item(
                     f"Archived inventory item ID: {inventory_id}"
                 )
             
+            _invalidate_analytics_cache(cur)
             conn.commit()
             return {"message": "Inventory item archived"}
     except Exception as e:
@@ -660,6 +667,7 @@ def add_inventory_discrepancy(
                     target_roles=["Administrator", "Manager"]
                 )
 
+            _invalidate_analytics_cache(cur)
             conn.commit()
             return {"ok": True}
     except HTTPException:

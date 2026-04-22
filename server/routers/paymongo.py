@@ -67,7 +67,7 @@ def create_source(payload: PayMongoSourceRequest):
         print(f"PayMongo Unexpected Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/paymongo/source/{source_id}")
+@router.get("/paymongo/status/{source_id}")
 def get_source(source_id: str):
     url = f"https://api.paymongo.com/v1/sources/{source_id}"
     
@@ -133,7 +133,7 @@ def create_payment_intent(payload: PayMongoPaymentIntentRequest):
         print(f"PayMongo Unexpected Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/paymongo/create-checkout-session")
+@router.post("/paymongo/checkout")
 def create_checkout_session(payload: PayMongoCheckoutSessionRequest):
     url = "https://api.paymongo.com/v1/checkout_sessions"
     

@@ -278,5 +278,14 @@ def get_model_status() -> AnalyticsModelStatusGroupResponse:
 
 @router.post("/retrain", response_model=AnalyticsRetrainResponse)
 def retrain_analytics_models() -> AnalyticsRetrainResponse:
+    from routers.notifications import dispatch_notification
     ok, msg = run_refresh_job()
+    if ok:
+        dispatch_notification(
+            type="sales_forecast",
+            title="Analytics Models Retrained",
+            message="The forecasting models have been manually retrained and the cache is now up to date.",
+            link="/forecasting",
+            target_roles=["administrator", "manager"]
+        )
     return AnalyticsRetrainResponse(ok=ok, message=msg)

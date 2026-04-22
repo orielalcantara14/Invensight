@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Header, HTTPException
 from typing import List, Optional
 import logging
+import psycopg2.extras
 from database import get_connection
 
 router = APIRouter()
@@ -55,7 +56,7 @@ def get_notifications(x_actor_user_id: str | None = Header(default=None, alias="
     user_id = int(x_actor_user_id)
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT notification_id, type, title, message, link, is_read, created_at
                 FROM notifications 

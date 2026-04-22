@@ -51,7 +51,6 @@ export function EditInventoryModal({
     reorder_level: "0",
     actual: "0",
     reason_adjustment: "",
-    expiry_date: "",
   });
 
   const isAdjustmentMode = formData.reason_adjustment !== "";
@@ -99,7 +98,6 @@ export function EditInventoryModal({
         reorder_level: String(item.reorder_level),
         actual: String(item.actual),
         reason_adjustment: "", // Start with Select Reason (None)
-        expiry_date: item.expiry_date || "",
       });
     }
   }, [item]);
@@ -123,7 +121,6 @@ export function EditInventoryModal({
         reorder_level: parseInt(formData.reorder_level),
         actual: parseInt(formData.actual),
         reason_adjustment: formData.reason_adjustment || undefined,
-        expiry_date: formData.expiry_date || undefined,
         unit_price: item.unit_price,
         pos_price: item.pos_price,
       };
@@ -136,16 +133,9 @@ export function EditInventoryModal({
           return;
         }
 
-        // Create a NEW batch with the DIFFERENCE
-        const addedQty = inputQty - item.quantity;
-        await api.addInventoryItem({
-           ...payload,
-           quantity: addedQty,
-           actual: addedQty,
-           expected: addedQty,
-           product_id: item.product_id
-        });
-        toast.success(`Restock successful: Added ${addedQty} items as a new batch`);
+        // UPDATE existing row instead of creating a NEW batch
+        await api.updateInventoryItem(item.inventory_id, payload);
+        toast.success(`Restock successful: Updated total quantity to ${inputQty}`);
       } else if (isAdjustmentMode) {
         const inputActual = parseInt(formData.actual);
         if (inputActual >= item.quantity) {
@@ -446,23 +436,10 @@ export function EditInventoryModal({
             <option value="">-- Select Reason --</option>
             <option value="Lost">Lost</option>
             <option value="Damaged">Damaged</option>
-            <option value="Restock">Restock (Add New Batch)</option>
+            <option value="Restock">Restock</option>
           </select>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Expiry Date
-            </label>
-            <input
-              type="date"
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-              value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-            />
-          </div>
-        </div>
 
         <div className="flex justify-end gap-3 mt-6">
           <button

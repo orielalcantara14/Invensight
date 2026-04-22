@@ -8,6 +8,10 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
+# Silence noisy Prophet/CmdStanPy logs
+logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
+logging.getLogger("prophet").setLevel(logging.ERROR)
+
 log = logging.getLogger("invensight.prophet_ts")
 
 MIN_DAYS_FOR_PROPHET = 8

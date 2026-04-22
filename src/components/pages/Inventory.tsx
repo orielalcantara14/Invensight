@@ -130,7 +130,6 @@ export function Inventory() {
       "Quantity": item.quantity,
       "Expected": item.expected,
       "Actual": item.actual,
-      "Expiry Date": item.expiry_date || "-",
       "Reorder Level": item.reorder_level,
       "Status": item.status,
       "Difference": item.difference
@@ -525,7 +524,6 @@ export function Inventory() {
           "Cost": i.unit_price,
           "Qty": i.quantity,
           "Actual": i.actual,
-          "Expiry": i.expiry_date || "-",
           "Status": i.status,
           "Last Updated": i.last_updated
         }))}

@@ -528,7 +528,10 @@ export const api = {
   getDashboardStats: (view?: string) => request<DashboardStats>(`/api/dashboard/stats${view ? `?view=${view}` : ""}`),
   getAnalyticsOverview: () => request<AnalyticsOverview>("/api/analytics/overview"),
   getSalesForecast: (days = 90) => request<any>(`/api/analytics/forecast?days=${days}`),
-  getStockPrediction: () => request<any>("/api/analytics/stock-prediction"),
+  getStockPrediction: (params?: { useCache?: boolean }) => {
+    const query = params?.useCache === false ? "?use_cache=false" : "";
+    return request<any>(`/api/analytics/stock-prediction${query}`);
+  },
   getAnalyticsModelStatus: () => request<any>("/api/analytics/model-status"),
   retrainAnalyticsModels: () => request<{ ok: boolean }>("/api/analytics/retrain", { method: "POST" }),
 

@@ -99,11 +99,12 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             """
         )
     else:
+        # Default/Monthly: Last 6 months
         cur.execute(
             """
             WITH months AS (
                 SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
+                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months',
                     date_trunc('month', CURRENT_DATE)::date,
                     INTERVAL '1 month'
                 )::date AS m
@@ -113,6 +114,7 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
                        COALESCE(SUM(total_amount), 0)::float AS revenue,
                        COUNT(*)::int AS cnt
                 FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'
                 GROUP BY 1
             )
             SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
@@ -265,9 +267,10 @@ def _fetch_sales_trend_series(cur, view: str) -> list[SalesTrendItem]:
             SELECT date_trunc('month', invoice_date)::date AS m,
                    COALESCE(SUM(total_amount), 0)::float AS revenue
             FROM sales
+            WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'
             GROUP BY 1
         )
-        SELECT TO_CHAR(months.m, 'Mon') AS label,
+        SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
                COALESCE(agg.revenue, 0)::float AS revenue
         FROM months
         LEFT JOIN agg ON agg.m = months.m
@@ -285,38 +288,56 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Apply view-based filter to the main KPIs
+            date_filter = ""
+            if view == "7d":
+                date_filter = "AND invoice_date::date >= CURRENT_DATE - INTERVAL '6 days'"
+            elif view == "daily":
+                date_filter = "AND invoice_date::date >= date_trunc('month', CURRENT_DATE)::date"
+            elif view == "annual":
+                # Annual in card means Last 12 Months to match chart
+                date_filter = "AND invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'"
+            else:
+                # Monthly in card means Last 6 Months to match chart
+                date_filter = "AND invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'"
+            
             # Base Revenue includes Paid and Exchanged (excludes Failed)
-            # We subtract actual refund_amounts from customer_returns
-            cur.execute("""
+            cur.execute(f"""
                 SELECT 
                     COALESCE(SUM(total_amount), 0) as total_sales,
                     COUNT(*) as tx_count
                 FROM sales 
                 WHERE payment_status NOT IN ('Refunded', 'Failed')
+                {date_filter}
             """)
             s_stats = cur.fetchone()
             base_revenue = float(s_stats['total_sales'] or 0.0)
-            # We also include Refunded transactions in the base revenue sum IF they were partially refunded,
-            # BUT the user said "Refunded is not counted as sales" earlier.
-            # If a sale is "Refunded" (Full), its status is 'Refunded'.
-            # If a sale had a partial refund, its status remains 'Paid' or 'Exchanged'?
-            # Usually, we only set status to 'Refunded' for full refunds in customer_returns.py.
             
-            # Let's get the total deductions from refund amounts
-            cur.execute("SELECT COALESCE(SUM(refund_amount), 0) as total_refunds FROM customer_returns WHERE return_type = 'Refund'")
+            # Deductions from refunds in the same period
+            refund_filter = ""
+            if view == "7d":
+                refund_filter = "AND return_date::date >= CURRENT_DATE - INTERVAL '6 days'"
+            elif view == "daily":
+                refund_filter = "AND return_date::date >= date_trunc('month', CURRENT_DATE)::date"
+            elif view == "annual":
+                refund_filter = "AND return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'"
+            else:
+                refund_filter = "AND return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'"
+
+            cur.execute(f"SELECT COALESCE(SUM(refund_amount), 0) as total_refunds FROM customer_returns WHERE return_type = 'Refund' {refund_filter}")
             total_refunds = float(cur.fetchone()['total_refunds'] or 0.0)
             
             total_revenue = base_revenue - total_refunds
             total_transactions = int(s_stats['tx_count'] or 0)
 
             # Completed includes Paid and Exchanged
-            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status IN ('Paid', 'Exchanged')")
+            cur.execute(f"SELECT COUNT(*) as count FROM sales WHERE payment_status IN ('Paid', 'Exchanged') {date_filter}")
             completed_sales = cur.fetchone()['count']
 
-            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Failed'")
+            cur.execute(f"SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Failed' {date_filter}")
             failed_payments = cur.fetchone()['count']
 
-            cur.execute("SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Refunded'")
+            cur.execute(f"SELECT COUNT(*) as count FROM sales WHERE payment_status = 'Refunded' {date_filter}")
             refunded_sales = cur.fetchone()['count']
 
             # Stock counts: Calculated based on actual levels vs reorder level, excluding archived products
@@ -336,11 +357,13 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
 
             sales_trend = _fetch_sales_trend_series(cur, view)
 
-            cur.execute("""
+            cur.execute(f"""
                 SELECT c.category_name, SUM(si.total_amount) as value
                 FROM sold_items si
                 JOIN products p ON si.product_id = p.product_id
                 JOIN categories c ON p.category_id = c.category_id
+                JOIN sales s ON si.invoice_id = s.invoice_id
+                WHERE 1=1 {date_filter.replace('invoice_date', 's.invoice_date')}
                 GROUP BY c.category_name
                 ORDER BY value DESC
             """)
@@ -370,7 +393,7 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                         percentage=round((val / total_cat_value) * 100, 1) if total_cat_value > 0 else 0
                     ))
 
-            cur.execute("""
+            cur.execute(f"""
                 SELECT 
                     p.product_name as name, 
                     SUM(si.quantity) as units_sold, 
@@ -379,6 +402,8 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
                 FROM sold_items si
                 JOIN products p ON si.product_id = p.product_id
                 JOIN inventory i ON p.product_id = i.product_id
+                JOIN sales s ON si.invoice_id = s.invoice_id
+                WHERE 1=1 {date_filter.replace('invoice_date', 's.invoice_date')}
                 GROUP BY p.product_name, i.quantity, i.reorder_level
                 ORDER BY units_sold DESC
                 LIMIT 5

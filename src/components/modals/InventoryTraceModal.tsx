@@ -124,20 +124,6 @@ export function InventoryTraceModal({
               <div className="font-semibold text-right text-primary">{item?.sku || "-"}</div>
               <div className="text-muted-foreground">Supplier:</div>
               <div className="font-semibold text-right text-foreground">{item?.supplier_name || "-"}</div>
-              <div className="text-muted-foreground">Expiry Date:</div>
-              <div className="font-semibold text-right text-foreground">
-                {item?.expiry_date ? (
-                  <span className={
-                    new Date(item.expiry_date) < new Date() 
-                      ? "text-red-600 font-bold" 
-                      : (new Date(item.expiry_date).getTime() - new Date().getTime()) < 30 * 24 * 60 * 60 * 1000
-                      ? "text-orange-600 font-bold"
-                      : "text-foreground"
-                  }>
-                    {item.expiry_date}
-                  </span>
-                ) : "-"}
-              </div>
               <div className="text-muted-foreground">Expected Quantity:</div>
               <div className="font-semibold text-right text-foreground">{item?.expected ?? "-"}</div>
               <div className="text-muted-foreground">Actual Quantity:</div>

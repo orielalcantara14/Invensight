@@ -24,6 +24,15 @@ def get_auth_header():
     encoded_auth = base64.b64encode(auth_str.encode()).decode()
     return f"Basic {encoded_auth}"
 
+def _invalidate_analytics_cache(cur):
+    """
+    Marks the analytics cache as stale so that the next request
+    will re-calculate based on the new stock levels.
+    """
+    cur.execute(
+        "UPDATE analytics_model_cache SET status = 'stale', payload = '{}'::jsonb WHERE model_key = 'stock_prediction'"
+    )
+
 def get_tax_rate():
     conn = get_connection()
     try:
@@ -136,7 +145,20 @@ def get_sales(start_date: Optional[str] = None, end_date: Optional[str] = None):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            query = """
+            params = []
+            if not start_date and not end_date:
+                # Default to last 30 days for performance
+                date_filter = "WHERE s.invoice_date >= CURRENT_DATE - INTERVAL '30 days'"
+            else:
+                date_filter = "WHERE 1=1"
+                if start_date:
+                    date_filter += " AND s.invoice_date >= %s"
+                    params.append(start_date)
+                if end_date:
+                    date_filter += " AND s.invoice_date <= %s"
+                    params.append(end_date)
+
+            query = f"""
                 SELECT
                     s.invoice_id,
                     s.invoice_date,
@@ -164,17 +186,9 @@ def get_sales(start_date: Optional[str] = None, end_date: Optional[str] = None):
                         ), '[]'
                     ) as items
                 FROM sales s
-                WHERE 1=1
+                {date_filter}
+                ORDER BY s.invoice_id DESC
             """
-            params = []
-            if start_date:
-                query += " AND s.invoice_date >= %s"
-                params.append(start_date)
-            if end_date:
-                query += " AND s.invoice_date <= %s"
-                params.append(end_date)
-            
-            query += " ORDER BY s.invoice_id DESC"
             
             cur.execute(query, tuple(params))
             sales = cur.fetchall()
@@ -517,6 +531,7 @@ def create_sale(
                     f"POS sale completed. Invoice: {invoice_number}. Method: {sale.payment_method}. Total: ₱{total_amount:.2f}"
                 )
 
+            _invalidate_analytics_cache(cur)
             conn.commit()
 
             return {

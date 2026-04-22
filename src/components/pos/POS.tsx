@@ -919,7 +919,7 @@ export function POS() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : paymentMethod === "Cash" ? (
             <div className="flex gap-4 mb-4">
               <div className="flex-1">
                 <label className="text-[10px] font-bold text-muted-foreground/70 uppercase mb-1 block">Cash Received</label>
@@ -938,7 +938,7 @@ export function POS() {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           {!isPartialPayment && (
             <div className="flex gap-2 mb-4">

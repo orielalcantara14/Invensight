@@ -65,7 +65,6 @@ export function AddProductModal({
     pos_price: "",
     stock: "0",
     status: "Active" as "Active" | "Archived",
-    expiry_date: "",
   });
 
   useEffect(() => {
@@ -151,7 +150,6 @@ export function AddProductModal({
         pos_price: posPrice,
         stock,
         status: formData.status,
-        expiry_date: formData.expiry_date || undefined,
       });
       toast.success("Product added successfully");
       setFormData({
@@ -165,7 +163,6 @@ export function AddProductModal({
         pos_price: "",
         stock: "0",
         status: "Active",
-        expiry_date: "",
       });
       onSuccess();
       onClose();
@@ -404,17 +401,6 @@ export function AddProductModal({
               <option value="Active">Active</option>
               <option value="Archived">Archived</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Expiry Date
-            </label>
-            <input
-              type="date"
-              value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
         </div>
 

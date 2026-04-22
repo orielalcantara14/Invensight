@@ -369,9 +369,9 @@ def create_pos_product(
                     """
                     INSERT INTO inventory (
                         inventory_id, product_id, quantity, expected, actual, reorder_level, 
-                        last_updated, reason_adjustment, serial_start, serial_end, expiry_date
+                        last_updated, reason_adjustment, serial_start, serial_end
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         inventory_id, 
@@ -383,8 +383,7 @@ def create_pos_product(
                         date.today(), 
                         "Initial stock",
                         payload.serial_start,
-                        None, # serial_end handled by backend or left to calc
-                        payload.expiry_date
+                        None # serial_end handled by backend or left to calc
                     ),
                 )
 

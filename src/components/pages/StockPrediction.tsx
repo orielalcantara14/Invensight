@@ -59,7 +59,7 @@ export function StockPrediction() {
       setError(null);
       try {
         const [res, sups] = await Promise.all([
-          api.getStockPrediction({ useCache: false }),
+          api.getStockPrediction(),
           api.getSuppliers()
         ]);
         if (!cancelled) {
@@ -82,8 +82,8 @@ export function StockPrediction() {
   // Visual Risk Meter Data (Speedometer)
   const speedometerData = useMemo(() => {
     if (!stats || stats.avg_days_to_stockout == null) return [{ value: 0 }];
-    // Cap at 100 days for the meter
-    const val = Math.min(stats.avg_days_to_stockout, 100);
+    // Cap at 365 days for the meter to match backend logic
+    const val = Math.min(stats.avg_days_to_stockout, 365);
     return [{ value: val }];
   }, [stats]);
 
@@ -338,7 +338,7 @@ export function StockPrediction() {
                     startAngle={180}
                     endAngle={0}
                   >
-                    <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                    <PolarAngleAxis type="number" domain={[0, 365]} angleAxisId={0} tick={false} />
                     <RadialBar
                       background={{ fill: '#f1f5f9' }}
                       dataKey="value"
