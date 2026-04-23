@@ -595,6 +595,7 @@ export function Sales() {
           returnType={returnDetails.return_type}
           reason={returnDetails.reason}
           items={returnDetails.items}
+          refundAmount={returnDetails.refund_amount}
         />
       )}
 

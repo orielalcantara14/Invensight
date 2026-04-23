@@ -51,11 +51,22 @@ export function Forecasting() {
           <p className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-widest">{label}</p>
           <div className="space-y-2">
             {payload.map((item: any, index: number) => {
-              if (item.name === 'Confidence Interval' || item.name === 'Upper Bound' || item.name === 'Lower Bound') return null;
+              if (
+                item.name === 'Confidence Interval' || 
+                item.name === 'Lower Confidence' || 
+                item.name === 'Upper Confidence'
+              ) return null;
+              
+              const isBound = item.name === 'Upper Bound' || item.name === 'Lower Bound';
+              
               return (
                 <div key={index} className="flex items-center justify-between gap-8">
-                  <span className="text-sm font-medium text-muted-foreground">{item.name} :</span>
-                  <span className="text-sm font-bold text-foreground">{formatPhp(item.value)}</span>
+                  <span className={`text-sm font-medium ${isBound ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>{item.name} :</span>
+                  <span className={`text-sm font-bold ${
+                    item.name === 'Upper Bound' ? 'text-blue-500' : 
+                    item.name === 'Lower Bound' ? 'text-red-500' : 
+                    'text-foreground'
+                  }`}>{formatPhp(item.value)}</span>
                 </div>
               );
             })}
@@ -159,7 +170,8 @@ export function Forecasting() {
         forecast_sales,
         lower_bound,
         upper_bound,
-        interval: [lower_bound, upper_bound],
+        lower_interval: [lower_bound, forecast_sales],
+        upper_interval: [forecast_sales, upper_bound],
         trend,
         seasonal: s.seasonal_component ?? 0,
         holidays: s.holidays_component ?? 0,
@@ -303,14 +315,14 @@ export function Forecasting() {
           <p className="text-muted-foreground mt-1">AI-driven sales projections and trend analysis.</p>
         </div>
 
-        <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
+        <div className="flex items-center bg-muted/50 border border-border/50 rounded-xl p-1 gap-1">
           {(["7d", "30d", "1y"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setResolution(r)}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${resolution === r
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${resolution === r
+                ? "bg-card text-foreground shadow-md border border-border/50"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
                 }`}
             >
               {r === "7d" ? "7 Days" : r === "30d" ? "Monthly" : "Annual"}
@@ -320,60 +332,57 @@ export function Forecasting() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 p-8 rounded-3xl shadow-lg text-white relative overflow-hidden group">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
-            <TrendingUp size={120} />
+        {/* Predicted Revenue Card */}
+        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group border border-white/10">
+          <div className="absolute top-0 right-0 -mt-2 -mr-2 p-10 opacity-20 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700">
+            <TrendingUp size={140} />
           </div>
           <div className="relative z-10">
-            <span className="text-indigo-200 font-medium tracking-wider text-xs uppercase mb-2 block">Predicted Revenue (30D)</span>
-            <div className="text-4xl font-bold mb-2 tracking-tight">
+            <span className="text-indigo-100/70 font-bold tracking-widest text-[10px] uppercase mb-4 block">Predicted Revenue (30D)</span>
+            <div className="text-5xl font-black mb-3 tracking-tighter drop-shadow-sm">
               {loading ? "…" : formatPhp(data?.next_period_forecast ?? null)}
             </div>
-            <p className="text-indigo-200/80 text-sm">Aggregated AI projection for the next cycle.</p>
+            <p className="text-indigo-100/60 text-xs font-medium max-w-[200px] leading-relaxed">Aggregated AI projection for the next cycle.</p>
           </div>
         </div>
 
-        <div className="bg-card p-8 rounded-3xl shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 p-8 text-emerald-500/5 group-hover:scale-110 transition-transform duration-500">
-            <Activity size={120} />
+        {/* Model Confidence Card */}
+        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
+          {/* Background Sparkline Effect */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none translate-y-4">
+             <svg viewBox="0 0 100 20" className="w-full h-full stroke-emerald-500 fill-none stroke-[0.5]">
+                <path d="M0,10 Q10,5 20,12 T40,8 T60,15 T80,5 T100,10" />
+             </svg>
           </div>
           <div className="relative z-10">
-            <span className="text-muted-foreground font-medium tracking-wider text-xs uppercase mb-2 block">Model Confidence</span>
-            <div className="text-4xl font-bold text-foreground mb-2">
+            <span className="text-muted-foreground/60 font-bold tracking-widest text-[10px] uppercase mb-4 block">Model Confidence</span>
+            <div className="text-5xl font-black text-foreground mb-4 tracking-tighter">
               {loading ? "…" : data?.forecast_accuracy != null ? `${data.forecast_accuracy.toFixed(1)}%` : "N/A"}
             </div>
-            <div className="flex items-center gap-2 mt-4">
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-1000 ease-out"
-                  style={{ width: `${data?.forecast_accuracy ?? 0}%` }}
-                />
-              </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                style={{ width: `${data?.forecast_accuracy ?? 0}%` }}
+              />
             </div>
           </div>
         </div>
 
-        <div className="bg-card p-8 rounded-3xl shadow-sm border border-border flex flex-col justify-center relative group">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 p-8 text-primary/5 group-hover:scale-110 transition-transform duration-500">
-            <AlertTriangle size={120} />
+        {/* Restock Necessity Card */}
+        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 right-0 -mt-6 -mr-6 p-12 text-primary/[0.03] group-hover:scale-110 transition-transform duration-700 rotate-12">
+            <AlertTriangle size={160} />
           </div>
           <div className="relative z-10">
-            <span className="text-muted-foreground font-medium tracking-wider text-xs uppercase mb-2 block">Restock Necessity</span>
-            <div className="text-4xl font-bold text-foreground mb-2">
+            <span className="text-muted-foreground/60 font-bold tracking-widest text-[10px] uppercase mb-4 block">Restock Necessity</span>
+            <div className="text-5xl font-black text-foreground mb-4 tracking-tighter">
               {loading ? "…" : `${reorderCount} Products`}
             </div>
-            <div className="flex items-center gap-2 mt-4">
-              {reorderCount > 0 ? (
-                <>
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse" />
-                  <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Action Required</span>
-                </>
-              ) : (
-                <>
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                  <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Stock Optimal</span>
-                </>
-              )}
+            <div className="flex items-center gap-2.5">
+              <span className={`flex h-2 w-2 rounded-full ${reorderCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${reorderCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {reorderCount > 0 ? "Action Required" : "Stock Optimal"}
+              </span>
             </div>
           </div>
         </div>
@@ -451,18 +460,47 @@ export function Forecasting() {
                     align="right"
                     height={40}
                     iconType="rect"
-                    formatter={(val) => <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{val === 'forecast_sales' ? 'Forecast' : val === 'actual_sales' ? 'Observed' : val}</span>}
+                    payload={[
+                      { value: 'actual_sales', type: 'rect', id: 'actual_sales', color: '#000000' },
+                      { value: 'forecast_sales', type: 'rect', id: 'forecast_sales', color: 'var(--primary)' },
+                      { value: 'upper_bound', type: 'rect', id: 'upper_bound', color: '#3b82f6' },
+                      { value: 'lower_bound', type: 'rect', id: 'lower_bound', color: '#ef4444' },
+                    ]}
+                    formatter={(val) => {
+                      const labels: any = {
+                        actual_sales: 'Observed',
+                        forecast_sales: 'AI Predicted',
+                        upper_bound: 'Upper Bound',
+                        lower_bound: 'Lower Bound'
+                      };
+                      return <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{labels[val] || val}</span>;
+                    }}
                   />
 
+                  {/* Lower Confidence Zone (Red) */}
                   <Area
                     type="monotone"
-                    dataKey="interval"
+                    dataKey="lower_interval"
                     stroke="none"
-                    fill="#94a3b8"
-                    fillOpacity={0.3}
-                    name="Confidence Interval"
+                    fill="#ef4444"
+                    fillOpacity={0.2}
+                    name="Lower Confidence"
                     activeDot={false}
                     tooltipType="none"
+                    legendType="none"
+                  />
+
+                  {/* Upper Confidence Zone (Blue) */}
+                  <Area
+                    type="monotone"
+                    dataKey="upper_interval"
+                    stroke="none"
+                    fill="#3b82f6"
+                    fillOpacity={0.2}
+                    name="Upper Confidence"
+                    activeDot={false}
+                    tooltipType="none"
+                    legendType="none"
                   />
 
                   <Line
@@ -474,7 +512,6 @@ export function Forecasting() {
                     strokeDasharray="5 5"
                     dot={false}
                     activeDot={false}
-                    tooltipType="none"
                     legendType="none"
                   />
 
@@ -487,7 +524,6 @@ export function Forecasting() {
                     strokeDasharray="5 5"
                     dot={false}
                     activeDot={false}
-                    tooltipType="none"
                     legendType="none"
                   />
 

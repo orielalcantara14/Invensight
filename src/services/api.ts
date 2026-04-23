@@ -338,6 +338,7 @@ export interface CustomerReturn {
   return_type: string;
   status: string;
   reason?: string;
+  refund_amount: number;
   items: CustomerReturnItem[];
 }
 

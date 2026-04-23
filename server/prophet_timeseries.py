@@ -25,10 +25,24 @@ def run_ssa_denoise(series: List[float], L: int = 14, keep_components: int = 4) 
     y = np.array(series, dtype=float)
     N = len(y)
     
+    # Handle NaNs (missing data/outliers) by interpolating them for the SSA step
+    mask = np.isnan(y)
+    if mask.any():
+        try:
+            # Simple linear interpolation for NaNs
+            from scipy import interpolate
+            indices = np.arange(N)
+            y_valid = y[~mask]
+            idx_valid = indices[~mask]
+            if len(y_valid) >= 2:
+                f = interpolate.interp1d(idx_valid, y_valid, kind='linear', fill_value="extrapolate")
+                y[mask] = f(indices[mask])
+            else:
+                y[mask] = 0.0 # Fallback
+        except Exception:
+            y[mask] = 0.0 # Fallback
+    
     # Validation: N must be at least L
-    if N < L:
-        L = N // 2
-        if L < 2: return y # Not enough data to denoise
         
     K = N - L + 1
     
@@ -93,6 +107,12 @@ def run_prophet_daily_forecast(
     ds_list = [start + timedelta(days=i) for i in range(days)]
     df = pd.DataFrame({"ds": pd.to_datetime(ds_list), "y": denoised_y})
 
+    # Calculate noise volatility to fix confidence intervals
+    # Since we train on denoised data, we must add the 'removed noise' back to the uncertainty bounds
+    # Use nanstd to ignore the 'gaps' we created for outliers
+    noise_sigma = np.nanstd(np.array(actuals) - denoised_y)
+    interval_buffer = noise_sigma * 1.65 # Covers approx 90% of the removed volatility
+
     use_weekly = days >= 14
     
     try:
@@ -114,10 +134,10 @@ def run_prophet_daily_forecast(
         log.warning("Prophet fit failed: %s", e)
         return None
 
-    # Extraction of components
+    # Extraction of components with interval correction
     yhat = smooth_series(fc_in["yhat"].to_numpy(dtype=float))
-    yhat_lower = smooth_series(fc_in["yhat_lower"].to_numpy(dtype=float))
-    yhat_upper = smooth_series(fc_in["yhat_upper"].to_numpy(dtype=float))
+    yhat_lower = smooth_series(fc_in["yhat_lower"].to_numpy(dtype=float) - interval_buffer)
+    yhat_upper = smooth_series(fc_in["yhat_upper"].to_numpy(dtype=float) + interval_buffer)
     trend = smooth_series(fc_in["trend"].to_numpy(dtype=float))
     
     # Seasonality components
@@ -144,8 +164,8 @@ def run_prophet_daily_forecast(
         fc_out = m.predict(future)
         next_30d_sum = float(fc_out["yhat"].sum())
         fyhat = smooth_series(fc_out["yhat"].to_numpy(dtype=float))
-        flo = smooth_series(fc_out["yhat_lower"].to_numpy(dtype=float))
-        fhi = smooth_series(fc_out["yhat_upper"].to_numpy(dtype=float))
+        flo = smooth_series(fc_out["yhat_lower"].to_numpy(dtype=float) - interval_buffer)
+        fhi = smooth_series(fc_out["yhat_upper"].to_numpy(dtype=float) + interval_buffer)
         ftrend = smooth_series(fc_out["trend"].to_numpy(dtype=float))
         fweekly = smooth_series(fc_out["weekly"].to_numpy(dtype=float)) if "weekly" in fc_out.columns else np.zeros(len(fyhat))
         fyearly = smooth_series(fc_out["yearly"].to_numpy(dtype=float)) if "yearly" in fc_out.columns else np.zeros(len(fyhat))

@@ -24,7 +24,8 @@ from prophet_timeseries import run_prophet_daily_forecast, MIN_DAYS_FOR_PROPHET
 
 
 def load_daily_product_sales(cur, product_id: int, days: int) -> Tuple[date, List[float]]:
-    """Returns (start_date, daily_quantities) for a specific product."""
+    """Returns (start_date, daily_quantities) for a specific product, accounting for returns."""
+    # 1. Load Sales
     cur.execute(
         """
         SELECT DATE(s.invoice_date) AS d, COALESCE(SUM(si.quantity), 0)::float AS qty
@@ -32,32 +33,69 @@ def load_daily_product_sales(cur, product_id: int, days: int) -> Tuple[date, Lis
         JOIN sold_items si ON s.invoice_id = si.invoice_id
         WHERE si.product_id = %s AND s.invoice_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
         GROUP BY DATE(s.invoice_date)
-        ORDER BY d
         """,
         (product_id, days),
     )
-    rows = cur.fetchall()
-    by_day = {r["d"]: float(r["qty"] or 0) for r in rows}
+    sales_rows = cur.fetchall()
+    
+    # 2. Load Returns
+    cur.execute(
+        """
+        SELECT DATE(cr.return_date) AS d, COALESCE(SUM(cri.quantity), 0)::float AS qty
+        FROM customer_returns cr
+        JOIN customer_return_items cri ON cr.return_id = cri.return_id
+        WHERE cri.product_id = %s AND cr.return_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
+        GROUP BY DATE(cr.return_date)
+        """,
+        (product_id, days),
+    )
+    return_rows = cur.fetchall()
+
+    by_day = {}
+    for r in sales_rows:
+        by_day[r["d"]] = by_day.get(r["d"], 0.0) + float(r["qty"] or 0)
+    for r in return_rows:
+        # Subtract returns from net sales on the day they occurred
+        by_day[r["d"]] = by_day.get(r["d"], 0.0) - float(r["qty"] or 0)
     
     base_start = date.today() - timedelta(days=days - 1)
-    full_actuals = [float(by_day.get(base_start + timedelta(days=i), 0.0)) for i in range(days)]
+    # Ensure we don't have negative sales in the series (Prophet doesn't like them)
+    full_actuals = [max(0.0, float(by_day.get(base_start + timedelta(days=i), 0.0))) for i in range(days)]
     
     return base_start, full_actuals
 
 
 def load_daily_revenue(cur, days: int) -> Tuple[date, List[float]]:
+    """Returns (start_date, daily_revenue) accounting for refunds."""
+    # 1. Gross Revenue
     cur.execute(
         """
         SELECT DATE(invoice_date) AS d, COALESCE(SUM(total_amount), 0)::float AS revenue
         FROM sales
         WHERE invoice_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
         GROUP BY DATE(invoice_date)
-        ORDER BY d
         """,
         (days,),
     )
-    rows = cur.fetchall()
-    by_day = {r["d"]: float(r["revenue"] or 0) for r in rows}
+    sales_rows = cur.fetchall()
+
+    # 2. Refunds
+    cur.execute(
+        """
+        SELECT DATE(return_date) AS d, COALESCE(SUM(refund_amount), 0)::float AS refund
+        FROM customer_returns
+        WHERE return_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
+        GROUP BY DATE(return_date)
+        """,
+        (days,),
+    )
+    return_rows = cur.fetchall()
+
+    by_day = {}
+    for r in sales_rows:
+        by_day[r["d"]] = by_day.get(r["d"], 0.0) + float(r["revenue"] or 0)
+    for r in return_rows:
+        by_day[r["d"]] = by_day.get(r["d"], 0.0) - float(r["refund"] or 0)
     
     # Calculate initial full range start
     base_start = date.today() - timedelta(days=days - 1)
@@ -147,7 +185,26 @@ def _rolling_mean_series(
 def build_sales_series(
     start: date, days: int, actuals: List[float]
 ) -> Tuple[List[ForecastSeriesPoint], str, Optional[float], Optional[float], str]:
-    prophet = run_prophet_daily_forecast(start, days, actuals)
+    # Detect 0-sale outliers to prevent 'crash' lines in the chart
+    # If a day has 0 but neighbors are > 0, we treat it as a 'gap' (e.g. shop was closed)
+    cleaned_actuals = []
+    for i, val in enumerate(actuals):
+        if val <= 0:
+            # Check neighbors
+            prev_val = actuals[i-1] if i > 0 else 0
+            next_val = actuals[i+1] if i < len(actuals)-1 else 0
+            if prev_val > 0 or next_val > 0:
+                cleaned_actuals.append(None) # Treat as gap
+            else:
+                cleaned_actuals.append(0.0)
+        else:
+            cleaned_actuals.append(val)
+
+    # Use a version for Prophet where None is handled correctly
+    # Prophet handles NaNs as missing data (ignores them for training)
+    prophet_y = [v if v is not None else float('nan') for v in cleaned_actuals]
+    
+    prophet = run_prophet_daily_forecast(start, days, prophet_y)
     if prophet is not None:
         (
             yhat, yhat_lo, yhat_hi, 
@@ -167,10 +224,14 @@ def build_sales_series(
         # 1. Historical loop
         for i in range(days):
             d = start + timedelta(days=i)
+            # Use raw cleaned_actuals for 'Observed'
+            # If it's None, Chart.js will gracefully skip the point or draw a gap
+            obs = cleaned_actuals[i]
+            
             series.append(
                 ForecastSeriesPoint(
                     date=d.isoformat(),
-                    actual_sales=float(denoised_y[i]),
+                    actual_sales=float(obs) if obs is not None else None,
                     forecast_sales=float(max(0.0, yhat[i])),
                     lower_bound=float(max(0.0, yhat_lo[i])),
                     upper_bound=float(max(0.0, yhat_hi[i])),

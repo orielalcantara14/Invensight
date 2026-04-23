@@ -158,9 +158,6 @@ export function CustomerReturns() {
             ) : (
                 paginatedReturns.map((r) => (
                     <tr key={r.return_id} className="hover:bg-muted/50/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {/* Row selection handled in Export Wizard */}
-                      </td>
                       <td className="px-6 py-4 font-bold text-primary">{r.rma_number}</td>
                       <td className="px-6 py-4">
                         <button 

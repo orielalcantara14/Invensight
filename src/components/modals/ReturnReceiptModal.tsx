@@ -16,6 +16,7 @@ interface ReturnReceiptModalProps {
     is_defective: boolean;
     is_damaged: boolean;
   }>;
+  refundAmount?: number;
 }
 
 export function ReturnReceiptModal({
@@ -25,7 +26,8 @@ export function ReturnReceiptModal({
   rmaNumber,
   returnType,
   reason,
-  items
+  items,
+  refundAmount
 }: ReturnReceiptModalProps) {
   if (!isOpen || !invoice) return null;
 
@@ -105,12 +107,22 @@ export function ReturnReceiptModal({
             </div>
           </div>
 
-          <div className="mb-12">
+          <div className="mb-10">
             <p className="text-[10px] text-muted-foreground/70 font-black uppercase tracking-widest mb-2">Internal Reason / Notes</p>
             <div className="p-4 bg-primary/10/30 border border-blue-100/50 rounded-xl italic text-muted-foreground text-xs leading-relaxed">
               "{reason || "No specific reason logged"}"
             </div>
           </div>
+
+          {returnType === "Refund" && refundAmount !== undefined && (
+            <div className="border-t-2 border-black pt-6 mt-10">
+                <div className="flex justify-between items-center">
+                    <p className="text-sm font-black text-foreground uppercase tracking-widest">Total Refund Amount</p>
+                    <p className="text-xl font-black text-green-600">₱{refundAmount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 text-right italic">*Refunded via Original Payment Method</p>
+            </div>
+          )}
 
           <div className="mt-12 text-center border-t border-dashed border-border pt-8">
             <p className="text-[10px] text-muted-foreground/70 font-black uppercase tracking-[0.2em] mb-2">Official Documentation</p>
