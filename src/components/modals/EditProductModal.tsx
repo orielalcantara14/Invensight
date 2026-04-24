@@ -352,7 +352,7 @@ export function EditProductModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              SRP {mode === "pos" ? "*" : ""}
+              Retail Price {mode === "pos" ? "*" : ""}
             </label>
             <input
               type="text"

@@ -763,6 +763,7 @@ class StockHorizonPrediction(BaseModel):
     stock_90d: float
     recommended_order: int
     urgency: Literal["High", "Medium", "Low"]
+    unit_price: float = 0.0
 
 
 class CriticalStockItem(BaseModel):

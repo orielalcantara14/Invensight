@@ -763,3 +763,48 @@ export interface OrdersReturnsReportData {
   }>;
 }
 
+export interface StockRiskStats {
+  high_risk: number;
+  medium_risk: number;
+  low_risk: number;
+  avg_days_to_stockout: number | null;
+}
+
+export interface StockRiskAnalysisPoint {
+  product_name: string;
+  days_to_stockout: number | null;
+  predicted_demand_30d: number;
+  current_stock: number;
+  confidence: number;
+}
+
+export interface StockHorizonPrediction {
+  product_id: number;
+  product_name: string;
+  supplier_id: number | null;
+  supplier_name: string;
+  current_stock: number;
+  stock_30d: number;
+  stock_60d: number;
+  stock_90d: number;
+  recommended_order: number;
+  urgency: "High" | "Medium" | "Low";
+  unit_price: number;
+}
+
+export interface CriticalStockItem {
+  product_name: string;
+  days_to_stockout: number;
+  recommended_order: number;
+}
+
+export interface StockPredictionResponse {
+  risk_stats: StockRiskStats;
+  risk_analysis: StockRiskAnalysisPoint[];
+  horizon_predictions: StockHorizonPrediction[];
+  critical_items: CriticalStockItem[];
+  model_status: any;
+  served_from_cache: boolean;
+  forecast_engine: string;
+  cache_generated_at: string | null;
+}

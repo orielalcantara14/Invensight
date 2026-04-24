@@ -70,7 +70,8 @@ export function Users() {
   const currentRole = (session?.role ?? "").trim().toLowerCase();
   const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadminnginamo";
   const isAdministrator = currentRole === "administrator";
-  const canManageAccounts = isRootAdmin || isAdministrator;
+  const isSuperAdmin = currentRole === "super admin";
+  const canManageAccounts = isRootAdmin || isAdministrator || isSuperAdmin;
 
   const refreshData = useCallback(async () => {
     setListError(null);
@@ -255,19 +256,24 @@ export function Users() {
   });
 
   const allowedCreateRoleKeys = isRootAdmin
-    ? ["administrator", "manager", "sales staff", "cashier", "warehouse staff"]
-    : isAdministrator
-      ? ["manager", "sales staff", "cashier", "warehouse staff"]
-      : [];
+    ? ["administrator", "manager", "sales staff", "cashier", "super admin"]
+    : isSuperAdmin
+      ? ["administrator", "manager", "sales staff", "cashier"]
+      : isAdministrator
+        ? ["manager", "sales staff", "cashier"]
+        : [];
   const roleNames = roles
     .filter((r) => allowedCreateRoleKeys.includes(r.name.trim().toLowerCase()))
     .map((r) => r.name);
   const inactiveCount = users.filter((u) => u.status === "Inactive").length;
   const canManageTargetUser = (user: User) => {
     if (isRootAdmin) return true;
-    if (!isAdministrator) return false;
     const roleKey = (user.role ?? "").trim().toLowerCase();
-    return ["manager", "sales staff", "cashier", "warehouse staff"].includes(roleKey);
+    if (isSuperAdmin) {
+      return ["administrator", "manager", "sales staff", "cashier"].includes(roleKey);
+    }
+    if (!isAdministrator) return false;
+    return ["manager", "sales staff", "cashier"].includes(roleKey);
   };
 
   return (

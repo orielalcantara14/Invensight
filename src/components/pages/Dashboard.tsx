@@ -135,10 +135,10 @@ export function Dashboard() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Sales Trend & Forecast */}
+        {/* Sales & Forecasting */}
         <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Sales Trend & Forecast</h2>
+            <h2 className="text-lg font-semibold text-foreground">Sales & Forecasting</h2>
             <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
               {(["7d", "monthly", "annual"] as const).map((range) => (
                 <button

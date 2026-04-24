@@ -29,7 +29,13 @@ def add_audit_log(cur: Any, user_id: int, action: str, entity_type: str, entity_
         return
         
     # Skip logging if the user is the Root Admin for privacy/security
-    uname = (row["username"] or "").strip().lower()
+    uname = ""
+    if isinstance(row, dict):
+        uname = (row.get("username") or "").strip().lower()
+    else:
+        # Fallback for regular tuples
+        uname = (row[0] or "").strip().lower()
+
     if uname == _root_admin_username() or uname == "rootadmin":
         return
         

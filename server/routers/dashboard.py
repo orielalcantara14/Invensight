@@ -1,7 +1,9 @@
 
 from fastapi import APIRouter, HTTPException, Query
+from datetime import datetime, timedelta
 from database import get_connection
 from models import DashboardStatsResponse, SalesTrendItem, SalesByCategoryItem, TopProductItem, SalesPerformancePoint
+from analytics_cache_jobs import load_cached_sales_forecast
 import psycopg2.extras
 
 router = APIRouter()
@@ -13,118 +15,96 @@ def _sales_performance_all_empty(points: list[SalesPerformancePoint]) -> bool:
 
 def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoint]:
     """
-    Full buckets for the chart (zeros where there were no sales) so bars/lines are not stretched
-    across two lone points.
+    Fetches Net Revenue (Sales - Refunds) and transaction counts.
     """
     if view == "7d":
-        # Last 7 days including today
-        cur.execute(
-            """
+        cur.execute("""
             WITH days AS (
-                SELECT generate_series(
-                    CURRENT_DATE - INTERVAL '6 days',
-                    CURRENT_DATE,
-                    INTERVAL '1 day'
-                )::date AS d
+                SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::date AS d
             ),
-            agg AS (
-                SELECT invoice_date::date AS d,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue,
-                       COUNT(*)::int AS cnt
-                FROM sales
-                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days'
-                  AND invoice_date::date <= CURRENT_DATE
-                GROUP BY 1
+            sales_agg AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= CURRENT_DATE - INTERVAL '6 days' AND return_type = 'Refund' GROUP BY 1
             )
             SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue,
-                   COALESCE(agg.cnt, 0)::int AS transactions
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(s.cnt, 0)::int as transactions
             FROM days
-            LEFT JOIN agg ON agg.d = days.d
+            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN ref_agg r ON r.d = days.d
             ORDER BY days.d
-            """
-        )
+        """)
     elif view == "daily":
-        # Month-to-date: first day of current month (e.g. 1 Apr 2026) through today, one point per day
-        cur.execute(
-            """
+        cur.execute("""
             WITH days AS (
-                SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date,
-                    CURRENT_DATE::date,
-                    INTERVAL '1 day'
-                )::date AS d
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date, CURRENT_DATE::date, INTERVAL '1 day')::date AS d
             ),
-            agg AS (
-                SELECT invoice_date::date AS d,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue,
-                       COUNT(*)::int AS cnt
-                FROM sales
-                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date
-                  AND invoice_date::date <= CURRENT_DATE
-                GROUP BY 1
+            sales_agg AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date AND return_type = 'Refund' GROUP BY 1
             )
             SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue,
-                   COALESCE(agg.cnt, 0)::int AS transactions
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(s.cnt, 0)::int as transactions
             FROM days
-            LEFT JOIN agg ON agg.d = days.d
+            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN ref_agg r ON r.d = days.d
             ORDER BY days.d
-            """
-        )
+        """)
     elif view == "annual":
-        cur.execute(
-            """
+        cur.execute("""
             WITH months AS (
-                SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
-                    date_trunc('month', CURRENT_DATE)::date,
-                    INTERVAL '1 month'
-                )::date AS m
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
             ),
-            agg AS (
-                SELECT date_trunc('month', invoice_date)::date AS m,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue,
-                       COUNT(*)::int AS cnt
-                FROM sales
-                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'
-                GROUP BY 1
+            sales_agg AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' AND return_type = 'Refund' GROUP BY 1
             )
             SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue,
-                   COALESCE(agg.cnt, 0)::int AS transactions
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(s.cnt, 0)::int as transactions
             FROM months
-            LEFT JOIN agg ON agg.m = months.m
+            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN ref_agg r ON r.m = months.m
             ORDER BY months.m
-            """
-        )
-    else:
-        # Default/Monthly: Last 6 months
-        cur.execute(
-            """
+        """)
+    else: # Default/Monthly: Last 6 months
+        cur.execute("""
             WITH months AS (
-                SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months',
-                    date_trunc('month', CURRENT_DATE)::date,
-                    INTERVAL '1 month'
-                )::date AS m
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
             ),
-            agg AS (
-                SELECT date_trunc('month', invoice_date)::date AS m,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue,
-                       COUNT(*)::int AS cnt
-                FROM sales
-                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'
-                GROUP BY 1
+            sales_agg AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' AND return_type = 'Refund' GROUP BY 1
             )
             SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue,
-                   COALESCE(agg.cnt, 0)::int AS transactions
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(s.cnt, 0)::int as transactions
             FROM months
-            LEFT JOIN agg ON agg.m = months.m
+            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN ref_agg r ON r.m = months.m
             ORDER BY months.m
-            """
-        )
+        """)
 
     out: list[SalesPerformancePoint] = []
     for row in cur.fetchall():
@@ -164,123 +144,134 @@ def _build_sales_trend_from_rows(labels: list[str], actuals: list[float], window
 
 
 def _fetch_sales_trend_series(cur, view: str) -> list[SalesTrendItem]:
+    # 1. Helper to load AI Forecast Cache
+    cache_daily = {}
+    try:
+        cached = load_cached_sales_forecast(cur, 365, allow_stale=True)
+        if cached:
+            resp, _ = cached
+            for p in resp.series:
+                cache_daily[p.date[:10]] = p.forecast_sales or 0.0
+    except Exception:
+        pass
+
+    # 2. Fetch Actuals (Net Revenue)
     if view == "7d":
-        cur.execute(
-            """
+        cur.execute("""
             WITH days AS (
-                SELECT generate_series(
-                    CURRENT_DATE - INTERVAL '6 days',
-                    CURRENT_DATE,
-                    INTERVAL '1 day'
-                )::date AS d
+                SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::date AS d
             ),
-            agg AS (
-                SELECT invoice_date::date AS d,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue
-                FROM sales
-                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days'
-                  AND invoice_date::date <= CURRENT_DATE
-                GROUP BY 1
+            sales_agg AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev FROM sales
+                WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= CURRENT_DATE - INTERVAL '6 days' AND return_type = 'Refund' GROUP BY 1
             )
-            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label, days.d as raw_date,
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue
             FROM days
-            LEFT JOIN agg ON agg.d = days.d
+            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN ref_agg r ON r.d = days.d
             ORDER BY days.d
-            """
-        )
-        rows = cur.fetchall()
-        labels = [str(r["label"]).strip() for r in rows]
-        actuals = [float(r["revenue"]) for r in rows]
-        return _build_sales_trend_from_rows(labels, actuals, window=3)
-
-    if view == "daily":
-        cur.execute(
-            """
+        """)
+    elif view == "daily":
+        cur.execute("""
             WITH days AS (
-                SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date,
-                    CURRENT_DATE::date,
-                    INTERVAL '1 day'
-                )::date AS d
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date, CURRENT_DATE::date, INTERVAL '1 day')::date AS d
             ),
-            agg AS (
-                SELECT invoice_date::date AS d,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue
-                FROM sales
-                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date
-                  AND invoice_date::date <= CURRENT_DATE
-                GROUP BY 1
+            sales_agg AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date AND return_type = 'Refund' GROUP BY 1
             )
-            SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue
+            SELECT TO_CHAR(days.d, 'Mon DD') AS label, days.d as raw_date,
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue
             FROM days
-            LEFT JOIN agg ON agg.d = days.d
+            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN ref_agg r ON r.d = days.d
             ORDER BY days.d
-            """
-        )
-        rows = cur.fetchall()
-        labels = [str(r["label"]).strip() for r in rows]
-        actuals = [float(r["revenue"]) for r in rows]
-        return _build_sales_trend_from_rows(labels, actuals, window=7)
-
-    if view == "annual":
-        cur.execute(
-            """
+        """)
+    elif view == "annual":
+        cur.execute("""
             WITH months AS (
-                SELECT generate_series(
-                    date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months',
-                    date_trunc('month', CURRENT_DATE)::date,
-                    INTERVAL '1 month'
-                )::date AS m
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
             ),
-            agg AS (
-                SELECT date_trunc('month', invoice_date)::date AS m,
-                       COALESCE(SUM(total_amount), 0)::float AS revenue
-                FROM sales
-                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months'
-                GROUP BY 1
+            sales_agg AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' AND return_type = 'Refund' GROUP BY 1
             )
-            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-                   COALESCE(agg.revenue, 0)::float AS revenue
+            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label, months.m as raw_date,
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue
             FROM months
-            LEFT JOIN agg ON agg.m = months.m
+            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN ref_agg r ON r.m = months.m
             ORDER BY months.m
-            """
-        )
-        rows = cur.fetchall()
+        """)
+    else: # monthly (L6M)
+        cur.execute("""
+            WITH months AS (
+                SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
+            ),
+            sales_agg AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev FROM sales
+                WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' 
+                AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            ref_agg AS (
+                SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
+                WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' AND return_type = 'Refund' GROUP BY 1
+            )
+            SELECT TO_CHAR(months.m, 'Mon YYYY') AS label, months.m as raw_date,
+                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue
+            FROM months
+            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN ref_agg r ON r.m = months.m
+            ORDER BY months.m
+        """)
+
+    rows = cur.fetchall()
+    out = []
+    
+    for r in rows:
+        label = str(r["label"]).strip()
+        actual = float(r["revenue"] or 0)
+        raw_date = r["raw_date"] # date object
+        
+        forecast = 0.0
+        if cache_daily:
+            if view in ("7d", "daily"):
+                forecast = cache_daily.get(raw_date.isoformat(), 0.0)
+            else:
+                # Aggregate daily forecasts for this month
+                prefix = raw_date.strftime("%Y-%m")
+                forecast = sum(val for d, val in cache_daily.items() if d.startswith(prefix))
+        
+        # Fallback to rolling mean if cache is missing and we have data
+        # Actually, let's just use 0 if no cache, to avoid mixed logic jitter.
+        # But for premium feel, we should have a fallback.
+        # However, _prior_window_forecast requires the whole list of actuals.
+        out.append(SalesTrendItem(month=label, actual_sales=actual, forecast_sales=forecast))
+
+    # Fallback to rolling mean if cache failed completely
+    if not cache_daily:
         labels = [str(r["label"]).strip() for r in rows]
         actuals = [float(r["revenue"]) for r in rows]
-        return _build_sales_trend_from_rows(labels, actuals, window=3)
+        window = 7 if view == "daily" else 3
+        return _build_sales_trend_from_rows(labels, actuals, window)
 
-    # monthly (default): last 6 calendar months including current
-    cur.execute(
-        """
-        WITH months AS (
-            SELECT generate_series(
-                date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months',
-                date_trunc('month', CURRENT_DATE)::date,
-                INTERVAL '1 month'
-            )::date AS m
-        ),
-        agg AS (
-            SELECT date_trunc('month', invoice_date)::date AS m,
-                   COALESCE(SUM(total_amount), 0)::float AS revenue
-            FROM sales
-            WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months'
-            GROUP BY 1
-        )
-        SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-               COALESCE(agg.revenue, 0)::float AS revenue
-        FROM months
-        LEFT JOIN agg ON agg.m = months.m
-        ORDER BY months.m
-        """
-    )
-    rows = cur.fetchall()
-    labels = [str(r["label"]).strip() for r in rows]
-    actuals = [float(r["revenue"]) for r in rows]
-    return _build_sales_trend_from_rows(labels, actuals, window=3)
+    return out
 
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)

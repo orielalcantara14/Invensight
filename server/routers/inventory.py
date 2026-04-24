@@ -432,7 +432,7 @@ def update_inventory_item(
                     title="Out of Stock Alert",
                     message=f"{payload.product_name} is now OUT OF STOCK!",
                     link=f"/inventory?id={inventory_id}",
-                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                    target_roles=["Administrator", "Manager"]
                 )
             elif new_actual <= payload.reorder_level:
                 dispatch_notification(
@@ -440,7 +440,7 @@ def update_inventory_item(
                     title="Low Stock Alert",
                     message=f"{payload.product_name} is running low ({new_actual} left).",
                     link=f"/inventory?id={inventory_id}",
-                    target_roles=["Administrator", "Manager", "Warehouse Staff"]
+                    target_roles=["Administrator", "Manager"]
                 )
 
             _invalidate_analytics_cache(cur)

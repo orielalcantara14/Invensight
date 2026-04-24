@@ -395,8 +395,7 @@ def build_product_forecasts(cur) -> List[ProductForecastItem]:
 
 
 def assemble_sales_forecast(cur, days: int) -> SalesForecastResponse:
-    # We always train on 730 days (2 years) for maximum accuracy, 
-    # but we only return the slice the user requested.
+    # We always train on 730 days (2 years) for maximum accuracy
     view_days = max(7, min(days, 365))
     train_days = 730
     
@@ -452,7 +451,8 @@ def assemble_stock_prediction(cur) -> StockPredictionResponse:
                  WHEN SUM(COALESCE(i.actual, 0)) <= MAX(COALESCE(i.reorder_level, 10)) THEN 'Low'
                  ELSE 'Normal'
                END AS inventory_status,
-               p.supplier_id, s.supplier_name
+               p.supplier_id, s.supplier_name,
+               CAST(p.unit_price AS FLOAT) as unit_price
         FROM inventory i
         JOIN products p ON p.product_id = i.product_id
         LEFT JOIN supplier s ON s.supplier_id = p.supplier_id
@@ -575,6 +575,7 @@ def assemble_stock_prediction(cur) -> StockPredictionResponse:
                 stock_90d=s90,
                 recommended_order=rec,
                 urgency=u,
+                unit_price=float(r["unit_price"] or 0.0),
             )
         )
 

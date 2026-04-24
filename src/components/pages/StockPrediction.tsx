@@ -283,7 +283,7 @@ export function StockPrediction() {
                                 setDraftOrder({
                                   supplierId: finalSupplierId,
                                   expectedDelivery: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-                                  items: [{ id: item.product_id, name: item.product_name, quantity: item.recommended_order }]
+                                  items: [{ id: item.product_id, name: item.product_name, quantity: item.recommended_order, unitPrice: item.unit_price }]
                                 });
                               }}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white p-3.5 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-110 active:scale-95 flex items-center gap-2 font-bold text-xs"
@@ -440,19 +440,34 @@ export function StockPrediction() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Supplier</label>
-                        <div className="relative">
-                          <select 
-                            className="w-full bg-card border border-border p-5 rounded-3xl font-bold text-muted-foreground focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none pr-12"
-                            value={draftOrder.supplierId}
-                            onChange={(e) => setDraftOrder({...draftOrder, supplierId: parseInt(e.target.value)})}
-                          >
-                            {suppliers.map(s => (
-                              <option key={s.supplier_id} value={s.supplier_id}>{s.supplier_name}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70 pointer-events-none" />
-                        </div>
+                        <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Unit Price (PHP)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={draftOrder.items[0]?.unitPrice || 0}
+                          onChange={(e) => {
+                            const newItems = [...draftOrder.items];
+                            newItems[0].unitPrice = parseFloat(e.target.value) || 0;
+                            setDraftOrder({ ...draftOrder, items: newItems });
+                          }}
+                          className="w-full bg-card border border-border p-5 rounded-3xl font-black text-foreground text-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-3">Supplier</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full bg-card border border-border p-5 rounded-3xl font-bold text-muted-foreground focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none pr-12"
+                          value={draftOrder.supplierId}
+                          onChange={(e) => setDraftOrder({...draftOrder, supplierId: parseInt(e.target.value)})}
+                        >
+                          {suppliers.map(s => (
+                            <option key={s.supplier_id} value={s.supplier_id}>{s.supplier_name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/70 pointer-events-none" />
                       </div>
                     </div>
                   </div>

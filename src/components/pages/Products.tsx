@@ -324,7 +324,7 @@ export function Products() {
                 <th className="w-[170px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Unit Measurement</th>
                 <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Unit Cost</th>
                 <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Total Cost</th>
-                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">SRP</th>
+                <th className="w-[140px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Retail Price</th>
                 <th className="w-[160px] px-6 py-4 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Added</th>
                 <th className="w-[140px] px-6 py-4 text-center text-[11px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>

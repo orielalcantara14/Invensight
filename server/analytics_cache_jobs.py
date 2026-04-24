@@ -24,7 +24,7 @@ from models import SalesForecastResponse, StockPredictionResponse
 log = logging.getLogger("invensight.analytics_cache")
 
 MODEL_KEYS = ("overview", "forecast_30d", "stock_prediction")
-CACHED_FORECAST_DAYS = int(os.getenv("ANALYTICS_CACHED_FORECAST_DAYS", "90"))
+CACHED_FORECAST_DAYS = int(os.getenv("ANALYTICS_CACHED_FORECAST_DAYS", "365"))
 CACHE_TTL_SECONDS = int(os.getenv("ANALYTICS_CACHE_TTL_SECONDS", "3600"))
 REFRESH_INTERVAL_SECONDS = int(os.getenv("ANALYTICS_CACHE_REFRESH_SECONDS", str(CACHE_TTL_SECONDS)))
 PH_TIMEZONE_OFFSET = 8  # UTC+8

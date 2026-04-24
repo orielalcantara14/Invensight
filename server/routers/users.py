@@ -30,16 +30,20 @@ ROLE_ADMINISTRATOR = "administrator"
 ROLE_MANAGER = "manager"
 ROLE_SALES_STAFF = "sales staff"
 ROLE_CASHIER = "cashier"
+ROLE_SUPER_ADMIN = "super admin"
 MANAGEABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
-# Only Root Admin account can assign the Root Admin role
-ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+MANAGEABLE_BY_SUPER_ADMIN = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+# Only Root Admin account can assign the Super Admin role
+ASSIGNABLE_BY_ROOT = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER, ROLE_SUPER_ADMIN}
 ASSIGNABLE_BY_ADMIN = {ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
+ASSIGNABLE_BY_SUPER_ADMIN = {ROLE_ADMINISTRATOR, ROLE_MANAGER, ROLE_SALES_STAFF, ROLE_CASHIER}
 RESTRICTED_MODULES_FOR_NON_ADMIN_ROLES = {"user management", "role permissions"}
 ROLE_LABELS = {
     ROLE_ADMINISTRATOR: "Administrator",
     ROLE_MANAGER: "Manager",
     ROLE_SALES_STAFF: "Sales Staff",
     ROLE_CASHIER: "Cashier",
+    ROLE_SUPER_ADMIN: "Super Admin",
 }
 
 
@@ -131,7 +135,7 @@ def _canonical_role_or_400(role: str) -> str:
     if role_key not in ASSIGNABLE_BY_ROOT:
         raise HTTPException(
             status_code=400,
-            detail="Role must be one of: Administrator, Manager, Sales Staff, Cashier",
+            detail="Role must be one of: Administrator, Manager, Sales Staff, Cashier, Super Admin",
         )
     return role_key
 
@@ -205,9 +209,10 @@ def _parse_actor_user_id_or_401(x_actor_user_id: str | None) -> int:
 def _get_actor_or_403(cur, actor_user_id: int) -> dict:
     cur.execute(
         """
-        SELECT user_id, username, role, is_active, permissions_json
-        FROM users
-        WHERE user_id = %s
+        SELECT u.user_id, u.username, u.role, u.is_active, u.permissions_json, r.permissions_text
+        FROM users u
+        LEFT JOIN roles r ON LOWER(u.role) = LOWER(r.role_name) AND r.user_id IS NULL
+        WHERE u.user_id = %s
         """,
         (actor_user_id,),
     )
@@ -218,7 +223,18 @@ def _get_actor_or_403(cur, actor_user_id: int) -> dict:
         raise HTTPException(status_code=403, detail="Inactive actor account")
     actor["role_key"] = _normalize_role(actor.get("role"))
     actor["is_root_admin"] = _is_root_admin_username(actor.get("username"))
-    actor["permissions_norm"] = _normalize_permissions(actor.get("permissions_json"))
+    
+    # Merge permissions: prefer user-specific permissions_json if not empty, otherwise fallback to role's permissions_text
+    perms = None
+    if actor.get("permissions_json") and isinstance(actor["permissions_json"], dict) and len(actor["permissions_json"]) > 0:
+        perms = actor["permissions_json"]
+    elif actor.get("permissions_text"):
+        try:
+            perms = json.loads(actor["permissions_text"])
+        except:
+            perms = {}
+    
+    actor["permissions_norm"] = _normalize_permissions(perms)
     return actor
 
 
@@ -259,20 +275,27 @@ def _require_role_management_access(cur, x_actor_user_id: str | None, action: st
 
 
 @router.get("/users", response_model=list[UserResponse])
-def list_users():
+def list_users(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            is_root = actor.get("is_root_admin")
+
+            where_clauses = ["(username IS NULL OR LOWER(TRIM(username)) <> %s)"]
+            params = [_root_admin_username()]
+
+            if not is_root:
+                where_clauses.append("LOWER(role) <> 'super admin'")
+
+            query = f"""
                 SELECT user_id, username, full_name, employee_id, role, is_active, last_login, email, permissions_json
                 FROM users
-                WHERE (username IS NULL OR LOWER(TRIM(username)) <> %s)
+                WHERE {" AND ".join(where_clauses)}
                 ORDER BY user_id
-                """
-                ,
-                (_root_admin_username(),),
-            )
+            """
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
     finally:
         conn.close()
@@ -317,8 +340,12 @@ def create_user(
 
             if actor["is_root_admin"]:
                 allowed_target_roles = ASSIGNABLE_BY_ROOT
+            elif actor["role_key"] == ROLE_SUPER_ADMIN:
+                if not _actor_has_permission(actor, "User Management", "Add"):
+                    raise HTTPException(status_code=403, detail="Missing Add User permission")
+                allowed_target_roles = ASSIGNABLE_BY_SUPER_ADMIN
             elif actor["role_key"] == ROLE_ADMINISTRATOR:
-                if not _actor_has_permission(actor, "User Management", "Add User"):
+                if not _actor_has_permission(actor, "User Management", "Add"):
                     raise HTTPException(status_code=403, detail="Missing Add User permission")
                 if not _is_subset_permissions(
                     requested_permissions_norm,
@@ -473,6 +500,9 @@ def update_user(
             if not existing:
                 raise HTTPException(status_code=404, detail="User not found")
             existing_role_key = _normalize_role(existing.get("role"))
+            if existing_role_key == ROLE_SUPER_ADMIN and not actor.get("is_root_admin"):
+                raise HTTPException(status_code=403, detail="Only Root Admin can manage Super Admin accounts")
+            
             if _is_root_admin_username(existing.get("username")):
                 _require_root_admin_key(x_root_admin_key)
                 if not actor.get("is_root_admin"):
@@ -480,8 +510,15 @@ def update_user(
 
             if actor["is_root_admin"]:
                 pass
+            elif actor["role_key"] == ROLE_SUPER_ADMIN:
+                if not _actor_has_permission(actor, "User Management", "Edit"):
+                    raise HTTPException(status_code=403, detail="Missing Edit User permission")
+                if existing_role_key not in MANAGEABLE_BY_SUPER_ADMIN:
+                    raise HTTPException(status_code=403, detail="Super Admins can only manage Administrator, Manager, Sales Staff, and Cashier accounts")
+                if requested_role_key not in ASSIGNABLE_BY_SUPER_ADMIN:
+                    raise HTTPException(status_code=403, detail="Super Admins cannot assign this role type")
             elif actor["role_key"] == ROLE_ADMINISTRATOR:
-                if not _actor_has_permission(actor, "User Management", "Edit User"):
+                if not _actor_has_permission(actor, "User Management", "Edit"):
                     raise HTTPException(status_code=403, detail="Missing Edit User permission")
                 if existing_role_key not in MANAGEABLE_BY_ADMIN:
                     raise HTTPException(
@@ -671,6 +708,10 @@ def deactivate_user(
             if not row:
                 raise HTTPException(status_code=404, detail="User not found")
             
+            target_role_key = _normalize_role(row.get("role"))
+            if target_role_key == ROLE_SUPER_ADMIN and not actor.get("is_root_admin"):
+                raise HTTPException(status_code=403, detail="Only Root Admin can manage Super Admin accounts")
+            
             if actor_user_id == user_id:
                 raise HTTPException(status_code=403, detail="You cannot deactivate your own account")
 
@@ -680,8 +721,14 @@ def deactivate_user(
                     raise HTTPException(status_code=403, detail="Only Root Admin can manage Root Admin account")
             elif actor["is_root_admin"]:
                 pass
+            elif actor["role_key"] == ROLE_SUPER_ADMIN:
+                if not _actor_has_permission(actor, "User Management", "Delete"):
+                    raise HTTPException(status_code=403, detail="Missing Delete User permission")
+                target_role_key = _normalize_role(row.get("role"))
+                if target_role_key not in MANAGEABLE_BY_SUPER_ADMIN:
+                    raise HTTPException(status_code=403, detail="Super Admins can only manage Administrator, Manager, Sales Staff, and Cashier accounts")
             elif actor["role_key"] == ROLE_ADMINISTRATOR:
-                if not _actor_has_permission(actor, "User Management", "Delete User"):
+                if not _actor_has_permission(actor, "User Management", "Delete"):
                     raise HTTPException(status_code=403, detail="Missing Delete User permission")
                 target_role_key = _normalize_role(row.get("role"))
                 if target_role_key not in MANAGEABLE_BY_ADMIN:
@@ -712,7 +759,7 @@ def deactivate_user(
             conn.commit()
     except HTTPException:
         conn.rollback()
-        conn.commit()
+        raise
     except Exception:
         conn.rollback()
         raise
@@ -976,12 +1023,21 @@ def delete_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="
 
 
 @router.get("/roles", response_model=list[RoleResponse])
-def list_roles():
+def list_roles(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
+            actor_user_id = _parse_actor_user_id_or_401(x_actor_user_id)
+            actor = _get_actor_or_403(cur, actor_user_id)
+            is_root = actor.get("is_root_admin")
+
+            where_clauses = ["r.user_id IS NULL"]
+            params = [_root_admin_username()]
+
+            if not is_root:
+                where_clauses.append("LOWER(r.role_name) <> 'super admin'")
+
+            query = f"""
                 SELECT r.role_id, r.role_name,
                        COALESCE(r.permissions_text, '') AS permissions_text,
                        (
@@ -990,12 +1046,10 @@ def list_roles():
                            AND (u.username IS NULL OR LOWER(TRIM(u.username)) <> %s)
                        ) AS user_count
                 FROM roles r
-                WHERE r.user_id IS NULL
+                WHERE {" AND ".join(where_clauses)}
                 ORDER BY r.role_name
-                """
-                ,
-                (_root_admin_username(),),
-            )
+            """
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
     finally:
         conn.close()
@@ -1039,7 +1093,7 @@ def create_role(
     try:
         conn.autocommit = False
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            _require_role_management_access(cur, x_actor_user_id, "Create")
+            _require_role_management_access(cur, x_actor_user_id, "Add")
             cur.execute(
                 """
                 SELECT 1 FROM roles
@@ -1120,6 +1174,9 @@ def update_role(
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Role not found")
+
+            if _normalize_role(row["role_name"]) == ROLE_SUPER_ADMIN and not actor.get("is_root_admin"):
+                raise HTTPException(status_code=403, detail="Only Root Admin can manage the Super Admin role")
 
             old_name = row["role_name"]
 
@@ -1208,6 +1265,9 @@ def delete_role(
             role_row = cur.fetchone()
             if not role_row:
                 raise HTTPException(status_code=404, detail="Role not found")
+
+            if _normalize_role(role_row["role_name"]) == ROLE_SUPER_ADMIN and not actor.get("is_root_admin"):
+                raise HTTPException(status_code=403, detail="Only Root Admin can delete the Super Admin role")
 
             cur.execute(
                 """
