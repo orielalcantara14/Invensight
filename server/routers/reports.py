@@ -6,6 +6,7 @@ from database import get_connection
 import psycopg2.extras
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
+from utils.audit import add_audit_log
 
 router = APIRouter()
 log = logging.getLogger("invensight.reports")
@@ -297,6 +298,16 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
             """, (payload.report_type, payload.start_date, payload.end_date, username, json.dumps(report_data, default=str)))
             report_id = cur.fetchone()["report_id"]
 
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                int(x_actor_user_id),
+                "GENERATE_REPORT",
+                "report",
+                report_id,
+                f"Generated {payload.report_type} report (ID: {report_id})"
+            )
+
             return {"report_id": report_id, "report_data": report_data}
 
     except Exception as e:
@@ -306,12 +317,24 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
         conn.close()
 
 @router.delete("/{report_id}")
-def delete_report(report_id: int):
+def delete_report(report_id: int, x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
     conn = get_connection()
     try:
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute("DELETE FROM generated_reports WHERE report_id = %s", (report_id,))
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "DELETE_REPORT",
+                    "report",
+                    report_id,
+                    f"Deleted generated report (ID: {report_id})"
+                )
+            
             return {"status": "success"}
     finally:
         conn.close()

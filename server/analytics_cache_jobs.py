@@ -145,15 +145,16 @@ def load_cached_sales_forecast(
     cur, requested_days: int, *, allow_stale: bool = False
 ) -> Optional[Tuple[SalesForecastResponse, str]]:
     cur.execute(
-        "SELECT payload FROM analytics_model_cache WHERE model_key = 'forecast_30d'"
+        "SELECT payload, status FROM analytics_model_cache WHERE model_key = 'forecast_30d'"
     )
     row = cur.fetchone()
     if not row or not row.get("payload"):
         return None
+    status = row.get("status") or "ready"
     payload = row["payload"]
     if isinstance(payload, str):
         payload = json.loads(payload)
-    if not allow_stale and not _cache_fresh(payload):
+    if status == "stale" or not payload or (not allow_stale and not _cache_fresh(payload)):
         return None
     inner = payload.get("response")
     if not inner:

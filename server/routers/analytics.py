@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import psycopg2.extras
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Header, HTTPException
 
 from analytics_cache_jobs import (
     load_cached_sales_forecast,
@@ -14,6 +14,7 @@ from analytics_cache_jobs import (
     load_overview_extras,
     run_refresh_job,
 )
+from utils.audit import add_audit_log
 from analytics_engine import assemble_sales_forecast, assemble_stock_prediction, build_product_forecasts
 from database import get_connection
 from models import (
@@ -277,7 +278,7 @@ def get_model_status() -> AnalyticsModelStatusGroupResponse:
 
 
 @router.post("/retrain", response_model=AnalyticsRetrainResponse)
-def retrain_analytics_models() -> AnalyticsRetrainResponse:
+def retrain_analytics_models(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")) -> AnalyticsRetrainResponse:
     from routers.notifications import dispatch_notification
     ok, msg = run_refresh_job()
     if ok:
@@ -288,16 +289,43 @@ def retrain_analytics_models() -> AnalyticsRetrainResponse:
             link="/forecasting",
             target_roles=["administrator"]
         )
+        # --- Audit log ---
+        if x_actor_user_id:
+            conn = get_connection()
+            try:
+                with conn.cursor() as cur:
+                    add_audit_log(
+                        cur,
+                        int(x_actor_user_id),
+                        "RETRAIN_MODELS",
+                        "analytics",
+                        0,
+                        "Manually triggered analytics model retraining"
+                    )
+                    conn.commit()
+            finally:
+                conn.close()
     return AnalyticsRetrainResponse(ok=ok, message=msg)
 
 @router.post("/clear-cache")
-def clear_analytics_cache():
+def clear_analytics_cache(x_actor_user_id: str | None = Header(default=None, alias="X-Actor-User-Id")):
     """Manually marks all analytics cache as stale."""
     conn = get_connection()
     try:
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute("UPDATE analytics_model_cache SET status = 'stale'")
+            
+            # --- Audit log ---
+            if x_actor_user_id:
+                add_audit_log(
+                    cur,
+                    int(x_actor_user_id),
+                    "CLEAR_ANALYTICS_CACHE",
+                    "analytics",
+                    0,
+                    "Manually cleared analytics cache"
+                )
         return {"status": "success", "message": "Cache marked as stale. Data will refresh on next request."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

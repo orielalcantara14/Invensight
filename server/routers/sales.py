@@ -26,11 +26,11 @@ def get_auth_header():
 
 def _invalidate_analytics_cache(cur):
     """
-    Marks the analytics cache as stale so that the next request
-    will re-calculate based on the new stock levels.
+    Marks all analytics cache as stale so that the next request
+    will re-calculate based on the new data (sales/stock).
     """
     cur.execute(
-        "UPDATE analytics_model_cache SET status = 'stale', payload = '{}'::jsonb WHERE model_key = 'stock_prediction'"
+        "UPDATE analytics_model_cache SET status = 'stale', payload = '{}'::jsonb"
     )
 
 def get_tax_rate():

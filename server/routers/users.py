@@ -787,15 +787,14 @@ def restore_user(
             row = cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Archived user not found")
-            if not actor.get("is_root_admin"):
-                add_audit_log(
-                    cur,
-                    actor_user_id,
-                    "RESTORE_USER",
-                    "user",
-                    user_id,
-                    f"Restored user: {row.get('username', '')} (ID: {user_id})"
-                )
+            add_audit_log(
+                cur,
+                actor_user_id,
+                "RESTORE_USER",
+                "user",
+                user_id,
+                f"Restored user: {row.get('username', '')} (ID: {user_id})"
+            )
             conn.commit()
     except HTTPException:
         conn.rollback()
@@ -959,15 +958,8 @@ def delete_audit_logs(x_actor_user_id: str | None = Header(default=None, alias="
             if not (actor.get("is_root_admin") or actor["role_key"] == ROLE_ADMINISTRATOR):
                 raise HTTPException(status_code=403, detail="Only Administrators can clear audit logs")
             
-            # Clear logs EXCEPT root admin logs for security trail
-            cur.execute("""
-                DELETE FROM auditlog a
-                USING users u
-                WHERE a.user_id = u.user_id
-                AND LOWER(TRIM(u.username)) <> %s
-            """, (_root_admin_username(),))
-            
-            cur.execute("DELETE FROM auditlog WHERE user_id IS NULL")
+            # Clear all logs for unified maintenance
+            cur.execute("DELETE FROM auditlog")
             
             add_audit_log(cur, actor_user_id, "CLEAR_LOGS", "system", None, "Cleared system audit logs")
             
@@ -1334,6 +1326,17 @@ def reset_root_admin(
                 )
 
             out = cur.fetchone()
+
+            # --- Audit log ---
+            add_audit_log(
+                cur,
+                out["user_id"],
+                "ROOT_ADMIN_RESET",
+                "user",
+                out["user_id"],
+                f"Root admin credentials reset. New username: {out['username']}"
+            )
+
             conn.commit()
     except HTTPException:
         conn.rollback()
