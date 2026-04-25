@@ -145,11 +145,11 @@ export function EditProductModal({
       return;
     }
     if (srp !== undefined && (!Number.isFinite(srp) || srp < 0)) {
-      toast.error("SRP cannot be negative");
+      toast.error("Retail Price cannot be negative");
       return;
     }
     if (srp !== undefined && srp < unitCost) {
-      toast.error("SRP cannot be lower than the Unit Cost");
+      toast.error("Retail Price cannot be lower than the Unit Cost");
       return;
     }
     if (!Number.isFinite(stock) || stock < 0) {

@@ -1,6 +1,6 @@
 import { Search, Plus, Users, Edit2, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle, Trash2, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api } from "@/services/api";
 import { ProtectedAction } from "../ProtectedAction";
 import { Supplier } from "@/services/api";

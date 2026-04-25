@@ -2,7 +2,7 @@ import { Search, Download, ShoppingBag, Eye, Monitor, DollarSign, CheckCircle, X
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { SaleRecord, SaleDetail } from "@/types";
 import { api } from "@/services/api";
 import { ViewInvoiceModal } from "@/components/modals/ViewInvoiceModal";
@@ -100,6 +100,7 @@ export function Sales() {
       bgColor: "bg-primary/10",
       iconColor: "text-primary",
     },
+
     {
       label: "Completed Sales",
       value: salesStats ? salesStats.completed_sales.toLocaleString() : "0",
@@ -251,7 +252,7 @@ export function Sales() {
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              Daily
+              This Month
             </button>
             <button
               onClick={() => setView("monthly")}
@@ -296,7 +297,7 @@ export function Sales() {
                     dy={8}
                     minTickGap={28}
                   />
-                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => `₱${value.toLocaleString()}`} />
+                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => value < 0 ? `-₱${Math.abs(value).toLocaleString()}` : `₱${value.toLocaleString()}`} />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
@@ -327,6 +328,7 @@ export function Sales() {
                     dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6 }}
                   />
+
                   <Line
                     yAxisId="right"
                     type="monotone"
@@ -344,7 +346,7 @@ export function Sales() {
                 <BarChart data={salesStats.sales_performance} barCategoryGap="24%" barGap={4} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                   <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11 }} dy={10} interval={0} angle={view === "monthly" ? -28 : 0} textAnchor={view === "monthly" ? "end" : "middle"} height={view === "monthly" ? 56 : 32} />
-                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => `₱${value.toLocaleString()}`} />
+                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} tickFormatter={(value) => value < 0 ? `-₱${Math.abs(value).toLocaleString()}` : `₱${value.toLocaleString()}`} />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
@@ -373,6 +375,7 @@ export function Sales() {
                     radius={[4, 4, 0, 0]}
                     maxBarSize={48}
                   />
+
                   <Bar
                     yAxisId="right"
                     dataKey="transactions"

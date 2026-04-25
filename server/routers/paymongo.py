@@ -30,8 +30,8 @@ def create_source(payload: PayMongoSourceRequest):
                 "type": payload.type,
                 "currency": payload.currency,
                 "redirect": {
-                    "success": "http://localhost:5173/pos?payment=success",
-                    "failed": "http://localhost:5173/pos?payment=failed"
+                    "success": payload.success_url,
+                    "failed": payload.cancel_url
                 },
                 "billing": {
                     "name": payload.customer_name or "Walk-in Customer",
@@ -167,8 +167,8 @@ def create_checkout_session(payload: PayMongoCheckoutSessionRequest):
                 "line_items": line_items,
                 "payment_method_types": ["gcash", "paymaya"],
                 "description": payload.description,
-                "success_url": "http://localhost:5173/pos?payment=success",
-                "cancel_url": "http://localhost:5173/pos?payment=failed",
+                "success_url": payload.success_url,
+                "cancel_url": payload.cancel_url,
                 "billing": {
                     "name": payload.customer_name or "Walk-in Customer",
                     "phone": payload.customer_phone,

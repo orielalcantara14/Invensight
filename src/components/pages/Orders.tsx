@@ -2,7 +2,7 @@ import { Search, Plus, Package, Eye, Trash2, CheckCircle, X, ChevronDown, Archiv
 import { exportToExcel } from "@/utils/export";
 import { ExportPreviewModal } from "@/components/modals/ExportPreviewModal";
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api } from "@/services/api";
 import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
 import { toast } from "sonner";

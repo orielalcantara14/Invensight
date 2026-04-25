@@ -1,5 +1,5 @@
 import React, { useState, useEffect, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Lock, User, Key, Mail, ChevronLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { api, type LoginResult } from "@/services/api";
 import { getSession, setSession } from "@/auth/session";

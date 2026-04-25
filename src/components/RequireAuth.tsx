@@ -1,5 +1,5 @@
 import React, { type ReactNode, useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { getSession, clearSession } from "@/auth/session";
 import { api } from "@/services/api";
 

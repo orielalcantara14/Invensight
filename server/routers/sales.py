@@ -99,14 +99,26 @@ def verify_paymongo_source(source_id: str) -> dict:
         raise HTTPException(status_code=e.code, detail=f"PayMongo verification failed: {error_msg}")
 
 def verify_paymongo_checkout_session(session_id: str) -> dict:
+    print(f"Verifying PayMongo Checkout Session: {session_id}")
     url = f"https://api.paymongo.com/v1/checkout_sessions/{session_id}"
     req = urllib.request.Request(url)
     req.add_header("Authorization", get_auth_header())
     try:
         with urllib.request.urlopen(req) as response:
-             return json.loads(response.read().decode())
+            res_data = json.loads(response.read().decode())
+            status = res_data.get("data", {}).get("attributes", {}).get("status")
+            print(f"PayMongo Session Status: {status}")
+            if status != "paid":
+                 raise HTTPException(
+                    status_code=400,
+                    detail=f"PayMongo checkout session not completed. Status: {status}"
+                )
+            return res_data
+    except HTTPException:
+        raise
     except urllib.error.HTTPError as e:
         error_msg = e.read().decode()
+        print(f"PayMongo Verification Error: {error_msg}")
         raise HTTPException(status_code=e.code, detail=f"PayMongo checkout session verification failed: {error_msg}")
 
 def verify_paymongo_payment_intent(payment_intent_id: str) -> dict:

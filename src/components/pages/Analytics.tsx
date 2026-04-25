@@ -8,7 +8,7 @@ import {
   XCircle,
   PackageCheck,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { api, type AnalyticsOverview } from "@/services/api";
 

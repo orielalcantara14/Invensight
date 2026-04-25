@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "./layouts/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { getSession, clearSession } from "./auth/session";
@@ -48,11 +48,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/pos",
-    element: (
-      <RequireAuth>
-        <POS />
-      </RequireAuth>
-    ),
+    element: <RequireAuth><POS /></RequireAuth>,
     errorElement: <RouteErrorBoundary />,
   },
   {

@@ -1,4 +1,4 @@
-import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon, Pencil, Trash2 } from "lucide-react";
+import { Search, Download, Plus, Shield, User as UserIcon, Users as UsersIcon, Pencil, Archive } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
 import { AddRoleModal } from "../modals/AddRoleModal";
@@ -213,7 +213,7 @@ export function Users() {
   };
 
   const handleDeleteRole = async (role: Role) => {
-    if (!window.confirm(`Delete role "${role.name}"? This cannot be undone.`)) {
+    if (!window.confirm(`Archive role "${role.name}"? This will restrict its use but keep historical data.`)) {
       return;
     }
     try {
@@ -229,7 +229,7 @@ export function Users() {
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Delete this user? They will be moved to the Archive module and can be restored later.")) {
+    if (!window.confirm("Archive this user? They will be moved to the Archive module and can be restored later.")) {
       return;
     }
     try {
@@ -479,12 +479,12 @@ export function Users() {
                               {user.id !== session?.user_id && (
                                 <button
                                   type="button"
-                                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-900 font-medium text-sm"
+                                  className="inline-flex items-center gap-1 text-orange-600 hover:text-orange-900 font-medium text-sm"
                                   onClick={() => handleDeleteUser(user.id)}
-                                  title="Delete user (moves to Archive)"
+                                  title="Archive user (moves to Archive)"
                                 >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
+                                  <Archive className="h-4 w-4" />
+                                  Archive
                                 </button>
                               )}
                             </>
@@ -564,11 +564,11 @@ export function Users() {
                       </button>
                       <button
                         type="button"
-                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                        className="text-sm font-medium text-orange-600 hover:text-orange-800"
                         disabled={!canManageAccounts}
                         onClick={() => handleDeleteRole(role)}
                       >
-                        Delete
+                        Archive
                       </button>
                     </div>
                   </div>

@@ -16,9 +16,9 @@ def _validate_non_negative_product_values(unit_price, pos_price, stock):
     if unit_price is None or unit_price < 0:
         raise HTTPException(status_code=400, detail="Unit cost cannot be negative.")
     if pos_price is not None and pos_price < 0:
-        raise HTTPException(status_code=400, detail="SRP cannot be negative.")
+        raise HTTPException(status_code=400, detail="Retail Price cannot be negative.")
     if pos_price is not None and pos_price < unit_price:
-        raise HTTPException(status_code=400, detail="SRP cannot be lower than the Unit Cost.")
+        raise HTTPException(status_code=400, detail="Retail Price cannot be lower than the Unit Cost.")
     if stock is None or stock < 0:
         raise HTTPException(status_code=400, detail="Stock cannot be negative.")
 

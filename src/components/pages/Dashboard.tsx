@@ -2,7 +2,7 @@ import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTrian
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
 import { api, type DashboardStats } from "@/services/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];

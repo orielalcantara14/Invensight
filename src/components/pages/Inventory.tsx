@@ -1,6 +1,6 @@
 import { Search, Download, Package, Edit2, Trash2, Eye, AlertTriangle, Archive, ChevronLeft, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router";
 import { api, type InventoryItem } from "@/services/api";
 import { ProtectedAction } from "../ProtectedAction";
 import { EditInventoryModal } from "../modals/EditInventoryModal";

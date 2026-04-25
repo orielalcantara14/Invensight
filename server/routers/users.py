@@ -283,7 +283,7 @@ def list_users(x_actor_user_id: str | None = Header(default=None, alias="X-Actor
             actor = _get_actor_or_403(cur, actor_user_id)
             is_root = actor.get("is_root_admin")
 
-            where_clauses = ["(username IS NULL OR LOWER(TRIM(username)) <> %s)"]
+            where_clauses = ["is_active = true", "(username IS NULL OR LOWER(TRIM(username)) <> %s)"]
             params = [_root_admin_username()]
 
             if not is_root:

@@ -77,6 +77,8 @@ class PayMongoSourceRequest(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     customer_email: Optional[str] = None
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
 
 
 class PayMongoPaymentIntentRequest(BaseModel):
@@ -93,6 +95,8 @@ class PayMongoCheckoutSessionRequest(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     customer_email: Optional[str] = None
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
     items: List[Dict] = Field(default_factory=list)
 
 
@@ -613,6 +617,7 @@ class SalesTrendItem(BaseModel):
 class SalesPerformancePoint(BaseModel):
     label: str
     revenue: float
+    profit: float
     transactions: int
 
 
@@ -632,6 +637,7 @@ class TopProductItem(BaseModel):
 
 class DashboardStatsResponse(BaseModel):
     total_revenue: float
+    total_profit: float
     total_transactions: int
     completed_sales: int
     failed_payments: int

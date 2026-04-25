@@ -1,6 +1,6 @@
 import { Search, Download, Plus, Package, Trash2, Edit2, LayoutGrid, ArrowRight, Archive } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api, type Product, type Category, type PosProduct } from "@/services/api";
 import { toast } from "sonner";
 import { ProtectedAction } from "../ProtectedAction";

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import {
   Archive,
   Users as UsersIcon,
@@ -207,13 +207,12 @@ export function ArchivePage() {
               {TABS.map(tab => (
                 <button
                   key={tab.key}
-                  disabled={tab.key === "users" && stage === "Archived"} // In this app users move directly? Actually let's keep it consistent if possible.
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-2.5 px-6 py-5 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
                     activeTab === tab.key
                       ? stage === "Archived" ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-card bg-background" : "border-red-500 text-red-600 dark:text-red-400 bg-card bg-background"
                       : "border-transparent text-muted-foreground/70 dark:text-muted-foreground hover:text-muted-foreground dark:hover:text-gray-300"
-                  } ${tab.key === "users" && stage === "Archived" ? "opacity-30 cursor-not-allowed" : ""}`}
+                  }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}

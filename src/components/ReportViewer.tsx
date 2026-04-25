@@ -203,7 +203,7 @@ export function ReportViewer({ report, onClose }: ReportViewerProps) {
             <th className="py-2 px-2 text-left">Category</th>
             <th className="py-2 px-2 text-left">Product</th>
             <th className="py-2 px-2 text-right">Unit Cost</th>
-            <th className="py-2 px-2 text-right">SRP</th>
+            <th className="py-2 px-2 text-right">Retail Price</th>
             <th className="py-2 px-2 text-right">Stock</th>
             <th className="py-2 px-2 text-right">Total Cost</th>
           </tr>

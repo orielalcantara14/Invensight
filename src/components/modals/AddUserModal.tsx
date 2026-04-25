@@ -4,7 +4,7 @@ import { PermissionsModal } from './PermissionsModal';
 import type { Role, User } from '@/types';
 import { toast } from 'sonner';
 import { Check, Copy, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import emailjs from '@emailjs/browser';
 
 const EMAILJS_SERVICE_ID = "service_kzur8un";
@@ -95,7 +95,12 @@ export function AddUserModal({
       return;
     }
 
-    setStep(2);
+    if (formData.role.toLowerCase() === 'cashier') {
+      const matchedRole = roles.find(r => r.name === formData.role);
+      handleFinalSubmit(matchedRole?.permissions || {});
+    } else {
+      setStep(2);
+    }
   };
 
   const handleFinalSubmit = async (permissions: Record<string, string[]>) => {
@@ -442,7 +447,7 @@ export function AddUserModal({
             disabled={saving || roleNames.length === 0}
             className="flex-1 rounded-lg bg-gray-900 px-4 py-2.5 font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 text-sm uppercase tracking-widest shadow-lg shadow-gray-200"
           >
-            {saving ? 'Saving…' : submitLabel}
+            {saving ? 'Saving…' : (formData.role.toLowerCase() === 'cashier' ? 'Confirm & Add User' : submitLabel)}
           </button>
         </div>
       </form>

@@ -22,21 +22,36 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             WITH days AS (
                 SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::date AS d
             ),
-            sales_agg AS (
-                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+            sales_rev AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(invoice_id) as cnt FROM sales
                 WHERE invoice_date::date >= CURRENT_DATE - INTERVAL '6 days' 
                 AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            sales_cost AS (
+                SELECT s.invoice_date::date AS d, SUM(si.quantity * COALESCE(p.unit_price, 0)) as cost
+                FROM sales s
+                JOIN sold_items si ON s.invoice_id = si.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                WHERE s.invoice_date::date >= CURRENT_DATE - INTERVAL '6 days' 
+                AND s.payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
             ),
             ref_agg AS (
                 SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
                 WHERE return_date::date >= CURRENT_DATE - INTERVAL '6 days' AND return_type = 'Refund' GROUP BY 1
+            ),
+            exp_agg AS (
+                SELECT expense_date::date AS d, SUM(amount) AS exp FROM expenses
+                WHERE expense_date::date >= CURRENT_DATE - INTERVAL '6 days' GROUP BY 1
             )
             SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
-                   COALESCE(s.cnt, 0)::int as transactions
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(sr.cnt, 0)::int as transactions,
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0) - COALESCE(sc.cost, 0) - COALESCE(e.exp, 0))::float as profit
             FROM days
-            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN sales_rev sr ON sr.d = days.d
+            LEFT JOIN sales_cost sc ON sc.d = days.d
             LEFT JOIN ref_agg r ON r.d = days.d
+            LEFT JOIN exp_agg e ON e.d = days.d
             ORDER BY days.d
         """)
     elif view == "daily":
@@ -44,21 +59,36 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             WITH days AS (
                 SELECT generate_series(date_trunc('month', CURRENT_DATE)::date, CURRENT_DATE::date, INTERVAL '1 day')::date AS d
             ),
-            sales_agg AS (
-                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+            sales_rev AS (
+                SELECT invoice_date::date AS d, SUM(total_amount) AS rev, COUNT(invoice_id) as cnt FROM sales
                 WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date 
                 AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            sales_cost AS (
+                SELECT s.invoice_date::date AS d, SUM(si.quantity * COALESCE(p.unit_price, 0)) as cost
+                FROM sales s
+                JOIN sold_items si ON s.invoice_id = si.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                WHERE s.invoice_date::date >= date_trunc('month', CURRENT_DATE)::date 
+                AND s.payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
             ),
             ref_agg AS (
                 SELECT return_date::date AS d, SUM(refund_amount) AS ref FROM customer_returns
                 WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date AND return_type = 'Refund' GROUP BY 1
+            ),
+            exp_agg AS (
+                SELECT expense_date::date AS d, SUM(amount) AS exp FROM expenses
+                WHERE expense_date::date >= date_trunc('month', CURRENT_DATE)::date GROUP BY 1
             )
             SELECT TO_CHAR(days.d, 'Mon DD') AS label,
-                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
-                   COALESCE(s.cnt, 0)::int as transactions
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(sr.cnt, 0)::int as transactions,
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0) - COALESCE(sc.cost, 0) - COALESCE(e.exp, 0))::float as profit
             FROM days
-            LEFT JOIN sales_agg s ON s.d = days.d
+            LEFT JOIN sales_rev sr ON sr.d = days.d
+            LEFT JOIN sales_cost sc ON sc.d = days.d
             LEFT JOIN ref_agg r ON r.d = days.d
+            LEFT JOIN exp_agg e ON e.d = days.d
             ORDER BY days.d
         """)
     elif view == "annual":
@@ -66,21 +96,36 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             WITH months AS (
                 SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
             ),
-            sales_agg AS (
-                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+            sales_rev AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(invoice_id) as cnt FROM sales
                 WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' 
                 AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            sales_cost AS (
+                SELECT date_trunc('month', s.invoice_date)::date AS m, SUM(si.quantity * COALESCE(p.unit_price, 0)) as cost
+                FROM sales s
+                JOIN sold_items si ON s.invoice_id = si.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                WHERE s.invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' 
+                AND s.payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
             ),
             ref_agg AS (
                 SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
                 WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' AND return_type = 'Refund' GROUP BY 1
+            ),
+            exp_agg AS (
+                SELECT date_trunc('month', expense_date)::date AS m, SUM(amount) AS exp FROM expenses
+                WHERE expense_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '11 months' GROUP BY 1
             )
             SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
-                   COALESCE(s.cnt, 0)::int as transactions
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(sr.cnt, 0)::int as transactions,
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0) - COALESCE(sc.cost, 0) - COALESCE(e.exp, 0))::float as profit
             FROM months
-            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN sales_rev sr ON sr.m = months.m
+            LEFT JOIN sales_cost sc ON sc.m = months.m
             LEFT JOIN ref_agg r ON r.m = months.m
+            LEFT JOIN exp_agg e ON e.m = months.m
             ORDER BY months.m
         """)
     else: # Default/Monthly: Last 6 months
@@ -88,21 +133,36 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             WITH months AS (
                 SELECT generate_series(date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months', date_trunc('month', CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
             ),
-            sales_agg AS (
-                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(*) as cnt FROM sales
+            sales_rev AS (
+                SELECT date_trunc('month', invoice_date)::date AS m, SUM(total_amount) AS rev, COUNT(invoice_id) as cnt FROM sales
                 WHERE invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' 
                 AND payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
+            ),
+            sales_cost AS (
+                SELECT date_trunc('month', s.invoice_date)::date AS m, SUM(si.quantity * COALESCE(p.unit_price, 0)) as cost
+                FROM sales s
+                JOIN sold_items si ON s.invoice_id = si.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                WHERE s.invoice_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' 
+                AND s.payment_status NOT IN ('Refunded', 'Failed') GROUP BY 1
             ),
             ref_agg AS (
                 SELECT date_trunc('month', return_date)::date AS m, SUM(refund_amount) AS ref FROM customer_returns
                 WHERE return_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' AND return_type = 'Refund' GROUP BY 1
+            ),
+            exp_agg AS (
+                SELECT date_trunc('month', expense_date)::date AS m, SUM(amount) AS exp FROM expenses
+                WHERE expense_date::date >= date_trunc('month', CURRENT_DATE)::date - INTERVAL '5 months' GROUP BY 1
             )
             SELECT TO_CHAR(months.m, 'Mon YYYY') AS label,
-                   (COALESCE(s.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
-                   COALESCE(s.cnt, 0)::int as transactions
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0))::float AS revenue,
+                   COALESCE(sr.cnt, 0)::int as transactions,
+                   (COALESCE(sr.rev, 0) - COALESCE(r.ref, 0) - COALESCE(sc.cost, 0) - COALESCE(e.exp, 0))::float as profit
             FROM months
-            LEFT JOIN sales_agg s ON s.m = months.m
+            LEFT JOIN sales_rev sr ON sr.m = months.m
+            LEFT JOIN sales_cost sc ON sc.m = months.m
             LEFT JOIN ref_agg r ON r.m = months.m
+            LEFT JOIN exp_agg e ON e.m = months.m
             ORDER BY months.m
         """)
 
@@ -112,6 +172,7 @@ def _fetch_sales_performance_series(cur, view: str) -> list[SalesPerformancePoin
             SalesPerformancePoint(
                 label=str(row["label"]).strip(),
                 revenue=float(row["revenue"] or 0),
+                profit=float(row.get("profit") or 0),
                 transactions=int(row["transactions"] or 0),
             )
         )
@@ -296,14 +357,27 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
             cur.execute(f"""
                 SELECT 
                     COALESCE(SUM(total_amount), 0) as total_sales,
-                    COUNT(*) as tx_count
-                FROM sales 
+                    COUNT(invoice_id) as tx_count
+                FROM sales
                 WHERE payment_status NOT IN ('Refunded', 'Failed')
                 {date_filter}
             """)
             s_stats = cur.fetchone()
             base_revenue = float(s_stats['total_sales'] or 0.0)
+            total_transactions = int(s_stats['tx_count'] or 0)
             
+            cur.execute(f"""
+                SELECT COALESCE(SUM(si.quantity * p.unit_price), 0) as total_cost
+                FROM sales s
+                JOIN sold_items si ON s.invoice_id = si.invoice_id
+                JOIN products p ON si.product_id = p.product_id
+                WHERE s.payment_status NOT IN ('Refunded', 'Failed')
+                {date_filter.replace('invoice_date', 's.invoice_date')}
+            """)
+            c_stats = cur.fetchone()
+            total_cost = float(c_stats['total_cost'] or 0.0)
+            
+            # Deductions from refunds in the same period
             # Deductions from refunds in the same period
             refund_filter = ""
             if view == "7d":
@@ -318,7 +392,12 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
             cur.execute(f"SELECT COALESCE(SUM(refund_amount), 0) as total_refunds FROM customer_returns WHERE return_type = 'Refund' {refund_filter}")
             total_refunds = float(cur.fetchone()['total_refunds'] or 0.0)
             
+            exp_filter = refund_filter.replace('return_date', 'expense_date')
+            cur.execute(f"SELECT COALESCE(SUM(amount), 0) as exp FROM expenses WHERE 1=1 {exp_filter}")
+            total_expenses = float(cur.fetchone()['exp'] or 0.0)
+            
             total_revenue = base_revenue - total_refunds
+            total_profit = total_revenue - total_cost - total_expenses
             total_transactions = int(s_stats['tx_count'] or 0)
 
             # Completed includes Paid and Exchanged
@@ -421,6 +500,7 @@ def get_dashboard_stats(view: str = Query(default="monthly")):
 
             return DashboardStatsResponse(
                 total_revenue=total_revenue,
+                total_profit=total_profit,
                 total_transactions=total_transactions,
                 completed_sales=completed_sales,
                 failed_payments=failed_payments,

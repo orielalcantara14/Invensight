@@ -1,5 +1,5 @@
 import { Users, Shield, Settings, Activity, UserCheck, Clock, ArrowUpRight, Plus, FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useState, useEffect, useCallback } from "react";
 import { AddUserModal } from "../modals/AddUserModal";
 import { api, type AuditLogEntry } from "@/services/api";

@@ -2,7 +2,7 @@ import { Plus, Eye, CheckCircle, XCircle, Package, X, Archive, Trash2, Download 
 import { exportToExcel } from "@/utils/export";
 import { ExportPreviewModal } from "@/components/modals/ExportPreviewModal";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";

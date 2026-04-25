@@ -116,6 +116,8 @@ export interface PayMongoCheckoutSessionPayload {
   customer_name?: string;
   customer_phone?: string;
   customer_email?: string;
+  success_url?: string;
+  cancel_url?: string;
   items?: Array<{
     name: string;
     amount: number;

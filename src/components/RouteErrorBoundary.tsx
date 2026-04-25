@@ -1,4 +1,4 @@
-import { useRouteError, isRouteErrorResponse } from "react-router-dom";
+import { useRouteError, isRouteErrorResponse } from "react-router";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 
 export function RouteErrorBoundary() {

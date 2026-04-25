@@ -103,6 +103,19 @@ export function Forecasting() {
     };
   }, []);
 
+  const dynamicForecast = useMemo(() => {
+    if (!data?.series?.length) return null;
+    const nowStr = new Date().toISOString().split('T')[0];
+    const futureData = data.series.filter(s => s.date > nowStr);
+    
+    let daysToSum = 30;
+    if (resolution === '7d') daysToSum = 7;
+    else if (resolution === '1y') daysToSum = 365;
+
+    const targetData = futureData.slice(0, daysToSum);
+    return targetData.reduce((acc, curr) => acc + (curr.forecast_sales ?? 0), 0);
+  }, [data, resolution]);
+
   const rawChartData = useMemo(() => {
     if (!data?.series?.length) return [];
 
@@ -331,62 +344,44 @@ export function Forecasting() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Predicted Revenue Card */}
-        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group border border-white/10">
-          <div className="absolute top-0 right-0 -mt-2 -mr-2 p-10 opacity-20 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700">
-            <TrendingUp size={140} />
-          </div>
-          <div className="relative z-10">
-            <span className="text-indigo-100/70 font-bold tracking-widest text-[10px] uppercase mb-4 block">Predicted Revenue (30D)</span>
-            <div className="text-5xl font-black mb-3 tracking-tighter drop-shadow-sm">
-              {loading ? "…" : formatPhp(data?.next_period_forecast ?? null)}
+      {resolution !== '1y' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 max-w-2xl gap-6">
+          {/* Predicted Revenue Card */}
+          <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group border border-white/10">
+            <div className="absolute top-0 right-0 -mt-2 -mr-2 p-10 opacity-20 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700">
+              <TrendingUp size={140} />
             </div>
-            <p className="text-indigo-100/60 text-xs font-medium max-w-[200px] leading-relaxed">Aggregated AI projection for the next cycle.</p>
-          </div>
-        </div>
-
-        {/* Model Confidence Card */}
-        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
-          {/* Background Sparkline Effect */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none translate-y-4">
-             <svg viewBox="0 0 100 20" className="w-full h-full stroke-emerald-500 fill-none stroke-[0.5]">
-                <path d="M0,10 Q10,5 20,12 T40,8 T60,15 T80,5 T100,10" />
-             </svg>
-          </div>
-          <div className="relative z-10">
-            <span className="text-muted-foreground/60 font-bold tracking-widest text-[10px] uppercase mb-4 block">Model Confidence</span>
-            <div className="text-5xl font-black text-foreground mb-4 tracking-tighter">
-              {loading ? "…" : data?.forecast_accuracy != null ? `${data.forecast_accuracy.toFixed(1)}%` : "N/A"}
-            </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                style={{ width: `${data?.forecast_accuracy ?? 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Restock Necessity Card */}
-        <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div className="absolute top-0 right-0 -mt-6 -mr-6 p-12 text-primary/[0.03] group-hover:scale-110 transition-transform duration-700 rotate-12">
-            <AlertTriangle size={160} />
-          </div>
-          <div className="relative z-10">
-            <span className="text-muted-foreground/60 font-bold tracking-widest text-[10px] uppercase mb-4 block">Restock Necessity</span>
-            <div className="text-5xl font-black text-foreground mb-4 tracking-tighter">
-              {loading ? "…" : `${reorderCount} Products`}
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className={`flex h-2 w-2 rounded-full ${reorderCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${reorderCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                {reorderCount > 0 ? "Action Required" : "Stock Optimal"}
+            <div className="relative z-10">
+              <span className="text-indigo-100/70 font-bold tracking-widest text-[10px] uppercase mb-4 block">
+                Predicted Revenue ({resolution === '7d' ? '7D' : resolution === '1y' ? '1Y' : '30D'})
               </span>
+              <div className="text-5xl font-black mb-3 tracking-tighter drop-shadow-sm">
+                {loading ? "…" : formatPhp(dynamicForecast ?? data?.next_period_forecast ?? null)}
+              </div>
+              <p className="text-indigo-100/60 text-xs font-medium max-w-[200px] leading-relaxed">Aggregated AI projection for the next cycle.</p>
+            </div>
+          </div>
+
+          {/* Target Period Card */}
+          <div className="bg-card p-8 rounded-[2rem] shadow-sm border border-border flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div className="absolute top-0 right-0 -mt-6 -mr-6 p-12 text-primary/[0.03] group-hover:scale-110 transition-transform duration-700 rotate-12">
+              <Calendar size={160} />
+            </div>
+            <div className="relative z-10">
+              <span className="text-muted-foreground/60 font-bold tracking-widest text-[10px] uppercase mb-4 block">Target Forecast Period</span>
+              <div className="text-4xl font-black text-foreground mb-4 tracking-tighter">
+                {resolution === '7d' ? 'Next 7 Days' : resolution === '1y' ? 'Next 12 Months' : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                  Active Projection Window
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {loading && (
         <div className="flex flex-col items-center justify-center py-32 space-y-4">
