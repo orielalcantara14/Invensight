@@ -432,7 +432,7 @@ function POSInternal() {
         toast.success("Payment verified!");
       } else {
         setCartItems(storedCart);
-        setCustomerName(finalData.customerName || "");
+        setCustomerName(finalData.customer_name || "");
         toast.error("Payment failed. Cart restored.");
       }
     } catch {

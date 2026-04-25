@@ -281,7 +281,7 @@ export function Dashboard() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-muted-foreground font-medium">No product data available</p>
                     <p className="text-sm text-muted-foreground/70 mt-1">Add products to start tracking sales</p>

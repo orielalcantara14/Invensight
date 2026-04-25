@@ -24,12 +24,14 @@ def get_connection():
     timeout = _connect_timeout()
     if url:
         return psycopg2.connect(url, connect_timeout=timeout)
+    
+    # Use environment variables with sensible defaults for local development
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", "5432")),
         dbname=os.getenv("DB_NAME", "InvenSight"),
         user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "Rocketman09"),
+        password=os.getenv("DB_PASSWORD", "Rocketman09"), # Fallback to common dev pass
         connect_timeout=timeout,
     )
 
