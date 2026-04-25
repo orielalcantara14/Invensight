@@ -321,7 +321,7 @@ export function Sales() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number, name: string) =>
-                      name === "Revenue" || name === "Profit"
+                      name === "Revenue"
                         ? [formatPeso(value), name]
                         : [String(Math.round(Number(value))), name]
                     }
@@ -338,15 +338,6 @@ export function Sales() {
                     activeDot={{ r: 6 }}
                   />
                   <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="profit"
-                    name="Profit"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 6 }}
-                  />                  <Line
                     yAxisId="right"
                     type="monotone"
                     dataKey="transactions"
@@ -378,7 +369,7 @@ export function Sales() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number, name: string) =>
-                      name === "Revenue" || name === "Profit"
+                      name === "Revenue"
                         ? [formatPeso(value), name]
                         : [String(Math.round(Number(value))), name]
                     }
@@ -393,13 +384,6 @@ export function Sales() {
                     maxBarSize={48}
                   />
                   <Bar
-                    yAxisId="left"
-                    dataKey="profit"
-                    name="Profit"
-                    fill="#8b5cf6"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={48}
-                  />                  <Bar
                     yAxisId="right"
                     dataKey="transactions"
                     name="Transactions"

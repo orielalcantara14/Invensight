@@ -106,11 +106,30 @@ export function Forecasting() {
   const dynamicForecast = useMemo(() => {
     if (!data?.series?.length) return null;
     const nowStr = new Date().toISOString().split('T')[0];
-    const futureData = data.series.filter(s => s.date > nowStr);
     
-    let daysToSum = 30;
-    if (resolution === '7d') daysToSum = 7;
-    else if (resolution === '1y') daysToSum = 365;
+    // For 30d (Monthly), we want the total expected for the CURRENT month
+    if (resolution === '30d') {
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      return data.series
+        .filter(s => {
+          const d = new Date(s.date);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((acc, curr) => {
+          // Use actual sales if available (past/today), otherwise use forecast
+          const val = curr.actual_sales !== null && curr.date <= nowStr 
+            ? curr.actual_sales 
+            : (curr.forecast_sales ?? 0);
+          return acc + val;
+        }, 0);
+    }
+
+    // For 7d and 1y, we keep the "Next X days" logic
+    const futureData = data.series.filter(s => s.date > nowStr);
+    let daysToSum = 7;
+    if (resolution === '1y') daysToSum = 365;
 
     const targetData = futureData.slice(0, daysToSum);
     return targetData.reduce((acc, curr) => acc + (curr.forecast_sales ?? 0), 0);
