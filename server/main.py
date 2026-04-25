@@ -29,7 +29,7 @@ from routers.notifications import router as notifications_router
 from routers.settings import router as settings_router
 from routers.reports import router as reports_router
 from database import get_connection, verify_database_connection
-from analytics_cache_jobs import start_scheduler
+from services.analytics_cache_jobs import start_scheduler
 
 logging.basicConfig(
     level=logging.INFO,

@@ -20,7 +20,7 @@ from models import (
     StockRiskAnalysisPoint,
     StockRiskStats,
 )
-from prophet_timeseries import run_prophet_daily_forecast, MIN_DAYS_FOR_PROPHET
+from .prophet_timeseries import run_prophet_daily_forecast, MIN_DAYS_FOR_PROPHET
 
 
 def load_daily_product_sales(cur, product_id: int, days: int) -> Tuple[date, List[float]]:
@@ -457,7 +457,7 @@ def assemble_stock_prediction(cur) -> StockPredictionResponse:
         JOIN products p ON p.product_id = i.product_id
         LEFT JOIN supplier s ON s.supplier_id = p.supplier_id
         WHERE p.status != 'Archived' AND i.status = 'Active'
-        GROUP BY i.product_id, p.product_name, p.supplier_id, s.supplier_name
+        GROUP BY i.product_id, p.product_name, p.supplier_id, s.supplier_name, p.unit_price
         """
     )
     rows = cur.fetchall()

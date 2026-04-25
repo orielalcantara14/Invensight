@@ -8,14 +8,14 @@ from typing import Any, Dict, Optional
 import psycopg2.extras
 from fastapi import APIRouter, Query, Header, HTTPException
 
-from analytics_cache_jobs import (
+from services.analytics_cache_jobs import (
     load_cached_sales_forecast,
     load_cached_stock_prediction,
     load_overview_extras,
     run_refresh_job,
 )
 from utils.audit import add_audit_log
-from analytics_engine import assemble_sales_forecast, assemble_stock_prediction, build_product_forecasts
+from services.analytics_engine import assemble_sales_forecast, assemble_stock_prediction, build_product_forecasts
 from database import get_connection
 from models import (
     AnalyticsModelStatus,

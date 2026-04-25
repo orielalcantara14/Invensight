@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from datetime import datetime, timedelta
 from database import get_connection
 from models import DashboardStatsResponse, SalesTrendItem, SalesByCategoryItem, TopProductItem, SalesPerformancePoint
-from analytics_cache_jobs import load_cached_sales_forecast
+from services.analytics_cache_jobs import load_cached_sales_forecast
 import psycopg2.extras
 
 router = APIRouter()
