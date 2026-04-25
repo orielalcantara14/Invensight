@@ -32,7 +32,8 @@ export function Sales() {
     completed_sales: number;
     failed_payments: number;
     refunded_sales: number;
-    sales_performance: Array<{ label: string; revenue: number; transactions: number }>;
+    total_profit: number;
+    sales_performance: Array<{ label: string; revenue: number; profit: number; transactions: number }>;
   } | null>(null);
   const [view, setView] = useState<ViewMode>("monthly");
   const [chartLoading, setChartLoading] = useState(false);
@@ -54,6 +55,7 @@ export function Sales() {
           completed_sales: res.completed_sales,
           failed_payments: res.failed_payments,
           refunded_sales: res.refunded_sales || 0,
+          total_profit: res.total_profit || 0,
           sales_performance: res.sales_performance,
         });
       })
@@ -99,6 +101,13 @@ export function Sales() {
       icon: ShoppingCart,
       bgColor: "bg-primary/10",
       iconColor: "text-primary",
+    },
+    {
+      label: "Total Profit",
+      value: salesStats ? formatPeso(salesStats.total_profit) : "₱0.00",
+      icon: DollarSign,
+      bgColor: "bg-green-50",
+      iconColor: "text-green-600",
     },
 
     {
@@ -227,7 +236,7 @@ export function Sales() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="bg-card p-6 rounded-lg shadow-sm border border-border">
             <div className="flex items-center justify-between mb-2">
@@ -312,7 +321,7 @@ export function Sales() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number, name: string) =>
-                      name === "Revenue"
+                      name === "Revenue" || name === "Profit"
                         ? [formatPeso(value), name]
                         : [String(Math.round(Number(value))), name]
                     }
@@ -328,8 +337,16 @@ export function Sales() {
                     dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6 }}
                   />
-
                   <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="profit"
+                    name="Profit"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />                  <Line
                     yAxisId="right"
                     type="monotone"
                     dataKey="transactions"
@@ -361,7 +378,7 @@ export function Sales() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number, name: string) =>
-                      name === "Revenue"
+                      name === "Revenue" || name === "Profit"
                         ? [formatPeso(value), name]
                         : [String(Math.round(Number(value))), name]
                     }
@@ -375,8 +392,14 @@ export function Sales() {
                     radius={[4, 4, 0, 0]}
                     maxBarSize={48}
                   />
-
                   <Bar
+                    yAxisId="left"
+                    dataKey="profit"
+                    name="Profit"
+                    fill="#8b5cf6"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
+                  />                  <Bar
                     yAxisId="right"
                     dataKey="transactions"
                     name="Transactions"
