@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (contain secrets — never commit these)
+.env
+.env.local
+.env.*.local
+server/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.Python
+
+# Vite cache
+.vite/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Ignored docs
+README.md
+
+# Uploads
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+server/uploads/avatars/*
+!server/uploads/avatars/.gitkeep
