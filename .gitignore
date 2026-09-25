@@ -4,7 +4,7 @@ node_modules/
 # Build output
 dist/
 
-# Environment variables (contain secrets — never commit these)
+# Environment variables (contain secrets - never commit these)
 .env
 .env.local
 .env.*.local
@@ -28,11 +28,11 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Ignored docs
-README.md
-
 # Visual Studio
 .vs/
+
+# Ignored docs
+README.md
 
 # Uploads
 uploads/avatars/*
