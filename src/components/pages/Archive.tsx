@@ -12,12 +12,20 @@ import {
   RefreshCw,
   AlertTriangle,
   History,
+  Clock,
+  Settings,
+  X,
+  Check,
+  Wrench,
+  Shield,
 } from "lucide-react";
-import { api, InventoryItem } from "@/services/api";
+import { api } from "@/services/api";
 import { getSession } from "@/auth/session";
 import { toast } from "sonner";
+import { OrdersStyleTablePagination } from "@/components/OrdersStyleTablePagination";
+import { cn } from "@/lib/utils";
 
-type ArchiveTab = "inventory" | "products" | "suppliers" | "orders" | "product-returns" | "users";
+type ArchiveTab = "inventory" | "products" | "suppliers" | "orders" | "product-returns" | "services" | "users" | "roles";
 
 interface ConfirmDialog {
   open: boolean;
@@ -30,24 +38,30 @@ interface ConfirmDialog {
 function ConfirmModal({ dialog, onClose }: { dialog: ConfirmDialog; onClose: () => void }) {
   if (!dialog.open) return null;
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
-        <div className={`p-6 border-b ${dialog.danger ? "border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/30" : "border-border dark:border-gray-800"}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${dialog.danger ? "bg-red-100 dark:bg-red-900/40" : "bg-blue-100 dark:bg-blue-900/40"}`}>
-              <AlertTriangle className={`w-5 h-5 ${dialog.danger ? "text-red-600 dark:text-red-400" : "text-primary dark:text-blue-400"}`} />
+    <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-card text-foreground rounded-xl shadow-lg max-w-md w-full border border-border/50 overflow-hidden">
+        <div className={`p-4 sm:p-5 border-b border-border/50 ${dialog.danger ? "bg-red-500/5 dark:bg-red-950/10" : ""}`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${dialog.danger ? "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"}`}>
+              <AlertTriangle className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground text-foreground">{dialog.title}</h3>
+            <h3 className="text-sm sm:text-base font-bold uppercase tracking-tight">{dialog.title}</h3>
           </div>
         </div>
-        <div className="p-6">
-          <p className="text-muted-foreground dark:text-muted-foreground/70">{dialog.message}</p>
+        <div className="p-4 sm:p-5">
+          <p className="text-xs text-muted-foreground font-medium uppercase leading-relaxed">{dialog.message}</p>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors">
+        <div className="flex items-center justify-end gap-2.5 px-4 sm:px-5 pb-4 sm:pb-5">
+          <button onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:bg-muted/50 border border-border/50 rounded-lg transition-colors">
             Cancel
           </button>
-          <button onClick={() => { dialog.onConfirm(); onClose(); }} className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${dialog.danger ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"}`}>
+          <button
+            onClick={() => { dialog.onConfirm(); onClose(); }}
+            className={cn(
+              "px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-50 rounded-lg transition-colors",
+              dialog.danger ? "bg-red-600 hover:bg-red-700" : "bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+            )}
+          >
             Confirm
           </button>
         </div>
@@ -56,13 +70,151 @@ function ConfirmModal({ dialog, onClose }: { dialog: ConfirmDialog; onClose: () 
   );
 }
 
+function RetentionSettingsModal({
+  open,
+  currentDays,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  currentDays: number;
+  onClose: () => void;
+  onSave: (days: number) => Promise<void>;
+}) {
+  const [selectedDays, setSelectedDays] = useState<number>(currentDays);
+  const [customDays, setCustomDays] = useState<string>(String(currentDays > 0 ? currentDays : ""));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSelectedDays(currentDays);
+    setCustomDays(String(currentDays > 0 ? currentDays : ""));
+  }, [currentDays, open]);
+
+  if (!open) return null;
+
+  const presets = [
+    { label: "7 Days", value: 7, desc: "Deletes after 1 week" },
+    { label: "14 Days", value: 14, desc: "Deletes after 2 weeks" },
+    { label: "30 Days", value: 30, desc: "Deletes after 1 month (Recommended)" },
+    { label: "60 Days", value: 60, desc: "Deletes after 2 months" },
+    { label: "90 Days", value: 90, desc: "Deletes after 3 months" },
+    { label: "Never (Manual Only)", value: 0, desc: "Keep forever until you delete manually" },
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await onSave(selectedDays);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-card text-foreground rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col border border-border/55 overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-border/50 flex items-center justify-between bg-muted/10 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground">Auto-Delete Schedule</h3>
+              <p className="text-[10px] text-muted-foreground font-semibold">Choose how long deleted items stay before being completely deleted</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted/50 text-muted-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Keep Deleted Items For:</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {presets.map((p) => {
+                const isSelected = selectedDays === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDays(p.value);
+                      if (p.value > 0) setCustomDays(String(p.value));
+                    }}
+                    className={cn(
+                      "p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between",
+                      isSelected
+                        ? "border-zinc-900 bg-zinc-900/5 dark:border-zinc-100 dark:bg-zinc-100/10 shadow-xs"
+                        : "border-border/60 hover:border-border hover:bg-muted/20"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-foreground">{p.label}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100" />}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-tight">{p.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Or Set Custom Days:</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                max="3650"
+                placeholder="e.g. 45"
+                value={customDays}
+                onChange={(e) => {
+                  setCustomDays(e.target.value);
+                  const num = parseInt(e.target.value, 10);
+                  if (!isNaN(num) && num >= 0) setSelectedDays(num);
+                }}
+                className="w-32 rounded-lg border border-border/60 px-3 py-2 text-xs font-bold outline-none focus:border-zinc-400 bg-card text-foreground"
+              />
+              <span className="text-xs text-muted-foreground font-semibold">days before permanent delete</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground/80">
+              * Set to <span className="font-bold text-foreground">0</span> if you want items to stay here forever until you delete them manually.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:bg-muted/50 border border-border/50 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 text-xs font-bold uppercase tracking-wider bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg transition-all shadow-xs disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Delete Schedule"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const TABS: { key: ArchiveTab; label: string; icon: React.ElementType }[] = [
-  { key: "inventory",       label: "Inventory",       icon: History    },
+  { key: "inventory",       label: "Inventory",         icon: History    },
   { key: "products",        label: "Products (Master)", icon: Package    },
-  { key: "suppliers",       label: "Suppliers",       icon: Truck      },
-  { key: "orders",          label: "Orders",          icon: FileText   },
-  { key: "product-returns", label: "Supplier Returns", icon: Archive    },
-  { key: "users",           label: "Users",           icon: UsersIcon  },
+  { key: "suppliers",       label: "Suppliers",         icon: Truck      },
+  { key: "orders",          label: "Orders",            icon: FileText   },
+  { key: "product-returns", label: "Supplier Returns",  icon: Archive    },
+  { key: "services",        label: "Services",          icon: Wrench     },
+  { key: "users",           label: "Users",             icon: UsersIcon  },
+  { key: "roles",           label: "Roles",             icon: Shield     },
 ];
 
 export function ArchivePage() {
@@ -72,7 +224,15 @@ export function ArchivePage() {
   const actorId = session?.user_id ?? 0;
   const role = (session?.role || "").trim().toLowerCase();
   const username = (session?.username || "").trim().toLowerCase();
-  const isAuthorizedToDelete = username === "rootadminnginamo" || role === "administrator";
+  const isAuthorizedToDelete = username === "rootadminnginamo" || ["administrator", "super admin", "system administrator"].includes(role);
+
+  const isUserManagementAuthorized = username === "rootadminnginamo" || ["administrator", "super admin", "system administrator"].includes(role);
+  const visibleTabs = TABS.filter(tab => {
+    if (tab.key === "users" || tab.key === "roles") {
+      return isUserManagementAuthorized;
+    }
+    return true;
+  });
 
   const initialTab = (searchParams.get("tab") as ArchiveTab) || "inventory";
   const [activeTab, setActiveTab] = useState<ArchiveTab>(initialTab);
@@ -80,16 +240,46 @@ export function ArchivePage() {
   // Sync tab with search param if it changes
   useEffect(() => {
     const tabParam = searchParams.get("tab") as ArchiveTab;
-    if (tabParam && TABS.some(t => t.key === tabParam)) {
+    if (tabParam && visibleTabs.some(t => t.key === tabParam)) {
       setActiveTab(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, visibleTabs]);
+
+  // Handle fallback if activeTab is not in visibleTabs
+  useEffect(() => {
+    if (!visibleTabs.some(t => t.key === activeTab)) {
+      setActiveTab("inventory");
+    }
+  }, [stage, activeTab, visibleTabs]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDialog>({ open: false, title: "", message: "", onConfirm: () => {} });
 
   const [data, setData] = useState<any[]>([]);
+  const [retentionDays, setRetentionDays] = useState<number>(30);
+  const [isRetentionModalOpen, setIsRetentionModalOpen] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, stage, searchTerm]);
+
+  const loadRetention = useCallback(async () => {
+    try {
+      const res = await api.getRetentionSetting();
+      setRetentionDays(res.retention_days ?? 30);
+    } catch (err) {
+      console.error("Failed to load retention setting", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRetention();
+  }, [loadRetention]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -101,7 +291,9 @@ export function ArchivePage() {
         case "suppliers":       result = await api.getArchivedSuppliers(stage); break;
         case "orders":          result = await api.getArchivedOrders(stage);    break;
         case "product-returns": result = await api.getArchivedProductReturns(stage); break;
-        case "users":           result = await api.getArchivedUsers(actorId); break;
+        case "services":        result = await api.getArchivedMechanics(stage); break;
+        case "users":           result = await api.getArchivedUsers(actorId, stage); break;
+        case "roles":           result = await api.getArchivedRoles(stage); break;
       }
       setData(result);
     } catch (e: any) {
@@ -113,6 +305,35 @@ export function ArchivePage() {
 
   useEffect(() => { loadData(); }, [activeTab, loadData]);
 
+  const handleSaveRetention = async (days: number) => {
+    try {
+      await api.updateRetentionSetting(days);
+      setRetentionDays(days);
+      setIsRetentionModalOpen(false);
+      toast.success(`Auto-delete schedule set to ${days > 0 ? `${days} days` : "never (manual only)"}`);
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update auto-delete schedule");
+    }
+  };
+
+  const handlePurgeExpired = async () => {
+    try {
+      setIsPurging(true);
+      const res = await api.autoCleanupDeletedFolder();
+      if (res.purged_count > 0) {
+        toast.success(`Cleaned up ${res.purged_count} expired records from Deleted Folder.`);
+      } else {
+        toast.info("No expired records to clean up.");
+      }
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to clean up expired items");
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   const handleAction = async (action: "restore" | "trash" | "delete", id: any, name: string) => {
     const isTrash = action === "trash";
     const isDelete = action === "delete";
@@ -121,9 +342,11 @@ export function ArchivePage() {
     setConfirm({
       open: true,
       danger: isDelete || isTrash,
-      title: isRestore ? "Restore Record" : isTrash ? "Move to Deleted Folder" : "Permanently Delete",
+      title: isRestore 
+        ? (activeTab === "users" ? (stage === "Archived" ? "Activate User" : "Restore User") : activeTab === "roles" ? (stage === "Archived" ? "Activate Role" : "Restore Role") : activeTab === "services" ? (stage === "Archived" ? "Activate Mechanic" : "Restore Mechanic") : "Restore Record")
+        : isTrash ? "Move to Deleted Folder" : "Permanently Delete",
       message: isRestore 
-        ? `Restore "${name}" to active status?` 
+        ? (activeTab === "users" ? `Activate user "${name}"?` : activeTab === "roles" ? `Activate role "${name}"?` : activeTab === "services" ? `Activate mechanic "${name}"?` : `Restore "${name}" to active status?`) 
         : isTrash 
           ? `Move "${name}" to the Deleted Folder? You can still restore it from there.`
           : `Permanently delete "${name}"? This action CANNOT be undone.`,
@@ -149,9 +372,18 @@ export function ArchivePage() {
             if (isRestore) await api.restoreProductReturn(id);
             else if (isTrash) await api.moveReturnToTrash(id);
             else await api.permanentDeleteProductReturn(id);
+          } else if (activeTab === "services") {
+            if (isRestore) await api.restoreMechanic(id, actorId);
+            else if (isTrash) await api.moveMechanicToTrash(id, actorId);
+            else await api.permanentDeleteMechanic(id, actorId);
           } else if (activeTab === "users") {
             if (isRestore) await api.restoreUser(id, actorId);
+            else if (isTrash) await api.moveUserToTrash(id, actorId);
             else await api.permanentDeleteUser(id, actorId);
+          } else if (activeTab === "roles") {
+            if (isRestore) await api.restoreRole(id, actorId);
+            else if (isTrash) await api.moveRoleToTrash(id, actorId);
+            else await api.permanentDeleteRole(id, actorId);
           }
           toast.success("Action completed successfully");
           loadData();
@@ -165,153 +397,241 @@ export function ArchivePage() {
     return Object.values(item).some(val => String(val ?? "").toLowerCase().includes(q));
   });
 
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+
   return (
-    <div className="p-8 min-h-screen bg-gradient-to-br from-slate-50 via-primary/10/30 to-indigo-50/20 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-foreground dark:text-gray-100">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-background text-foreground">
       <ConfirmModal dialog={confirm} onClose={() => setConfirm(p => ({ ...p, open: false }))} />
+      <RetentionSettingsModal
+        open={isRetentionModalOpen}
+        currentDays={retentionDays}
+        onClose={() => setIsRetentionModalOpen(false)}
+        onSave={handleSaveRetention}
+      />
 
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl ${stage === "Archived" ? "bg-amber-500 shadow-amber-500/20" : "bg-red-500 shadow-red-500/20 text-white"}`}>
-              {stage === "Archived" ? <Archive className="w-6 h-6 text-white" /> : <Trash2 className="w-6 h-6 text-white" />}
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">{stage === "Archived" ? "Archive" : "Deleted Folder"}</h1>
-              <p className="text-muted-foreground dark:text-muted-foreground/70 font-medium">
-                {stage === "Archived" ? "Manage and restore soft-archived records" : "Review items for permanent deletion"}
-              </p>
-            </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{stage === "Archived" ? "Archive" : "Deleted Folder"}</h1>
+            <p className="text-muted-foreground mt-1">
+              {stage === "Archived" ? "Manage and restore archived records" : "Review items before permanent deletion"}
+            </p>
           </div>
 
-          <div className="flex bg-card bg-card p-1 rounded-xl shadow-sm border border-border border-border">
+          <div className="flex bg-muted/20 p-1 rounded-xl border border-border/50 shadow-xs">
             <button
               onClick={() => setSearchParams({ stage: "Archived" })}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Archived" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground dark:hover:text-gray-200"}`}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+                stage === "Archived"
+                  ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
             >
-              <Archive className="w-4 h-4" /> Archive
+              <Archive className="w-3.5 h-3.5" /> Archive
             </button>
             <button
               onClick={() => setSearchParams({ stage: "Deleted" })}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${stage === "Deleted" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:text-foreground dark:hover:text-gray-200"}`}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+                stage === "Deleted"
+                  ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
             >
-              <Trash2 className="w-4 h-4" /> Deleted Folder
+              <Trash2 className="w-3.5 h-3.5" /> Deleted Folder
             </button>
           </div>
         </div>
 
-        {/* Action Bar */}
-        <div className="bg-card bg-background rounded-3xl shadow-xl border border-border dark:border-gray-800 overflow-hidden">
-          <div className="flex flex-col lg:flex-row border-b border-border dark:border-gray-800">
-            <div className="flex flex-1 overflow-x-auto no-scrollbar bg-muted/50/50 bg-card/10">
-              {TABS.map(tab => (
+        {/* Deleted Folder Auto-Delete Timer Banner */}
+        {stage === "Deleted" && (
+          <div className="mb-6 p-4 rounded-xl bg-card border border-border/60 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 border border-border/50 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">Auto-Delete Timer</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950">
+                    {retentionDays > 0 ? `Deletes after ${retentionDays} Days` : "Never (Manual Delete Only)"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                  {retentionDays > 0 
+                    ? `Items in this folder will be permanently deleted after ${retentionDays} days.`
+                    : "Items in this folder will stay here until you delete them manually."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isAuthorizedToDelete && (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2.5 px-6 py-5 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
-                    activeTab === tab.key
-                      ? stage === "Archived" ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-card bg-background" : "border-red-500 text-red-600 dark:text-red-400 bg-card bg-background"
-                      : "border-transparent text-muted-foreground/70 dark:text-muted-foreground hover:text-muted-foreground dark:hover:text-gray-300"
-                  }`}
+                  onClick={() => setIsRetentionModalOpen(true)}
+                  className="px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-muted/40 hover:bg-muted text-foreground border border-border/50 transition-colors flex items-center gap-2 shadow-2xs"
                 >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
+                  <Settings className="w-3.5 h-3.5" />
+                  Set Delete Time
                 </button>
-              ))}
+              )}
             </div>
           </div>
+        )}
 
-          <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card bg-background">
-            <div className="relative group flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/70 group-focus-within:text-amber-500 transition-colors" />
+        {/* Tab switchers and actions panel */}
+        <div className="bg-card rounded-lg shadow-xs border border-border/55 overflow-hidden">
+          {/* Tabs header */}
+          <div className="flex border-b border-border/50 overflow-x-auto overflow-y-hidden no-scrollbar bg-muted/5">
+            {visibleTabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-4 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all whitespace-nowrap -mb-px",
+                  activeTab === tab.key
+                    ? "border-zinc-900 text-zinc-900 dark:border-zinc-50 dark:text-zinc-50 bg-card"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/5"
+                )}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Unified search & date bar */}
+          <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
               <input
                 type="text"
                 placeholder={`Search ${activeTab}...`}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-muted/50 bg-card border-none rounded-2xl text-sm focus:ring-2 focus:ring-amber-500/20 transition-all dark:placeholder-gray-500"
+                className="w-full pl-9 pr-4 py-2 text-xs border border-border/60 bg-muted/20 hover:bg-muted/40 focus:bg-card rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400 text-foreground transition-all"
               />
             </div>
             <button
               onClick={loadData}
-              className="px-5 py-3 flex items-center gap-2 text-sm font-bold text-muted-foreground dark:text-gray-300 bg-muted/50 bg-card rounded-2xl hover:bg-muted dark:hover:bg-gray-700 transition-all"
+              className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-zinc-900 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 border border-border/50 rounded-lg transition-colors shadow-xs"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-amber-500" : ""}`} />
+              <RefreshCw className={cn("w-3.5 h-3.5", loading ? "animate-spin text-zinc-600 dark:text-zinc-400" : "")} />
               Refresh Records
             </button>
           </div>
 
-          {/* Table */}
+          {/* Records Table */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground/70">
-                <RefreshCw className="w-12 h-12 animate-spin mb-4 text-amber-500 opacity-50" />
-                <p className="animate-pulse font-medium">Crunching data...</p>
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                <RefreshCw className="w-8 h-8 animate-spin mb-3 text-muted-foreground/50" />
+                <p className="text-xs uppercase tracking-widest font-bold">Loading records...</p>
               </div>
             ) : filteredData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 text-gray-300 dark:text-muted-foreground">
-                <Archive className="w-24 h-24 mb-6 opacity-10" />
-                <h3 className="text-xl font-bold">No records found</h3>
-                <p className="text-sm text-muted-foreground mt-2">Try a different search or change the stage</p>
+              <div className="flex flex-col items-center justify-center py-20 text-gray-350 dark:text-muted-foreground">
+                <Archive className="w-16 h-16 mb-4 opacity-20 text-foreground" />
+                <h3 className="text-sm font-bold uppercase tracking-wider">No records found</h3>
+                <p className="text-xs text-muted-foreground/80 mt-1">Try a different search or change the active category</p>
               </div>
             ) : (
-              <table className="w-full text-left">
-                <thead className="bg-muted/50/50 bg-card/30 border-y border-border dark:border-gray-800">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-muted/30 border-b border-border/50">
                   <tr>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Details</th>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Info</th>
-                    <th className="px-8 py-4 text-xs font-black uppercase tracking-widest text-muted-foreground/70">Date/Status</th>
-                    <th className="px-8 py-4 text-right text-xs font-black uppercase tracking-widest text-muted-foreground/70">Actions</th>
+                    <th className="px-6 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Details</th>
+                    <th className="px-6 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Info</th>
+                    <th className="px-6 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {stage === "Deleted" ? "Auto-Delete Schedule" : "Date / Status"}
+                    </th>
+                    <th className="px-6 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-40">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
-                  {filteredData.map((item, idx) => {
-                    const id = item.inventory_id || item.product_id || item.supplier_id || item.order_id || item.return_id || item.id;
-                    const name = item.product_name || item.supplier_name || item.username || item.full_name || id;
-                    
+                <tbody className="divide-y divide-border/40 bg-card">
+                  {paginatedData.map((item) => {
+                    const id = item.inventory_id || item.product_id || item.supplier_id || item.order_id || item.return_id || item.mechanic_id || item.user_id || item.role_id || item.id;
+                    const name = item.role_name || item.product_name || item.name || item.supplier_name || item.username || item.full_name || id;
+
                     return (
-                      <tr key={id} className="group hover:bg-muted/50/50 dark:hover:bg-gray-800/20 transition-all">
-                        <td className="px-8 py-6">
+                      <tr key={id} className="group hover:bg-muted/20 dark:hover:bg-zinc-900/30 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col">
-                            <span className="font-bold text-foreground text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{name}</span>
-                            <span className="text-xs font-mono text-muted-foreground/70 mt-1 uppercase">{item.sku || id}</span>
+                            <span className="font-semibold text-xs text-foreground group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">{name}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground mt-0.5 uppercase">{item.sku || (activeTab === "services" ? `MECH-${id}` : activeTab === "roles" ? `ROLE-${id}` : id)}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-muted-foreground dark:text-gray-300">{item.category_name || item.email || item.reason || "—"}</span>
-                            <span className="text-xs text-muted-foreground/70">{item.supplier_name || item.contact_number || (item.total_items ? `${item.total_items} items` : "")}</span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-medium">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium">{item.last_updated || item.date_added || item.created_at ? new Date(item.last_updated || item.date_added || item.created_at).toLocaleDateString() : "—"}</span>
-                            <span className="inline-flex mt-1 text-[10px] font-black uppercase tracking-tighter text-amber-500">{stage}</span>
+                            <span>{activeTab === "roles" ? (item.permissions_text ? "Configured Permissions" : "Standard Role") : (item.category_name || item.email || item.reason || "—")}</span>
+                            {item.supplier_name || item.contact_number || item.total_items ? (
+                              <span className="text-[10px] text-muted-foreground/60 mt-0.5">{item.supplier_name || item.contact_number || `${item.total_items} items`}</span>
+                            ) : null}
                           </div>
                         </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex items-center justify-end gap-3 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {stage === "Deleted" ? (
+                            <div className="flex flex-col text-xs">
+                              {item.days_remaining !== null && item.days_remaining !== undefined ? (
+                                <>
+                                  {item.days_remaining === 0 ? (
+                                    <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-900">
+                                      <AlertTriangle className="w-3 h-3" /> Deletes Today
+                                    </span>
+                                  ) : item.days_remaining <= 5 ? (
+                                    <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-900">
+                                      <Clock className="w-3 h-3" /> {item.days_remaining} {item.days_remaining === 1 ? "day" : "days"} left
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-muted/40 text-muted-foreground border border-border/50">
+                                      <Clock className="w-3 h-3" /> {item.days_remaining} days left
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-muted-foreground font-mono mt-1">
+                                    Deletes on {item.scheduled_delete_date || "—"}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground font-medium italic">No auto-delete (Keep forever)</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col text-xs text-muted-foreground">
+                              <span className="font-mono">{item.last_updated || item.date_added || item.created_at ? new Date(item.last_updated || item.date_added || item.created_at).toLocaleDateString() : "—"}</span>
+                              <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                                <span className="w-1 h-1 rounded-full bg-zinc-400" />
+                                Archived
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleAction("restore", id, name)}
-                              className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                              className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all cursor-pointer"
+                              title={activeTab === "users" ? (stage === "Archived" ? "Activate User" : "Restore User") : activeTab === "services" ? (stage === "Archived" ? "Activate Mechanic" : "Restore Mechanic") : "Restore"}
                             >
-                              <RotateCcw className="w-3 h-3" /> Restore
+                              <RotateCcw className="w-3.5 h-3.5" />
                             </button>
-                            
+
                             {stage === "Archived" ? (
                               <button
                                 onClick={() => handleAction("trash", id, name)}
-                                className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                className="p-1 rounded text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all cursor-pointer"
+                                title="Move to Deleted Folder"
                               >
-                                <Trash2 className="w-3 h-3" /> Trash
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             ) : (
                               isAuthorizedToDelete && (
                                 <button
                                   onClick={() => handleAction("delete", id, name)}
-                                  className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
+                                  className="p-1 rounded text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all cursor-pointer"
+                                  title="Permanently Delete"
                                 >
-                                  <Trash2 className="w-3 h-3" /> Delete
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )
                             )}
@@ -324,6 +644,18 @@ export function ArchivePage() {
               </table>
             )}
           </div>
+          {!loading && (
+            <OrdersStyleTablePagination
+              itemCount={filteredData.length}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

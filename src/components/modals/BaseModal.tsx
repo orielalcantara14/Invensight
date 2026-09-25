@@ -6,7 +6,7 @@ interface BaseModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '5xl' | 'full';
   /** 'none' = no dimming behind the dialog; 'dim' = light scrim */
   backdrop?: 'none' | 'dim';
 }
@@ -83,14 +83,13 @@ export function BaseModal({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
-    full: 'max-w-[min(100%,calc(100vw-1.5rem))] max-h-[min(100%,calc(100vh-1.5rem))] flex flex-col min-h-0',
+    '5xl': 'max-w-5xl',
+    full: 'max-w-[min(100%,calc(100vw-2rem))]',
   };
-
-  const isFullSize = maxWidth === 'full';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6"
       onClick={handleOverlayClick}
     >
       {/* Backdrop: avoid solid black — use transparent or a light scrim */}
@@ -106,24 +105,22 @@ export function BaseModal({
       {/* Modal content */}
       <div
         ref={modalRef}
-        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]}`}
+        className={`relative z-10 w-full my-auto ${maxWidthClasses[maxWidth]} max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col min-h-0`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
         <div
-          className={`bg-card rounded-xl shadow-2xl border border-border/80 flex flex-col min-h-0 ${
-            isFullSize ? 'max-h-full' : ''
-          }`}
+          className="bg-card rounded-2xl shadow-2xl border border-border/80 flex flex-col min-h-0 max-h-full overflow-hidden"
         >
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-border bg-muted/50">
-            <h2 id="modal-title" className="text-xl font-semibold text-foreground">
+          <div className="flex shrink-0 items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border bg-muted/50">
+            <h2 id="modal-title" className="text-lg sm:text-xl font-semibold text-foreground truncate pr-2">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-muted-foreground/70 hover:text-muted-foreground hover:bg-gray-200 transition-colors duration-200"
+              className="p-1.5 rounded-lg text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted transition-colors duration-200 cursor-pointer shrink-0"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
@@ -131,7 +128,7 @@ export function BaseModal({
           </div>
 
           {/* Content */}
-          <div className={`p-6 ${isFullSize ? 'overflow-y-auto flex-1 min-h-0' : ''}`}>
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
             {children}
           </div>
         </div>

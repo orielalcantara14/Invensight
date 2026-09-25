@@ -1,4 +1,4 @@
-import { Search, Plus, Users, Edit2, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle, Trash2, Eye } from "lucide-react";
+import { Search, Plus, Users, Pencil, Mail, Phone, MapPin, Package, ShoppingCart, Download, Archive, AlertTriangle, Trash2, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { api } from "@/services/api";
@@ -23,6 +23,8 @@ export function Suppliers() {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [trashTarget, setTrashTarget] = useState<{ id: number; name: string } | null>(null);
+  const [trashing, setTrashing] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const fetchSuppliers = async () => {
@@ -41,7 +43,6 @@ export function Suppliers() {
     fetchSuppliers();
   }, []);
 
-
   const handleArchive = (id: number, name: string) => {
     setArchiveTarget({ id, name });
   };
@@ -58,6 +59,25 @@ export function Suppliers() {
       toast.error(error instanceof Error ? error.message : "Failed to archive supplier");
     } finally {
       setArchiving(false);
+    }
+  };
+
+  const handleMoveToTrash = (id: number, name: string) => {
+    setTrashTarget({ id, name });
+  };
+
+  const confirmTrash = async () => {
+    if (!trashTarget) return;
+    setTrashing(true);
+    try {
+      await api.deleteSupplier(trashTarget.id);
+      toast.success("Supplier moved to Deleted Folder");
+      setTrashTarget(null);
+      fetchSuppliers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to move supplier to Deleted Folder");
+    } finally {
+      setTrashing(false);
     }
   };
 
@@ -105,14 +125,14 @@ export function Suppliers() {
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground text-foreground">Supplier Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Supplier Management</h1>
             <p className="text-muted-foreground dark:text-muted-foreground/70 mt-1">Manage suppliers and vendor relationships</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <ProtectedAction module="Archive" action="View">
               <Link
                 to="/archive?stage=Archived&tab=suppliers"
@@ -144,161 +164,143 @@ export function Suppliers() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 dark:bg-blue-900/30 rounded-lg">
-              <Users className="w-5 h-5 text-primary dark:text-blue-400" />
-            </div>
-            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Suppliers</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground text-foreground">{stats.total}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-card p-4 sm:p-6 rounded-xl border border-border/50 shadow-xs">
+          <div className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1">Total Suppliers</div>
+          <div className="text-2xl font-semibold tracking-tight text-foreground">{stats.total}</div>
         </div>
 
-        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
-              <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
-            </div>
-            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Active Suppliers</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground text-foreground">{stats.active}</div>
+        <div className="bg-card p-4 sm:p-6 rounded-xl border border-border/50 shadow-xs">
+          <div className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1">Active Suppliers</div>
+          <div className="text-2xl font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">{stats.active}</div>
         </div>
 
-        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-              <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Product Lines</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground text-foreground">{stats.totalProducts}</div>
+        <div className="bg-card p-4 sm:p-6 rounded-xl border border-border/50 shadow-xs">
+          <div className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1">Total Product Lines</div>
+          <div className="text-2xl font-semibold tracking-tight text-purple-600 dark:text-purple-400">{stats.totalProducts}</div>
         </div>
 
-        <div className="bg-card bg-card p-6 rounded-xl shadow-sm border border-border border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
-              <ShoppingCart className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <span className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/70">Total Orders</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground text-foreground">{stats.totalOrders}</div>
+        <div className="bg-card p-4 sm:p-6 rounded-xl border border-border/50 shadow-xs">
+          <div className="text-[10px] font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1">Total Orders</div>
+          <div className="text-2xl font-semibold tracking-tight text-orange-600 dark:text-orange-400">{stats.totalOrders}</div>
         </div>
       </div>
 
-      <div className="bg-card bg-card rounded-xl shadow-sm border border-border border-border overflow-hidden">
-        <div className="p-6 border-b border-border border-border">
+      <div className="bg-card rounded-xl border border-border/50 overflow-hidden shadow-xs">
+        <div className="p-6 border-b border-border/40">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-foreground text-foreground">Supplier List</h2>
-            <div className="flex gap-3 w-full md:w-auto">
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground/70" />
-                <input
-                  type="text"
-                  placeholder="Search by name, email or contact..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-muted/50 bg-background/50 border border-border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-foreground transition-all"
-                />
-              </div>
-              <ProtectedAction module="Suppliers" action="Export">
-                <button
-                  onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Suppliers
-                </button>
-              </ProtectedAction>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Search suppliers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 text-sm bg-zinc-50/50 dark:bg-zinc-900/50 border border-border/60 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground transition-all placeholder:text-zinc-400"
+              />
             </div>
+            <ProtectedAction module="Suppliers" action="Export">
+              <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-900 border border-border hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export
+              </button>
+            </ProtectedAction>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#F8F9FA] border-b border-border bg-background/50 border-border">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-muted/30 border-b border-border/50">
               <tr>
-                <th className="px-6 py-4 text-left">
-                  {/* Header checkbox removed */}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Supplier Name
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Address
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-32 whitespace-nowrap">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border dark:divide-gray-700">
+            <tbody className="divide-y divide-border/40 bg-card">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <div className="flex justify-center">
-                      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    </div>
-                  </td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground text-xs italic">Loading suppliers...</td>
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-muted-foreground" />
-                    <p className="text-muted-foreground dark:text-muted-foreground/70 font-medium">No suppliers found</p>
-                    <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground mt-1">Add your first supplier to get started</p>
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-muted-foreground font-medium">No suppliers found</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Add your first supplier to get started</p>
                   </td>
                 </tr>
               ) : (
                 paginatedSuppliers.map((supplier) => (
-                  <tr key={supplier.supplier_id} className="hover:bg-muted/50 dark:hover:bg-gray-900/30 transition-colors">
+                  <tr key={supplier.supplier_id} className="group hover:bg-muted/20 dark:hover:bg-zinc-900/30 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {/* Row selection handled in Export Wizard */}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-foreground text-foreground">
+                      <span className="text-xs font-bold text-foreground">
                         {supplier.supplier_name}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">
-                        {supplier.address || "N/A"}
+                      <span className="text-xs text-muted-foreground">
+                        {supplier.address || "—"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase ${supplier.status === 'Active'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                        }`}>
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-xs text-foreground">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          (supplier.status || 'Active') === 'Active'
+                            ? 'bg-emerald-500'
+                            : 'bg-red-500'
+                        }`} />
                         {supplier.status || 'Active'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setViewingSupplier(supplier)}
-                          className="p-2 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                          className="p-1.5 text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                           title="View Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => setEditingSupplier(supplier)}
-                          className="p-2 text-primary hover:bg-primary/10 dark:hover:bg-blue-900/30 rounded-full transition-colors"
-                          title="Edit Supplier"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleArchive(supplier.supplier_id, supplier.supplier_name)}
-                          className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-full transition-colors"
-                          title="Archive Supplier"
-                        >
-                          <Archive className="w-4 h-4" />
-                        </button>
+                        <ProtectedAction module="Suppliers" action="Edit">
+                          <button
+                            onClick={() => setEditingSupplier(supplier)}
+                            className="p-1.5 text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </ProtectedAction>
+                        <ProtectedAction module="Suppliers" action="Delete">
+                          <button
+                            onClick={() => handleArchive(supplier.supplier_id, supplier.supplier_name)}
+                            className="p-1.5 text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            title="Archive"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
+                        </ProtectedAction>
+                        <ProtectedAction module="Suppliers" action="Delete">
+                          <button
+                            onClick={() => handleMoveToTrash(supplier.supplier_id, supplier.supplier_name)}
+                            className="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            title="Move to Trash"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </ProtectedAction>
                       </div>
                     </td>
                   </tr>
@@ -339,48 +341,98 @@ export function Suppliers() {
 
       {/* Archive Confirm Modal */}
       {archiveTarget && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+            <div className="p-4 sm:p-6 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
                   <Archive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground text-foreground">Archive Supplier</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground">Archive Supplier</h3>
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">This can be restored later</p>
                 </div>
               </div>
             </div>
 
             {/* Body */}
-            <div className="p-6">
-              <p className="text-muted-foreground dark:text-gray-300">
+            <div className="p-4 sm:p-6">
+              <p className="text-sm text-muted-foreground dark:text-gray-300">
                 Are you sure you want to archive{" "}
-                <span className="font-semibold text-foreground text-foreground">"{archiveTarget.name}"</span>?
+                <span className="font-semibold text-foreground">"{archiveTarget.name}"</span>?
               </p>
-              <p className="text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
+              <p className="text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
                 They will be moved to the Archive module and can be fully restored at any time.
               </p>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 pb-6">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-4 sm:px-6 pb-4 sm:pb-6">
               <button
                 onClick={() => setArchiveTarget(null)}
                 disabled={archiving}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmArchive}
                 disabled={archiving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors disabled:opacity-50"
               >
                 <Archive className="w-4 h-4" />
                 {archiving ? "Archiving..." : "Archive Supplier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move to Trash Confirm Modal */}
+      {trashTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border overflow-hidden">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground">Move Supplier to Deleted Folder</h3>
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">30-day retention countdown</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6">
+              <p className="text-sm text-muted-foreground dark:text-gray-300">
+                Are you sure you want to move{" "}
+                <span className="font-semibold text-foreground">"{trashTarget.name}"</span> to the Deleted Folder?
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
+                This supplier will be kept in the Deleted Folder for 30 days before permanent deletion.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 px-4 sm:px-6 pb-4 sm:pb-6">
+              <button
+                onClick={() => setTrashTarget(null)}
+                disabled={trashing}
+                className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTrash}
+                disabled={trashing}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                {trashing ? "Moving..." : "Move to Trash"}
               </button>
             </div>
           </div>
@@ -392,6 +444,7 @@ export function Suppliers() {
         onClose={() => setIsExportModalOpen(false)}
         title="Export Suppliers"
         filename={`InvenSight_Suppliers_${new Date().toISOString().split('T')[0]}`}
+        showDateFilter={false}
         data={suppliers.map(s => ({
           id: s.supplier_id,
           "Name": s.supplier_name,

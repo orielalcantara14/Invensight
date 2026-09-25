@@ -5,6 +5,8 @@ import { AddUserModal } from "../modals/AddUserModal";
 import { api, type AuditLogEntry } from "@/services/api";
 import { getSession } from "@/auth/session";
 import { ProtectedAction } from "../ProtectedAction";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function UserManagement() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -19,13 +21,26 @@ export function UserManagement() {
   const session = getSession();
   const currentRole = (session?.role ?? "").trim().toLowerCase();
   const isRootAdmin = (session?.username ?? "").trim().toLowerCase() === "rootadminnginamo";
-  const isAdministrator = currentRole === "administrator";
-  const canManageAccounts = isRootAdmin || isAdministrator;
-  const allowedCreateRoleKeys = isRootAdmin
-    ? ["administrator", "manager", "sales staff", "cashier", "warehouse staff"]
-    : isAdministrator
-      ? ["manager", "sales staff", "cashier", "warehouse staff"]
-      : [];
+  const isSystemAdmin = currentRole === "system administrator" || currentRole === "super admin";
+  const isAdministrator = currentRole === "administrator" || currentRole === "admin";
+  const canManageAccounts = isRootAdmin || isSystemAdmin || isAdministrator;
+
+  const getRoleLevel = (roleName: string) => {
+    const norm = (roleName || "").trim().toLowerCase();
+    if (norm === "system administrator" || norm === "super admin" || norm === "system admin") return 80;
+    if (norm === "administrator" || norm === "admin") return 60;
+    if (norm === "manager") return 40;
+    if (norm === "sales staff" || norm === "cashier") return 20;
+    return 30;
+  };
+
+  const allowedRoleNames = isRootAdmin
+    ? roleNames
+    : isSystemAdmin
+      ? roleNames.filter((name) => getRoleLevel(name) < 80)
+      : isAdministrator
+        ? roleNames.filter((name) => getRoleLevel(name) < 60)
+        : [];
 
   const refreshCounts = useCallback(async () => {
     if (!session?.user_id) return;
@@ -63,7 +78,7 @@ export function UserManagement() {
     permissions?: Record<string, string[]>;
   }) => {
     if (!canManageAccounts) {
-      setUserFormError("Only Root Admin and Administrators can create accounts.");
+      setUserFormError("Only Root Admin, System Admins, and Administrators can create accounts.");
       return;
     }
     if (!session?.user_id) {
@@ -73,7 +88,7 @@ export function UserManagement() {
     setUserFormError(null);
     setSavingUser(true);
     try {
-      await api.createUser({
+      const newUser = await api.createUser({
         username: user.username.trim(),
         full_name: user.fullName.trim(),
         email: user.email.trim() || null,
@@ -82,21 +97,33 @@ export function UserManagement() {
         permissions: user.permissions || {},
         is_active: user.status === "Active",
       }, session.user_id);
-      setIsAddUserModalOpen(false);
       await refreshCounts();
+      toast.success("User created successfully.");
+      return {
+        id: newUser.id,
+        username: newUser.username,
+        fullName: newUser.full_name,
+        employeeId: `EMP-${String(newUser.employee_id).padStart(4, "0")}`,
+        email: newUser.email ?? "",
+        role: newUser.role,
+        status: (newUser.is_active ? "Active" : "Archived") as "Active" | "Archived",
+        lastLogin: newUser.last_login ? newUser.last_login.slice(0, 10) : "Never",
+        permissions: newUser.permissions_json,
+      };
     } catch (e) {
       setUserFormError(e instanceof Error ? e.message : "Failed to create user");
+      throw e;
     } finally {
       setSavingUser(false);
     }
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">User Management</h1>
             <p className="text-muted-foreground mt-1">Manage users, roles, and system access with comprehensive audit trails</p>
           </div>
           <ProtectedAction module="User Management" action="Add">
@@ -107,85 +134,85 @@ export function UserManagement() {
                 setIsAddUserModalOpen(true);
               }}
               disabled={!canManageAccounts}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-2 bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-950 px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors border border-border/50 shadow-xs disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Add User
             </button>
           </ProtectedAction>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-card p-4 sm:p-5 rounded-lg border border-border/50 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground">Total Users</span>
-            <Users className="w-5 h-5 text-primary" />
+            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Users</span>
+            <Users className="w-4 h-4 text-muted-foreground/75" />
           </div>
-          <div className="text-3xl font-bold text-foreground">{userCount}</div>
-          <div className="text-sm text-muted-foreground mt-1">Active accounts</div>
+          <div className="text-2xl font-bold text-foreground font-mono">{userCount}</div>
+          <div className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">Active accounts</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-5 rounded-lg border border-border/50 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground">Active Sessions</span>
-            <UserCheck className="w-5 h-5 text-green-600" />
+            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Active Sessions</span>
+            <UserCheck className="w-4 h-4 text-muted-foreground/75" />
           </div>
-          <div className="text-3xl font-bold text-foreground">{activeSessions}</div>
-          <div className="text-sm text-muted-foreground mt-1">Logged in today</div>
+          <div className="text-2xl font-bold text-foreground font-mono">{activeSessions}</div>
+          <div className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">Logged in today</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-5 rounded-lg border border-border/50 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground">User Roles</span>
-            <Shield className="w-5 h-5 text-purple-600" />
+            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">User Roles</span>
+            <Shield className="w-4 h-4 text-muted-foreground/75" />
           </div>
-          <div className="text-3xl font-bold text-foreground">{roleCount}</div>
-          <div className="text-sm text-muted-foreground mt-1">Defined roles</div>
+          <div className="text-2xl font-bold text-foreground font-mono">{roleCount}</div>
+          <div className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">Defined roles</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-5 rounded-lg border border-border/50 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground">Audit Logs</span>
-            <Activity className="w-5 h-5 text-orange-600" />
+            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Audit Logs</span>
+            <Activity className="w-4 h-4 text-muted-foreground/75" />
           </div>
-          <div className="text-3xl font-bold text-foreground">{auditLogCount}</div>
-          <div className="text-sm text-muted-foreground mt-1">Recorded in audit log</div>
+          <div className="text-2xl font-bold text-foreground font-mono">{auditLogCount}</div>
+          <div className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">Recorded in audit log</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ProtectedAction module="User Management" action="View">
           <Link to="/users" className="block group">
-            <div className="bg-card p-6 rounded-lg shadow border border-border hover:border-primary transition-all hover:shadow-lg">
+            <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-zinc-800 dark:hover:border-zinc-200 hover:bg-muted/10 transition-all shadow-xs">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Users className="w-6 h-6 text-primary" />
+                  <div className="p-2.5 bg-muted rounded-lg border border-border/50 text-muted-foreground group-hover:text-foreground transition-colors">
+                    <Users className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
                       Users & Roles
                     </h3>
-                    <p className="text-sm text-muted-foreground">Access Control Management</p>
+                    <p className="text-xs text-muted-foreground font-medium">Access Control Management</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 group-hover:text-primary transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
               </div>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-tight leading-relaxed mb-4">
                 Manage user accounts, assign roles, and configure permissions with role-based access control for secure system operations.
               </p>
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="space-y-2 text-xs font-semibold text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-green-600" />
+                  <UserCheck className="w-3.5 h-3.5" />
                   <span>Create and manage user accounts</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-purple-600" />
+                  <Shield className="w-3.5 h-3.5" />
                   <span>Define roles and permissions</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-muted-foreground" />
+                  <Settings className="w-3.5 h-3.5" />
                   <span>Configure access controls</span>
                 </div>
               </div>
@@ -195,35 +222,35 @@ export function UserManagement() {
 
         <ProtectedAction module="Audit Log" action="View">
           <Link to="/audit-log" className="block group">
-            <div className="bg-card p-6 rounded-lg shadow border border-border hover:border-orange-500 transition-all hover:shadow-lg">
+            <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-zinc-800 dark:hover:border-zinc-200 hover:bg-muted/10 transition-all shadow-xs">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Activity className="w-6 h-6 text-orange-600" />
+                  <div className="p-2.5 bg-muted rounded-lg border border-border/50 text-muted-foreground group-hover:text-foreground transition-colors">
+                    <Activity className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground group-hover:text-orange-600 transition-colors">
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
                       Audit Log
                     </h3>
-                    <p className="text-sm text-muted-foreground">System Activity Tracking</p>
+                    <p className="text-xs text-muted-foreground font-medium">System Activity Tracking</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 group-hover:text-orange-600 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
               </div>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-tight leading-relaxed mb-4">
                 Comprehensive audit trail of all system activities, tracking user actions, data changes, and security events for compliance.
               </p>
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="space-y-2 text-xs font-semibold text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
+                  <Clock className="w-3.5 h-3.5" />
                   <span>Track all user activities</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-orange-600" />
+                  <Activity className="w-3.5 h-3.5" />
                   <span>Monitor system events</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-muted-foreground" />
+                  <Settings className="w-3.5 h-3.5" />
                   <span>Security and compliance logs</span>
                 </div>
               </div>
@@ -232,45 +259,47 @@ export function UserManagement() {
         </ProtectedAction>
       </div>
 
-      <div className="mt-8 bg-card rounded-lg shadow border border-border p-6">
+      <div className="mt-6 bg-card rounded-lg border border-border/55 p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
-          <Link to="/audit-log" className="text-sm text-primary hover:text-primary/90 font-medium">
-            View All Logs
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recent Activity</h2>
+          <Link to="/audit-log" className="text-xs text-zinc-900 dark:text-zinc-50 hover:underline font-bold uppercase tracking-wider">
+            View All
           </Link>
         </div>
         
         {recentLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground/70">
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
             <div className="text-center">
-              <Activity className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-muted-foreground font-medium">No recent activities</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">User actions will appear here</p>
+              <Activity className="w-12 h-12 mx-auto mb-3 opacity-20 text-foreground" />
+              <p className="text-xs font-semibold uppercase tracking-wider">No recent activities</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-border/40">
             {recentLogs.map((log) => (
-              <div key={log.log_id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
-                <div className={`p-2 rounded-lg ${
-                  log.action.includes('CREATE') ? 'bg-green-100 text-green-600' :
-                  log.action.includes('DELETE') || log.action.includes('DEACTIVATE') ? 'bg-red-100 text-red-600' :
-                  'bg-blue-100 text-primary'
-                }`}>
-                  <FileText className="w-5 h-5" />
+              <div key={log.log_id} className="flex items-start gap-4 py-4 first:pt-0 last:pb-0 group">
+                <div className="p-2 rounded-lg bg-muted border border-border/50 text-muted-foreground">
+                  <FileText className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-foreground truncate">
+                    <p className="text-xs font-bold text-foreground">
                       {log.username}
                     </p>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                    <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap ml-2">
                       {new Date(log.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-primary">{log.action}</span>
-                    {" • "}
+                  <p className="text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase border border-border/50 rounded bg-muted/20 mr-1.5">
+                      <span className={cn(
+                        "w-1 h-1 rounded-full",
+                        log.action.includes('CREATE') || log.action.includes('ADD') ? 'bg-emerald-500' :
+                        log.action.includes('DELETE') || log.action.includes('DEACTIVATE') ? 'bg-red-500' :
+                        'bg-blue-500'
+                      )} />
+                      {log.action}
+                    </span>
                     {log.details}
                   </p>
                 </div>
@@ -286,9 +315,7 @@ export function UserManagement() {
           setUserFormError(null);
         }}
         onAddUser={handleAddUser}
-        roleNames={roleNames.filter((name) =>
-          allowedCreateRoleKeys.includes(name.trim().toLowerCase())
-        )}
+        roleNames={allowedRoleNames}
         error={userFormError}
         saving={savingUser}
       />

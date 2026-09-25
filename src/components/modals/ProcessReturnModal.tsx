@@ -33,7 +33,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
 
   useEffect(() => {
     if (invoice) {
-      setItems(invoice.items.map(item => ({
+      setItems(invoice.items.filter(item => !item.is_service).map(item => ({
         product_id: item.product_id,
         product_name: item.product_name,
         unit_price: item.unit_price,
@@ -154,7 +154,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1">
           {/* Items Section */}
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider px-1">Return Configuration</h3>
@@ -190,7 +190,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
                         </div>
                       </div>
                       
-                      {item.selected && (
+                      {item.selected && totalReturnQty < item.max_quantity && (
                         <button
                           onClick={() => {
                             const newItems = [...items];
@@ -263,7 +263,7 @@ export function ProcessReturnModal({ isOpen, onClose, invoice, onSuccess }: Proc
           </div>
 
           {/* Action Type */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <button
               onClick={() => setReturnType("Exchange")}
               className={`flex flex-col items-center p-5 rounded-2xl border-2 transition-all group ${

@@ -12,28 +12,28 @@ export function SupplierDetailsModal({ isOpen, onClose, supplier }: SupplierDeta
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-xl w-full border border-border border-border overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-border overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="p-6 border-b border-border dark:border-gray-800 bg-muted/50/50 bg-background/50 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl">
+        <div className="p-4 sm:p-6 border-b border-border dark:border-gray-800 bg-muted/50/50 bg-background/50 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl shrink-0">
               <Package className="w-5 h-5 text-primary dark:text-blue-400" />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-foreground text-foreground">{supplier.supplier_name}</h3>
-              <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">Supplier Details & Catalog</p>
+            <div className="min-w-0">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground truncate">{supplier.supplier_name}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/70 truncate">Supplier Details & Catalog</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-gray-200 hover:bg-muted dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-gray-200 hover:bg-muted dark:hover:bg-gray-800 rounded-lg transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 overflow-y-auto flex-1">
           {/* Stats Bar */}
           <div className="grid grid-cols-1">
             <div className="p-4 bg-primary/10/50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-900/30">

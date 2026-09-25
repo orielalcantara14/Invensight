@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { X, Download, FileSpreadsheet, Trash2, Search, Calendar, Filter, CheckSquare, Square } from "lucide-react";
 import { exportToExcel } from "@/utils/export";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 interface ExportPreviewModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ExportPreviewModalProps {
   data: any[];
   filename: string;
   title?: string;
+  showDateFilter?: boolean;
 }
 
 export function ExportPreviewModal({ 
@@ -15,7 +17,8 @@ export function ExportPreviewModal({
   onClose, 
   data, 
   filename, 
-  title = "Export Wizard" 
+  title = "Export Wizard",
+  showDateFilter
 }: ExportPreviewModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -28,7 +31,7 @@ export function ExportPreviewModal({
     if (data.length === 0) return [];
     const keys = Object.keys(data[0]);
     return keys.filter(k => 
-      ["status", "role", "category", "module", "type", "priority", "reason", "supplier"].includes(k.toLowerCase())
+      ["status", "role", "category", "module", "type", "priority", "reason", "supplier", "payment method", "payment status"].includes(k.toLowerCase())
     );
   }, [data]);
 
@@ -42,29 +45,62 @@ export function ExportPreviewModal({
     return options;
   }, [data, filterableKeys]);
 
+  // Detect date column in data
+  const detectedDateKey = useMemo(() => {
+    if (data.length === 0) return null;
+    const sample = data[0];
+    const keys = Object.keys(sample).filter(k => k !== "id");
+    
+    // 1. Check known date column names
+    const matchedKey = keys.find(k => {
+      const norm = k.toLowerCase().replace(/[\s_-]/g, "");
+      return [
+        "createdat", "created", "timestamp", "date", "invoicedate", 
+        "lastlogin", "lastupdated", "updatedat", "returndate", 
+        "dateadded", "expecteddelivery", "delivereddate", "time"
+      ].includes(norm) || /date|time|timestamp|login/i.test(k);
+    });
+
+    if (matchedKey) return matchedKey;
+
+    // 2. Check if sample contains date-formatted string
+    for (const k of keys) {
+      const val = sample[k];
+      if (typeof val === "string" && val.length >= 8 && !isNaN(Date.parse(val)) && /\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(val)) {
+        return k;
+      }
+    }
+
+    return null;
+  }, [data]);
+
+  const hasDateFilter = showDateFilter !== undefined ? showDateFilter : Boolean(detectedDateKey);
+
   // Actual filtering logic
   const filteredData = useMemo(() => {
-    return data.filter((item, idx) => {
+    return data.filter((item) => {
       // Search term filter
       const matchesSearch = searchTerm === "" || Object.values(item).some(val => 
         val?.toString().toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       // Date range filter
-      // Checks for common date keys: created_at, timestamp, date, invoice_date, last_updated, return_date
-      const dateKey = Object.keys(item).find(k => 
-        ["created_at", "timestamp", "date", "invoice_date", "last_updated", "return_date"].includes(k.toLowerCase())
-      );
       let matchesDate = true;
-      if (dateKey && (startDate || endDate)) {
-        const itemDateValue = item[dateKey];
-        if (itemDateValue) {
-          const itemDate = new Date(itemDateValue).getTime();
-          if (startDate && itemDate < new Date(startDate).getTime()) matchesDate = false;
-          if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-            if (itemDate > end.getTime()) matchesDate = false;
+      if (hasDateFilter && detectedDateKey && (startDate || endDate)) {
+        const itemDateValue = item[detectedDateKey];
+        if (itemDateValue && itemDateValue !== "Never" && itemDateValue !== "-") {
+          const parsed = Date.parse(itemDateValue);
+          if (!isNaN(parsed)) {
+            if (startDate) {
+              const start = new Date(startDate);
+              start.setHours(0, 0, 0, 0);
+              if (parsed < start.getTime()) matchesDate = false;
+            }
+            if (endDate) {
+              const end = new Date(endDate);
+              end.setHours(23, 59, 59, 999);
+              if (parsed > end.getTime()) matchesDate = false;
+            }
           }
         }
       }
@@ -76,14 +112,13 @@ export function ExportPreviewModal({
 
       return matchesSearch && matchesDate && matchesModuleFilters;
     });
-  }, [data, searchTerm, startDate, endDate, moduleFilters]);
+  }, [data, searchTerm, startDate, endDate, moduleFilters, hasDateFilter, detectedDateKey]);
 
   // Initialize selection when modal opens
   useEffect(() => {
     if (isOpen && data.length > 0) {
       setSelectedIds(new Set(data.map((item, idx) => item.id || idx)));
     } else if (!isOpen) {
-      // Clear filters when closing? Optional, but keeps it clean
       setSearchTerm("");
       setStartDate("");
       setEndDate("");
@@ -137,69 +172,59 @@ export function ExportPreviewModal({
       <div className="bg-card bg-background rounded-[2.5rem] shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-border dark:border-gray-800">
         
         {/* Modern Header */}
-        <div className="bg-gray-900 dark:bg-black text-white p-8 relative overflow-hidden">
+        <div className="bg-gray-900 dark:bg-black text-white p-4 sm:p-6 lg:p-8 relative overflow-hidden shrink-0">
           <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 blur-[100px] rounded-full -mr-40 -mt-40 animate-pulse"></div>
-          <div className="relative flex justify-between items-center">
-            <div className="flex items-center gap-5">
-              <div className="p-4 bg-gradient-to-br from-primary to-indigo-700 rounded-3xl shadow-xl shadow-primary/20 transform hover:scale-110 hover:rotate-3 transition-all duration-300">
-                <FileSpreadsheet className="w-8 h-8 text-white" />
+          <div className="relative flex justify-between items-center gap-3">
+            <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+              <div className="p-3 sm:p-4 bg-gradient-to-br from-primary to-indigo-700 rounded-2xl sm:rounded-3xl shadow-xl shadow-primary/20 transform hover:scale-110 hover:rotate-3 transition-all duration-300 shrink-0">
+                <FileSpreadsheet className="w-6 h-6 sm:w-8 h-8 text-white" />
               </div>
-              <div>
-                <h2 className="text-3xl font-black tracking-tighter">{title}</h2>
-                <div className="flex items-center gap-3 mt-1.5">
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
-                  <p className="text-[10px] text-muted-foreground/70 font-black uppercase tracking-[0.2em]">
-                    {filteredData.length} records matching • {selectedIds.size} selected for export
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-3xl font-black tracking-tighter truncate">{title}</h2>
+                <div className="flex items-center gap-2 sm:gap-3 mt-1">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)] shrink-0"></span>
+                  <p className="text-[10px] text-muted-foreground/70 font-black uppercase tracking-[0.2em] truncate">
+                    {filteredData.length} records • {selectedIds.size} selected
                   </p>
                 </div>
               </div>
             </div>
             <button 
               onClick={onClose} 
-              className="p-3 bg-card/5 hover:bg-card/10 rounded-2xl transition-all hover:rotate-90 duration-300 group ring-1 ring-white/10"
+              className="p-2 sm:p-3 bg-card/5 hover:bg-card/10 rounded-2xl transition-all hover:rotate-90 duration-300 group ring-1 ring-white/10 shrink-0"
             >
-              <X className="w-6 h-6 text-muted-foreground/70 group-hover:text-white" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground/70 group-hover:text-white" />
             </button>
           </div>
         </div>
 
         {/* Powerful Filter Toolbar */}
-        <div className="p-8 bg-card bg-background border-b border-border dark:border-gray-800">
-          <div className="flex flex-wrap items-center gap-5">
+        <div className="p-4 sm:p-6 bg-card bg-background border-b border-border dark:border-gray-800 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-5">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[300px] group">
+            <div className="relative flex-1 min-w-full sm:min-w-[240px] group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70 group-focus-within:text-primary transition-colors" />
               <input 
                 type="text"
                 placeholder="Quick search records..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 bg-muted/50/50 bg-card border-2 border-transparent border-border rounded-2xl text-sm focus:border-primary focus:bg-card dark:focus:bg-gray-800 outline-none transition-all shadow-sm"
+                className="w-full pl-12 pr-4 sm:pr-6 py-3 sm:py-4 bg-muted/50/50 bg-card border-2 border-transparent border-border rounded-2xl text-sm focus:border-primary focus:bg-card dark:focus:bg-gray-800 outline-none transition-all shadow-sm"
               />
             </div>
 
-            {/* Date Range Picker */}
-            <div className="flex items-center gap-2 bg-muted/50 bg-card p-2 rounded-2xl border-2 border-transparent border-border ring-gray-100 dark:ring-gray-800 shadow-sm">
-              <div className="flex items-center gap-2 px-3 text-muted-foreground/70 border-r border-border">
-                <Calendar className="w-4 h-4" />
-                <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Range</span>
-              </div>
-              <input 
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                max={endDate || undefined}
-                className="bg-transparent border-none text-xs focus:ring-0 px-2 font-bold dark:text-gray-300"
+            {/* Date Range Picker - only displayed when date field exists and is applicable */}
+            {hasDateFilter && detectedDateKey && (
+              <DateRangePicker
+                dateFrom={startDate}
+                dateTo={endDate}
+                onDateChange={(from, to) => {
+                  setStartDate(from);
+                  setEndDate(to);
+                }}
+                placeholder="Export date range"
               />
-              <span className="text-gray-300 font-light">to</span>
-              <input 
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate || undefined}
-                className="bg-transparent border-none text-xs focus:ring-0 px-2 font-bold dark:text-gray-300"
-              />
-            </div>
+            )}
 
             {/* Dynamic Dropdowns */}
             {filterableKeys.map(key => (
@@ -260,7 +285,7 @@ export function ExportPreviewModal({
         </div>
 
         {/* Styled Scrollable Table Area */}
-        <div className="flex-1 overflow-auto p-8 bg-muted/50/30 dark:bg-gray-950 italic-scrollbar">
+        <div className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/50/30 dark:bg-gray-950 italic-scrollbar">
           {filteredData.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-80 text-gray-300 dark:text-muted-foreground animate-in zoom-in duration-500">
               <div className="w-24 h-24 bg-muted bg-card rounded-full flex items-center justify-center mb-6">

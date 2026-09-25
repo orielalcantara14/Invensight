@@ -19,9 +19,9 @@ export function ProtectedAction({
   fallback = null,
 }: ProtectedActionProps) {
   const session = getSession();
-  
+
   // Root Admin has all permissions bypass
-  const isRootAdmin = session?.username?.toLowerCase() === "rootadminnginamo";
+  const isRootAdmin = !!session?.is_root_admin;
   if (isRootAdmin) return <>{children}</>;
 
   const moduleKey = module.trim();
@@ -29,7 +29,7 @@ export function ProtectedAction({
 
   const userPermissions = session?.permissions || {};
   const moduleActions = userPermissions[moduleKey] || [];
-  
+
   const hasPermission = moduleActions.some(
     (a) => a.toLowerCase() === actionKey
   );

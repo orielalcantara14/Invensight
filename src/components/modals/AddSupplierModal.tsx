@@ -21,6 +21,7 @@ export function AddSupplierModal({
     if (!digits) return null;
     if (/^09\d{9}$/.test(digits)) return digits;
     if (/^639\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+    if (/^9\d{9}$/.test(digits)) return `0${digits}`;
     return null;
   };
 
@@ -117,7 +118,7 @@ export function AddSupplierModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Email Address
@@ -140,10 +141,10 @@ export function AddSupplierModal({
               placeholder="09XXXXXXXXX or 639XXXXXXXXX"
               value={formData.contact_number}
               onChange={(e) =>
-                setFormData({ ...formData, contact_number: e.target.value.replace(/\D/g, "").slice(0, 12) })
+                setFormData({ ...formData, contact_number: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })
               }
-              inputMode="numeric"
-              maxLength={12}
+              inputMode="tel"
+              maxLength={14}
             />
           </div>
         </div>

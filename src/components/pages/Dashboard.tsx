@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Package, DollarSign, ShoppingCart, AlertTriangle, CheckCircle, Truck } from "lucide-react";
+import { TrendingUp, TrendingDown, Package, PhilippinePeso, ShoppingCart, AlertTriangle, CheckCircle, Truck } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useState, useEffect } from "react";
 import { api, type DashboardStats } from "@/services/api";
@@ -13,7 +13,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upcomingDeliveries, setUpcomingDeliveries] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState<"7d" | "monthly" | "annual">("monthly");
+  const [timeRange, setTimeRange] = useState<"7d" | "semiannual" | "annual">("semiannual");
 
   const fetchStats = async () => {
     try {
@@ -73,23 +73,23 @@ export function Dashboard() {
   }
 
   const kpis = [
-    { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: DollarSign, color: "text-green-600" },
+    { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: PhilippinePeso, color: "text-green-600" },
     { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-primary" },
     { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600" },
     { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600" },
   ];
 
   return (
-    <div className="p-8 relative">
+    <div className="p-4 sm:p-6 lg:p-8 relative">
       {loading && (
         <div className="absolute inset-0 bg-card/20 backdrop-blur-[1px] flex items-center justify-center z-50 pointer-events-none">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       )}
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">JonBrix</h1>
-        <p className="text-muted-foreground mt-1">Motorcycle Parts & Accessories</p>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">JonBrix</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Motorcycle Parts & Accessories</p>
       </div>
 
       {/* Expected Delivery Reminder */}
@@ -114,44 +114,44 @@ export function Dashboard() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {kpis.map((kpi) => (
           <div 
             key={kpi.label} 
             className={cn(
-               "bg-card p-6 rounded-lg shadow border border-border transition-all duration-200",
-               (kpi as any).path && "cursor-pointer hover:shadow-md hover:border-primary/50 hover:-translate-y-1 active:translate-y-0"
+               "bg-card p-4 sm:p-5 rounded-lg border border-border/50 shadow-xs transition-all duration-200",
+               (kpi as any).path && "cursor-pointer hover:shadow-sm hover:border-zinc-400 active:translate-y-0"
             )}
             onClick={() => (kpi as any).path && navigate((kpi as any).path)}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-muted-foreground">{kpi.label}</span>
-              <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{kpi.label}</span>
+              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
             </div>
-            <div className="text-2xl font-bold text-foreground">{kpi.value}</div>
+            <div className="text-2xl font-bold text-foreground font-mono">{kpi.value}</div>
           </div>
         ))}
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 sm:mb-8">
         {/* Sales & Forecasting */}
-        <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow border border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Sales & Forecasting</h2>
-            <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
-              {(["7d", "monthly", "annual"] as const).map((range) => (
+        <div className="xl:col-span-2 bg-card p-4 sm:p-6 rounded-lg shadow-xs border border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Sales & Forecasting</h2>
+            <div className="flex items-center bg-muted/40 rounded-lg p-1 gap-1 border border-border/30 self-start sm:self-auto">
+              {(["7d", "semiannual", "annual"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={cn(
-                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                    "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
                     timeRange === range
-                      ? "bg-card text-primary shadow-sm"
+                      ? "bg-card text-foreground shadow-xs border border-border/40"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {range === "7d" ? "7 Days" : range === "monthly" ? "Monthly" : "Annual"}
+                  {range === "7d" ? "7 Days" : range === "semiannual" ? "Semiannual" : "Annual"}
                 </button>
               ))}
             </div>
@@ -160,11 +160,11 @@ export function Dashboard() {
             {stats && stats.sales_trend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={stats.sales_trend}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#64748b" strokeOpacity={0.1} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }} dx={-10} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
                     formatter={(value: number) => [`₱${value.toLocaleString()}`, ""]}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
@@ -172,9 +172,9 @@ export function Dashboard() {
                     type="monotone" 
                     dataKey="actual_sales" 
                     name="Actual Sales" 
-                    stroke="#3b82f6" 
+                    stroke="var(--primary)" 
                     strokeWidth={2} 
-                    dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6 }}
                   />
                   <Line 
@@ -202,8 +202,8 @@ export function Dashboard() {
         </div>
 
         {/* Sales by Category */}
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Sales by Category</h2>
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow-xs border border-border/50">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Sales by Category</h2>
           <div className="h-[300px]">
             {stats && stats.sales_by_category.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -245,37 +245,46 @@ export function Dashboard() {
       </div>
 
       {/* Top Products Table */}
-      <div className="bg-card rounded-lg shadow border border-border">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Top Selling Products</h2>
+      <div className="bg-card rounded-lg shadow-xs border border-border/55">
+        <div className="p-5 border-b border-border/50">
+          <h2 className="text-sm font-semibold text-foreground">Top Selling Products</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted border-b border-border">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-muted/30 border-b border-border/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Product Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Revenue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Units Sold</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Product Name</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Revenue</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Units Sold</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Current Stock</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="bg-card divide-y divide-border">
+            <tbody className="divide-y divide-border/40 bg-card">
               {stats && stats.top_products.length > 0 ? (
                 stats.top_products.map((product, idx) => (
-                  <tr key={idx}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">₱{product.revenue.toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.units_sold}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{product.current_stock}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        product.status === "Critical" ? "bg-red-100 text-red-800" :
-                        product.status === "Low" ? "bg-orange-100 text-orange-800" :
-                        "bg-green-100 text-green-800"
-                      }`}>
-                        {product.status}
-                      </span>
+                  <tr key={idx} className="group hover:bg-muted/10 dark:hover:bg-zinc-900/20 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-foreground">{product.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-foreground font-mono">₱{product.revenue.toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-mono">{product.units_sold}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-mono">{product.current_stock}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {product.status === "Critical" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-650">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          Critical
+                        </span>
+                      ) : product.status === "Low" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-605">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Low
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Normal
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

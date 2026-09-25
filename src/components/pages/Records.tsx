@@ -90,12 +90,12 @@ export function Records() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Records</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Records</h1>
             <p className="text-muted-foreground mt-1">Track product inspections and manage quarantine stock</p>
           </div>
           <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
@@ -106,8 +106,8 @@ export function Records() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-muted-foreground">Total Inspected</span>
             <ClipboardCheck className="w-5 h-5 text-primary" />
@@ -116,7 +116,7 @@ export function Records() {
           <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-muted-foreground">Passed</span>
             <CheckCircle className="w-5 h-5 text-green-600" />
@@ -125,7 +125,7 @@ export function Records() {
           <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-muted-foreground">Failed</span>
             <XCircle className="w-5 h-5 text-red-600" />
@@ -134,7 +134,7 @@ export function Records() {
           <div className="text-sm text-muted-foreground mt-1">No data available</div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow border border-border">
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow border border-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-muted-foreground">In Quarantine</span>
             <AlertTriangle className="w-5 h-5 text-orange-600" />
@@ -145,9 +145,9 @@ export function Records() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Inspection Trend */}
-        <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow border border-border">
+        <div className="lg:col-span-2 bg-card p-4 sm:p-6 rounded-lg shadow border border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">Inspection Results Trend</h2>
           <div className="flex items-center justify-center h-[300px] text-muted-foreground/70">
             <div className="text-center">

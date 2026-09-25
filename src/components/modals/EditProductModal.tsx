@@ -81,6 +81,12 @@ export function EditProductModal({
 
   useEffect(() => {
     if (isOpen && product) {
+      const formatToTwoDecimals = (val: any) => {
+        if (val === null || val === undefined || val === "") return "";
+        const num = parseFloat(String(val).replace(/,/g, ""));
+        return isNaN(num) ? "" : num.toFixed(2);
+      };
+
       setFormData({
         sku: product.sku,
         product_name: product.product_name,
@@ -88,8 +94,8 @@ export function EditProductModal({
         category_id: product.category_id?.toString() || "",
         specific_category: product.specific_category || "",
         supplier_id: product.supplier_id?.toString() || "",
-        unit_price: product.unit_price?.toString() || product.pos_price.toString(),
-        pos_price: product.pos_price.toString(),
+        unit_price: formatToTwoDecimals(product.unit_price ?? product.pos_price),
+        pos_price: formatToTwoDecimals(product.pos_price),
         stock: product.stock.toString(),
         status: product.status,
       });
@@ -195,27 +201,26 @@ export function EditProductModal({
     }
   };
 
+  const handleNumericBlur = (field: "unit_price" | "pos_price") => {
+    const raw = formData[field];
+    if (raw !== "" && raw !== undefined) {
+      const num = parseFloat(raw.replace(/,/g, ""));
+      if (!isNaN(num)) {
+        setFormData((prev) => ({ ...prev, [field]: num.toFixed(2) }));
+      }
+    }
+  };
+
   const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
     cat.toLowerCase().includes(formData.specific_category.toLowerCase())
   );
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title={title} maxWidth="lg">
+    <BaseModal isOpen={isOpen} onClose={onClose} title={title} maxWidth="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Row 1: Product Name & SKU */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              SKU (Auto-generated)
-            </label>
-            <input
-              type="text"
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Leave blank to auto-generate"
-            />
-          </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Product Name *
             </label>
@@ -228,25 +233,21 @@ export function EditProductModal({
               required
             />
           </div>
-          <div>
+          <div className="md:col-span-1">
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Unit Measurement
+              SKU
             </label>
-            <select
-              value={formData.unit_of_measurement}
-              onChange={(e) => setFormData({ ...formData, unit_of_measurement: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">—</option>
-              {UNIT_MEASUREMENT_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+            <input
+              type="text"
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm uppercase"
+              placeholder="e.g. OIL-0001"
+            />
           </div>
         </div>
 
+        {/* Row 2: Category, Specific Category, Unit Measurement */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
@@ -317,6 +318,27 @@ export function EditProductModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Unit Measurement
+            </label>
+            <select
+              value={formData.unit_of_measurement}
+              onChange={(e) => setFormData({ ...formData, unit_of_measurement: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">— Select Unit —</option>
+              {UNIT_MEASUREMENT_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Row 3: Supplier & Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Supplier
             </label>
             <select
@@ -333,9 +355,23 @@ export function EditProductModal({
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="Active">Active</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Row 4: Pricing & Inventory */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Unit Cost *
@@ -344,6 +380,7 @@ export function EditProductModal({
               type="text"
               value={formatNumberWithCommas(formData.unit_price)}
               onChange={(e) => handleNumericChange("unit_price", e.target.value)}
+              onBlur={() => handleNumericBlur("unit_price")}
               className={`w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${mode === "pos" ? "bg-muted/50 cursor-not-allowed" : ""}`}
               placeholder="0.00"
               required
@@ -358,6 +395,7 @@ export function EditProductModal({
               type="text"
               value={formatNumberWithCommas(formData.pos_price)}
               onChange={(e) => handleNumericChange("pos_price", e.target.value)}
+              onBlur={() => handleNumericBlur("pos_price")}
               className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="0.00"
               required={mode === "pos"}
@@ -393,22 +431,6 @@ export function EditProductModal({
               className="w-full px-3 py-2 border border-border rounded-lg bg-muted/50 text-muted-foreground"
               disabled
             />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Status
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="Active">Active</option>
-              <option value="Archived">Archived</option>
-            </select>
           </div>
         </div>
 

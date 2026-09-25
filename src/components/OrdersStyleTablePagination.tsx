@@ -6,6 +6,7 @@ export type OrdersStyleTablePaginationProps = {
   itemsPerPage: number;
   onPageChange: (page: number) => void;
   onItemsPerPageChange: (value: number) => void;
+  pageSizeOptions?: number[];
 };
 
 /**
@@ -17,6 +18,7 @@ export function OrdersStyleTablePagination({
   itemsPerPage,
   onPageChange,
   onItemsPerPageChange,
+  pageSizeOptions,
 }: OrdersStyleTablePaginationProps) {
   if (itemCount === 0) return null;
 
@@ -42,6 +44,7 @@ export function OrdersStyleTablePagination({
   };
 
   const pageNumbers = getPageNumbers();
+  const options = pageSizeOptions ?? [3, 5, 10, 25];
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-border border-border">
@@ -52,9 +55,9 @@ export function OrdersStyleTablePagination({
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
           className="border border-border dark:border-gray-600 rounded-md px-2 py-1 text-sm bg-card dark:bg-gray-700 text-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         >
-          <option value={3}>3</option>
-          <option value={5}>5</option>
-          <option value={10}>10</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
         </select>
         <span className="text-sm text-muted-foreground dark:text-muted-foreground/70">entries</span>
       </div>

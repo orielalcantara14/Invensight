@@ -71,22 +71,22 @@ export function Analytics() {
   }, []);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Header section */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
         <p className="text-muted-foreground mt-1">Live overview of your shop's performance and inventory health.</p>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 font-medium">
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-4 text-sm text-red-800 font-medium">
             {error}
           </div>
         )}
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin" />
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+          <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
           <span>Syncing latest data...</span>
         </div>
       )}
@@ -95,61 +95,61 @@ export function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* The Big Number: Today's Sales */}
-        <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 rounded-3xl p-8 text-white shadow-xl">
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-card opacity-5 rounded-full blur-2xl"></div>
+        <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl p-5 sm:p-8 text-white border border-zinc-800/80 shadow-md">
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-[0.02] rounded-full blur-2xl animate-pulse"></div>
           <div className="relative z-10 flex flex-col h-full justify-between">
             <div>
-              <p className="text-indigo-200 font-medium tracking-wide uppercase text-sm">Today's Revenue</p>
-              <div className="mt-2 text-6xl md:text-7xl font-extrabold tracking-tight">
+              <p className="text-zinc-400 font-bold tracking-wider uppercase text-xs">Today's Revenue</p>
+              <div className="mt-2 text-3xl sm:text-5xl md:text-6xl font-black tracking-tight font-mono text-zinc-50">
                 {formatCurrency(overview?.today_sales_total)}
               </div>
             </div>
 
-            <div className="mt-10 flex items-end justify-between">
+            <div className="mt-8 flex items-end justify-between">
               <div>
-                <p className="text-indigo-200 text-sm">Forecast Accuracy</p>
-                <div className="text-2xl font-semibold flex items-center gap-2">
+                <p className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Forecast Accuracy</p>
+                <div className="text-xl font-bold flex items-center gap-2 text-zinc-300 font-mono mt-0.5">
                   {overview?.forecast_accuracy != null ? `${overview.forecast_accuracy.toFixed(0)}%` : "—"}
-                  <TrendingUp className="w-5 h-5 opacity-70" />
+                  <TrendingUp className="w-4 h-4 text-emerald-500 opacity-80" />
                 </div>
               </div>
 
               <Link
                 to="/sales"
-                className="bg-card/10 hover:bg-card/20 transition-colors backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-medium flex items-center gap-2"
+                className="bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/50 transition-colors px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5"
               >
-                View Sales <ArrowUpRight className="w-4 h-4" />
+                View Sales <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
         </div>
 
         {/* Top Sellers Panel */}
-        <div className="bg-card rounded-3xl p-6 shadow-lg border border-border flex flex-col">
-          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-indigo-600" />
+        <div className="bg-card rounded-2xl p-4 sm:p-6 shadow-xs border border-border/50 flex flex-col">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-zinc-500" />
             Top Products (30 Days)
           </h2>
 
-          <div className="flex-1 flex flex-col justify-center space-y-4">
+          <div className="flex-1 flex flex-col justify-center space-y-3">
             {overview?.top_sellers && overview.top_sellers.length > 0 ? (
               overview.top_sellers.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/50 transition-colors">
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-full text-2xl shadow-sm ${idx === 0 ? 'bg-amber-100 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
-                    {idx === 0 ? <Crown className="w-6 h-6 text-amber-500 absolute -translate-y-4 translate-x-4 rotate-12" /> : null}
+                <div key={idx} className="flex items-center gap-4 p-2.5 rounded-xl hover:bg-muted/30 transition-colors">
+                  <div className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl shadow-xs border border-border/30 bg-muted/40`}>
+                    {idx === 0 ? <Crown className="w-5 h-5 text-amber-500 absolute -translate-y-3.5 translate-x-3.5 rotate-12" /> : null}
                     {getCategoryIcon(item.category)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{item.category || "Uncategorized"}</p>
+                    <p className="text-xs font-bold text-foreground truncate">{item.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate font-medium mt-0.5">{item.category || "Uncategorized"}</p>
                   </div>
-                  <div className="font-semibold text-foreground">
+                  <div className="text-xs font-bold text-foreground font-mono">
                     {formatCurrency(item.revenue)}
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-muted-foreground/70 py-6 text-sm">
+              <div className="text-center text-muted-foreground/75 py-6 text-xs">
                 No sufficient sales data yet.
               </div>
             )}
@@ -160,54 +160,54 @@ export function Analytics() {
 
       {/* Traffic Light Stock Area */}
       <div>
-        <h2 className="text-xl font-bold text-foreground mb-4">Inventory Pulse</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Inventory Pulse</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
 
           {/* Red: Out of stock */}
           <button
             onClick={() => navigate("/inventory?status=Out+of+Stock")}
-            className="group relative bg-card border border-red-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all text-left overflow-hidden"
+            className="group relative bg-card border border-border/50 p-4 sm:p-6 rounded-xl shadow-xs hover:border-red-400 dark:hover:border-red-900/60 transition-all text-left overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <XCircle className="w-6 h-6 text-red-600" />
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Out of Stock</span>
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               </div>
-              <div className="text-4xl font-extrabold text-foreground mb-1">{overview?.items_out ?? 0}</div>
-              <div className="text-red-600 font-semibold mb-1">Run out today!</div>
-              <div className="text-sm text-muted-foreground">Tap to see which items need immediate restock.</div>
+              <div className="text-3xl sm:text-4xl font-extrabold text-foreground mb-1 font-mono">{overview?.items_out ?? 0}</div>
+              <div className="text-red-650 dark:text-red-400 text-xs font-semibold mb-1">Run out today!</div>
+              <div className="text-xs text-muted-foreground mt-2 leading-relaxed">Items requiring immediate restock.</div>
             </div>
           </button>
 
           {/* Yellow: Running low */}
           <button
             onClick={() => navigate("/inventory?status=Low")}
-            className="group relative bg-card border border-amber-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all text-left overflow-hidden"
+            className="group relative bg-card border border-border/50 p-4 sm:p-6 rounded-xl shadow-xs hover:border-amber-400 dark:hover:border-amber-900/60 transition-all text-left overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
-                <AlertTriangle className="w-6 h-6 text-amber-600" />
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Low Stock</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               </div>
-              <div className="text-4xl font-extrabold text-foreground mb-1">{overview?.items_low ?? 0}</div>
-              <div className="text-amber-600 font-semibold mb-1">Running out soon.</div>
-              <div className="text-sm text-muted-foreground">Approaching reorder limits.</div>
+              <div className="text-3xl sm:text-4xl font-extrabold text-foreground mb-1 font-mono">{overview?.items_low ?? 0}</div>
+              <div className="text-amber-650 dark:text-amber-455 text-xs font-semibold mb-1">Running out soon.</div>
+              <div className="text-xs text-muted-foreground mt-2 leading-relaxed">Approaching reorder limits.</div>
             </div>
           </button>
 
           {/* Green: Plenty of stock */}
           <button
             onClick={() => navigate("/inventory?status=Normal")}
-            className="group relative bg-card border border-emerald-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all text-left overflow-hidden"
+            className="group relative bg-card border border-border/50 p-4 sm:p-6 rounded-xl shadow-xs hover:border-emerald-400 dark:hover:border-emerald-900/60 transition-all text-left overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Healthy Stock</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
-              <div className="text-4xl font-extrabold text-foreground mb-1">{overview?.items_ok ?? 0}</div>
-              <div className="text-emerald-600 font-semibold mb-1">Plenty of stock.</div>
-              <div className="text-sm text-muted-foreground">Healthy inventory levels.</div>
+              <div className="text-3xl sm:text-4xl font-extrabold text-foreground mb-1 font-mono">{overview?.items_ok ?? 0}</div>
+              <div className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-1">Plenty of stock.</div>
+              <div className="text-xs text-muted-foreground mt-2 leading-relaxed">Inventory levels are healthy.</div>
             </div>
           </button>
 
@@ -216,54 +216,54 @@ export function Analytics() {
 
       {/* Advanced Tools Section */}
       <div>
-        <h2 className="text-xl font-bold text-foreground mb-4">Intelligence Modules</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Intelligence Modules</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
           <Link to="/forecasting" className="block group">
-            <div className="bg-card p-6 rounded-3xl shadow-sm border border-border hover:border-indigo-500 hover:shadow-lg transition-all h-full">
+            <div className="bg-card p-4 sm:p-6 rounded-xl shadow-xs border border-border/50 hover:border-zinc-400 transition-all h-full">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-100 transition-colors">
-                    <TrendingUp className="w-7 h-7 text-indigo-600" />
+                  <div className="p-3 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700/80 transition-colors border border-border/30">
+                    <TrendingUp className="w-6 h-6 text-zinc-600 dark:text-zinc-300" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground group-hover:text-indigo-600 transition-colors">
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">
                       Forecasting Report
                     </h3>
-                    <p className="text-sm text-muted-foreground">Revenue forecasting & trends</p>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">Revenue forecasting & trends</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
               </div>
-              <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
+              <p className="text-muted-foreground text-xs mb-4 leading-relaxed">
                 See the upcoming rhythm of your shop. Analyzes past sales to predict sunny peaks and cloudy lulls, complete with smooth view filters.
               </p>
-              <div className="text-xs font-medium text-muted-foreground/70">
+              <div className="text-[10px] font-semibold text-muted-foreground/60 font-mono">
                 Last updated: {formatShortDate(overview?.cache_generated_at)}
               </div>
             </div>
           </Link>
 
           <Link to="/stock-prediction" className="block group">
-            <div className="bg-card p-6 rounded-3xl shadow-sm border border-border hover:border-indigo-500 hover:shadow-lg transition-all h-full">
+            <div className="bg-card p-4 sm:p-6 rounded-xl shadow-xs border border-border/50 hover:border-zinc-400 transition-all h-full">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-100 transition-colors">
-                    <PackageCheck className="w-7 h-7 text-indigo-600" />
+                  <div className="p-3 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700/80 transition-colors border border-border/30">
+                    <PackageCheck className="w-6 h-6 text-zinc-600 dark:text-zinc-300" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground group-hover:text-indigo-600 transition-colors">
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">
                       Stock Prediction List
                     </h3>
-                    <p className="text-sm text-muted-foreground">Automated purchase workflows</p>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">Automated purchase workflows</p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
               </div>
-              <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
+              <p className="text-muted-foreground text-xs mb-4 leading-relaxed">
                 Don't guess what to buy. Turn AI predictions directly into actionable purchase order drafts with clear days-to-stockout countdowns.
               </p>
-              <div className="text-xs font-medium text-muted-foreground/70">
+              <div className="text-[10px] font-semibold text-muted-foreground/60 font-mono">
                 Data generated by Prophet AI models
               </div>
             </div>

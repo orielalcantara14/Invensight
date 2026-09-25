@@ -41,6 +41,8 @@ export interface SaleItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  is_service?: boolean;
+  mechanic_name?: string;
 }
 
 export interface SaleRecord {
@@ -120,7 +122,7 @@ export interface AuditLogEntry {
 
 /** Display label for a user’s assigned role (may be any name from the roles table). */
 export type UserRole = string;
-export type UserStatus = 'Active' | 'Inactive';
+export type UserStatus = 'Active' | 'Archived';
 
 export interface User {
   id: number;
@@ -153,7 +155,7 @@ export interface GeneratedReport {
 
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
-export type POStatus = 'Pending' | 'Received' | 'Cancelled' | 'Archived';
+export type POStatus = 'Pending' | 'Received' | 'Not Received' | 'Cancelled' | 'Archived' | 'Voided';
 
 export interface PurchaseOrderItem {
   item_id: number;
@@ -162,6 +164,11 @@ export interface PurchaseOrderItem {
   quantity: number;
   unit_price: number | null;
   damage_count: number;
+  purchase_unit?: string;
+  conversion?: string;
+  conversion_rate?: number;
+  unit_of_measurement?: string;
+  received_quantity?: number;
 }
 
 export interface PurchaseOrder {
@@ -176,5 +183,42 @@ export interface PurchaseOrder {
   total_items: number;
   notes: string | null;
   receipt_number: string | null;
+  reference_po_id?: string | null;
+  replaced_by_po_id?: string | null;
+  replacement_reason?: string | null;
+  replacement_type?: string | null;
+  voided_at?: string | null;
+  voided_by_user_id?: number | null;
+  voided_by_name?: string | null;
+  origin_po_id?: string | null;
+  origin_chain_ids?: string[];
+  replacement_depth?: number;
+  origin_chain?: Array<{
+    order_id: string;
+    status: POStatus;
+    created_at?: string | null;
+    voided_at?: string | null;
+    void_reason?: string | null;
+    replacement_reason?: string | null;
+    replacement_type?: string | null;
+    reference_po_id?: string | null;
+    replaced_by_po_id?: string | null;
+    total_items?: number;
+    created_by_name?: string | null;
+    voided_by_name?: string | null;
+  }>;
+  forward_chain?: Array<{
+    order_id: string;
+    status: POStatus;
+    created_at?: string | null;
+    voided_at?: string | null;
+    void_reason?: string | null;
+    replacement_reason?: string | null;
+    replacement_type?: string | null;
+    replaced_by_po_id?: string | null;
+    total_items?: number;
+    created_by_name?: string | null;
+  }>;
+  latest_po_id?: string | null;
   items?: PurchaseOrderItem[];
 }

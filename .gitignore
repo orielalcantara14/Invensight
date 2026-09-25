@@ -27,3 +27,26 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Ignored docs
+README.md
+
+# Visual Studio
+.vs/
+
+# Uploads
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+server/uploads/avatars/*
+!server/uploads/avatars/.gitkeep
+
+# Database backups / local data
+database/*.dump
+database/*.sql
+database/*.csv
+
+# Duplicate nested repositories / local backups
+/Invensight/
+/orielalcantara14/
+/Invensight_backup/
+/orielalcantara14_Invensight_backup/

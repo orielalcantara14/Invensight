@@ -6,6 +6,8 @@ import { Link } from "react-router";
 import { api, type ProductReturn, type ProductReturnItem, type Supplier, type Product } from "@/services/api";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { ProtectedAction } from "@/components/ProtectedAction";
 
 interface ReturnItemDraft {
   product_id: number;
@@ -30,6 +32,8 @@ export function ProductReturns() {
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; displayId: string } | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [trashTarget, setTrashTarget] = useState<{ id: number; displayId: string } | null>(null);
+  const [trashing, setTrashing] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [newReturn, setNewReturn] = useState<{
@@ -105,13 +109,33 @@ export function ProductReturns() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Pending":
-        return "bg-yellow-100 text-yellow-800";
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Pending
+          </span>
+        );
       case "Approved":
-        return "bg-green-100 text-green-800";
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Approved
+          </span>
+        );
       case "Rejected":
-        return "bg-red-100 text-red-800";
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-650 dark:text-red-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            Rejected
+          </span>
+        );
       default:
-        return "bg-muted text-foreground";
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+            {status}
+          </span>
+        );
     }
   };
 
@@ -207,158 +231,189 @@ export function ProductReturns() {
     }
   };
 
+  const handleMoveToTrash = (returnId: number) => {
+    setTrashTarget({ id: returnId, displayId: formatReturnId(returnId) });
+  };
+
+  const confirmTrashReturn = async () => {
+    if (!trashTarget) return;
+    setTrashing(true);
+    try {
+      await api.moveReturnToTrash(trashTarget.id);
+      toast.success("Supplier return moved to Deleted Folder");
+      setTrashTarget(null);
+      await fetchAll();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to move supplier return to Deleted Folder");
+    } finally {
+      setTrashing(false);
+    }
+  };
+
 
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-foreground text-foreground">Supplier Returns</h2>
-          <p className="text-muted-foreground dark:text-muted-foreground/70 mt-1">Allocate damaged/defective items for return to supplier</p>
+          <h2 className="text-lg font-bold text-foreground">Supplier Returns</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Allocate damaged/defective items for return to supplier</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-card bg-card p-2 rounded-lg border border-border border-border shadow-sm">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              max={dateTo || undefined}
-              className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
-            />
-            <span className="text-muted-foreground/70">to</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              min={dateFrom || undefined}
-              className="bg-transparent border-none text-sm focus:ring-0 text-foreground"
-            />
-          </div>
+        <div className="flex flex-wrap items-center gap-3 justify-end">
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateChange={(from, to) => {
+              setDateFrom(from);
+              setDateTo(to);
+            }}
+          />
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-zinc-900 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 rounded-lg transition-colors border border-border/50 shadow-xs"
           >
-            <Download className="w-4 h-4" />
-            Export Supplier Returns
+            <Download className="w-3.5 h-3.5" />
+            Export
           </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Return
-          </button>
+          <ProtectedAction module="Archive" action="View">
+            <Link
+              to="/archive?stage=Archived&tab=product-returns"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+            >
+              <Archive className="w-4 h-4" />
+              Archive
+            </Link>
+          </ProtectedAction>
+          <ProtectedAction module="Archive" action="Delete">
+            <Link
+              to="/archive?stage=Deleted&tab=product-returns"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Trash
+            </Link>
+          </ProtectedAction>
+          <ProtectedAction module="Supplier Returns" action="Add">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Return
+            </button>
+          </ProtectedAction>
         </div>
       </div>
 
-      <div className="bg-card bg-card rounded-lg shadow border border-border border-border">
-        <div className="p-6 border-b border-border border-border">
-          <h3 className="text-lg font-semibold text-foreground text-foreground">Return Requests</h3>
+      <div className="bg-card rounded-lg shadow-xs border border-border/55">
+        <div className="p-5 border-b border-border/50">
+          <h3 className="text-sm font-semibold text-foreground">Return Requests</h3>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 dark:bg-gray-700 border-b border-border dark:border-gray-600">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-muted/30 border-b border-border/50">
               <tr>
-                <th className="px-6 py-3 text-left">
-                  {/* Header checkbox removed */}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Return ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Supplier
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Created Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Total Quantity
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-32 whitespace-nowrap">
                   Actions
                 </th>
               </tr>
             </thead>
 
-            <tbody className="bg-card bg-card divide-y divide-border dark:divide-gray-700">
+            <tbody className="divide-y divide-border/40 bg-card">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground text-xs italic">
                     Loading returns...
                   </td>
                 </tr>
               ) : returns.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
-                    <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
                     <p className="text-muted-foreground font-medium">No returns available</p>
-                    <p className="text-sm text-muted-foreground/70 mt-1">Create a return to allocate damaged items</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Create a return to allocate damaged items</p>
                   </td>
                 </tr>
               ) : (
                 paginatedReturns.map((r) => (
-                  <tr key={r.return_id} className="hover:bg-muted/50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {/* Row selection handled in Export Wizard */}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-foreground">
+                  <tr key={r.return_id} className="group hover:bg-muted/20 dark:hover:bg-zinc-900/30 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-foreground font-mono">
                       {formatReturnId(r.return_id)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-foreground">
-                      {r.supplier_name || "-"}
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-foreground">
+                      {r.supplier_name || "—"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-muted-foreground/70">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-mono">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString() : "-"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-muted-foreground/70">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-foreground font-mono font-semibold">
                       {r.total_quantity}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(r.status)}`}>
-                        {r.status}
-                      </span>
+                      {getStatusBadge(r.status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => handleViewReturn(r.return_id)}
-                          className="text-primary hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="p-1.5 text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                           title="View Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
 
                         {r.status === "Pending" && (
                           <>
                             <button
                               onClick={() => handleApprove(r.return_id)}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              className="p-1.5 text-emerald-600 hover:text-emerald-950 dark:hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-lg transition-colors"
                               title="Approve and Remove"
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleReject(r.return_id)}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              className="p-1.5 text-red-600 hover:text-red-950 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
                               title="Reject and Restore"
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}
-                        {(r.status === "Approved" || r.status === "Rejected") && (
+                        <ProtectedAction module="Supplier Returns" action="Delete">
                           <button
                             onClick={() => handleArchiveReturn(r.return_id)}
-                            className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
-                            title="Archive Return"
+                            className="p-1.5 text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            title="Archive"
                           >
-                            <Archive className="w-4 h-4" />
+                            <Archive className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                        </ProtectedAction>
+                        <ProtectedAction module="Supplier Returns" action="Delete">
+                          <button
+                            onClick={() => handleMoveToTrash(r.return_id)}
+                            className="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            title="Move to Trash"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </ProtectedAction>
                       </div>
                     </td>
                   </tr>
@@ -427,18 +482,18 @@ export function ProductReturns() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card bg-card rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-border border-border">
-              <h2 className="text-xl font-bold text-foreground text-foreground">Create Supplier Return</h2>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground">Create Supplier Return</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground/70 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground dark:text-gray-300 mb-1">Supplier *</label>
                   <select
@@ -481,7 +536,7 @@ export function ProductReturns() {
                   <div className="space-y-3">
                     {newReturn.items.map((item, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-muted/50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <SearchableSelect
                             value={item.product_id}
                             onValueChange={(val) => updateItem(index, "product_id", val)}
@@ -535,18 +590,18 @@ export function ProductReturns() {
       {showViewModal && selectedReturn && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card bg-card rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-border border-border">
-              <h2 className="text-xl font-bold text-foreground text-foreground">Return Details</h2>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground">Return Details</h2>
               <button
                 onClick={() => setShowViewModal(false)}
-                className="text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground/70 dark:hover:text-gray-200"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-sm text-muted-foreground dark:text-muted-foreground/70">Return ID</label>
                   <p className="font-medium text-foreground text-foreground">{formatReturnId(selectedReturn.return_id)}</p>
@@ -688,6 +743,65 @@ export function ProductReturns() {
                   <>
                     <Archive className="w-4 h-4" />
                     Archive Return
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move to Trash Confirm Modal */}
+      {trashTarget && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card bg-background rounded-2xl shadow-2xl max-w-md w-full border border-border border-border overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground text-foreground">Move Return to Deleted Folder</h3>
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">30-day retention countdown</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              <p className="text-muted-foreground dark:text-gray-300">
+                Are you sure you want to move supplier return{" "}
+                <span className="font-semibold text-foreground text-foreground">"{trashTarget.displayId}"</span> to the Deleted Folder?
+              </p>
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground/70 mt-2">
+                This return request will remain in the Deleted Folder for 30 days before permanent deletion.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 pb-6">
+              <button
+                onClick={() => setTrashTarget(null)}
+                disabled={trashing}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground dark:text-gray-300 border border-border dark:border-gray-600 rounded-lg hover:bg-muted/50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTrashReturn}
+                disabled={trashing}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {trashing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Moving...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Move to Trash
                   </>
                 )}
               </button>

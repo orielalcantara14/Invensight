@@ -53,7 +53,30 @@ export function EditInventoryModal({
     reason_adjustment: "",
   });
 
+  const [adjustmentValue, setAdjustmentValue] = useState<string>("");
+
   const isAdjustmentMode = formData.reason_adjustment !== "";
+
+  const handleAdjustmentChange = (valueStr: string, reason: string) => {
+    setAdjustmentValue(valueStr);
+    const amt = Math.max(0, parseInt(valueStr) || 0);
+    const currentQty = item?.quantity || 0;
+    const currentActual = item?.actual || 0;
+
+    if (reason === "Restock") {
+      setFormData({
+        ...formData,
+        quantity: String(currentQty + amt),
+        actual: String(currentActual + amt),
+      });
+    } else if (reason === "Lost" || reason === "Damaged") {
+      setFormData({
+        ...formData,
+        quantity: String(currentQty - amt),
+        actual: String(currentActual - amt),
+      });
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -99,6 +122,7 @@ export function EditInventoryModal({
         actual: String(item.actual),
         reason_adjustment: "", // Start with Select Reason (None)
       });
+      setAdjustmentValue("");
     }
   }, [item]);
 
@@ -128,24 +152,25 @@ export function EditInventoryModal({
       if (formData.reason_adjustment === "Restock") {
         const inputQty = parseInt(formData.quantity);
         if (inputQty <= item.quantity) {
-          toast.error(`Restock must be higher than current quantity (${item.quantity}). Enter the new total.`);
+          toast.error("Restock quantity must be greater than 0");
           setIsSubmitting(false);
           return;
         }
 
         // UPDATE existing row instead of creating a NEW batch
         await api.updateInventoryItem(item.inventory_id, payload);
-        toast.success(`Restock successful: Updated total quantity to ${inputQty}`);
+        toast.success(`Restock successful: Added ${parseInt(adjustmentValue) || 0} units (New total: ${inputQty})`);
       } else if (isAdjustmentMode) {
         const inputActual = parseInt(formData.actual);
-        if (inputActual >= item.quantity) {
-          toast.error(`Deduction must be lower than current quantity (${item.quantity}). Enter the new physical count.`);
+        const diff = item.quantity - inputActual;
+        if (inputActual < 0 || diff <= 0) {
+          toast.error(`Deduction quantity must be greater than 0 and cannot exceed current quantity (${item.quantity})`);
           setIsSubmitting(false);
           return;
         }
 
         await api.updateInventoryItem(item.inventory_id, payload);
-        toast.success("Inventory updated successfully");
+        toast.success(`Adjustment successful: Deducted ${diff} units (New total: ${inputActual})`);
       } else {
         // Metadata-only update (e.g. Supplier, SKU)
         await api.updateInventoryItem(item.inventory_id, payload);
@@ -169,9 +194,9 @@ export function EditInventoryModal({
   );
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Edit Item">
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Edit Item" maxWidth="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Product Name
@@ -189,9 +214,10 @@ export function EditInventoryModal({
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none font-mono text-sm uppercase"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              placeholder="e.g. OIL-0001"
             />
           </div>
         </div>
@@ -246,7 +272,7 @@ export function EditInventoryModal({
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Unit Measurement
@@ -261,10 +287,10 @@ export function EditInventoryModal({
               <option value="Milliliter">Milliliter</option>
               <option value="Piece">Piece</option>
               <option value="Set">Set</option>
-              <option value="Set">Foot / Meter</option>
-              <option value="Set">Pair</option>
-              <option value="Set">Drum</option>
-              <option value="Set">Roll</option>
+              <option value="Foot / Meter">Foot / Meter</option>
+              <option value="Pair">Pair</option>
+              <option value="Drum">Drum</option>
+              <option value="Roll">Roll</option>
             </select>
           </div>
           <div className="relative" ref={dropdownRef}>
@@ -336,66 +362,77 @@ export function EditInventoryModal({
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Physical Count (Actual) {!isAdjustmentMode ? (
-                <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
-              ) : formData.reason_adjustment === "Restock" ? (
-                <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Quantity)</span>
+              {formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged" ? (
+                <>
+                  Quantity to Deduct <span className="text-xs text-red-500 font-normal">(Max {item?.quantity || 0})</span>
+                </>
               ) : (
-                <span className="text-xs text-red-500 font-normal">(Must be less than {item?.quantity || 0})</span>
+                <>
+                  Physical Count (Actual){" "}
+                  {!isAdjustmentMode ? (
+                    <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Quantity)</span>
+                  )}
+                </>
               )}
             </label>
-            <input
-              type="number"
-              className={cn(
-                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none",
-                (!isAdjustmentMode || formData.reason_adjustment === "Restock") ? "bg-muted/50 border-border" : "border-border"
-              )}
-              value={formData.actual}
-              readOnly={!isAdjustmentMode || formData.reason_adjustment === "Restock"}
-              onChange={(e) => {
-                const val = e.target.value;
-                const update = { ...formData, actual: val };
-                if (formData.reason_adjustment !== "Restock") {
-                  update.quantity = val;
-                }
-                setFormData(update);
-              }}
-            />
+            {formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged" ? (
+              <input
+                type="number"
+                min="1"
+                max={item?.quantity || 0}
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                placeholder="Enter quantity to deduct..."
+                value={adjustmentValue}
+                onChange={(e) => handleAdjustmentChange(e.target.value, formData.reason_adjustment)}
+              />
+            ) : (
+              <input
+                type="number"
+                className="w-full px-3 py-2 border rounded-lg bg-muted/50 border-border focus:ring-2 focus:ring-primary outline-none"
+                value={formData.actual}
+                readOnly
+              />
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Quantity {!isAdjustmentMode ? (
-                <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
-              ) : formData.reason_adjustment === "Restock" ? (
-                <span className="text-xs text-green-600 font-normal">(Must be more than {item?.quantity || 0})</span>
+              {formData.reason_adjustment === "Restock" ? (
+                <>
+                  Quantity to Add <span className="text-xs text-green-600 font-normal">(Enter amount)</span>
+                </>
               ) : (
-                <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Actual)</span>
+                <>
+                  Quantity{" "}
+                  {!isAdjustmentMode ? (
+                    <span className="text-xs text-muted-foreground/70 font-normal">(Disabled)</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/70 font-normal">(Synced with Actual)</span>
+                  )}
+                </>
               )}
             </label>
-            <input
-              type="number"
-              className={cn(
-                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none",
-                (!isAdjustmentMode || formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") ? "bg-muted/50 border-border" : "border-border"
-              )}
-              value={formData.quantity}
-              readOnly={!isAdjustmentMode || formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged"}
-              onChange={(e) => {
-                const val = e.target.value;
-                const update = { ...formData, quantity: val };
-                if (formData.reason_adjustment !== "Lost" && formData.reason_adjustment !== "Damaged" && formData.reason_adjustment !== "Manual Count") {
-                   // Only sync Quantity -> Actual for Restock or others where Actual is system-derived
-                   update.actual = val;
-                } else if (formData.reason_adjustment === "Manual Count" || formData.reason_adjustment === "Lost" || formData.reason_adjustment === "Damaged") {
-                   // If user edits quantity directly, also sync actual
-                   update.actual = val;
-                }
-                setFormData(update);
-              }}
-            />
+            {formData.reason_adjustment === "Restock" ? (
+              <input
+                type="number"
+                min="1"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                placeholder="Enter quantity to add..."
+                value={adjustmentValue}
+                onChange={(e) => handleAdjustmentChange(e.target.value, "Restock")}
+              />
+            ) : (
+              <input
+                type="number"
+                className="w-full px-3 py-2 border rounded-lg bg-muted/50 border-border focus:ring-2 focus:ring-primary outline-none"
+                value={formData.quantity}
+                readOnly
+              />
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
@@ -419,18 +456,13 @@ export function EditInventoryModal({
             value={formData.reason_adjustment}
             onChange={(e) => {
               const reason = e.target.value;
-              const update = { ...formData, reason_adjustment: reason };
-              if (reason === "") {
-                // If switching back to "Select Reason", reset to item original counts
-                update.actual = String(item?.actual || 0);
-                update.quantity = String(item?.quantity || 0);
-              } else if (reason === "Restock") {
-                update.actual = formData.quantity;
-              } else {
-                // For Manual Count, Lost, Damaged, sync Actual and Quantity
-                update.quantity = formData.actual;
-              }
-              setFormData(update);
+              setAdjustmentValue("");
+              setFormData({
+                ...formData,
+                reason_adjustment: reason,
+                quantity: String(item?.quantity || 0),
+                actual: String(item?.actual || 0),
+              });
             }}
           >
             <option value="">-- Select Reason --</option>

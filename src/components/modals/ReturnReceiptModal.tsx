@@ -1,6 +1,7 @@
 import { X, Printer, CheckCircle2, RefreshCcw } from "lucide-react";
 import type { SaleDetail } from "@/types";
 import { format } from "date-fns";
+import { printElementById } from "@/utils/print";
 
 interface ReturnReceiptModalProps {
   isOpen: boolean;
@@ -32,16 +33,16 @@ export function ReturnReceiptModal({
   if (!isOpen || !invoice) return null;
 
   const handlePrint = () => {
-    window.print();
+    printElementById("return-receipt-printable", `${returnType} Slip - ${rmaNumber}`);
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-card print:p-0">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm print:hidden" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:h-auto">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
 
-        {/* Header (Hidden in Print if desired, but receipts usually have headers) */}
-        <div className="p-4 border-b border-border flex items-center justify-between bg-card sticky top-0 z-10 print:hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-border flex items-center justify-between bg-card sticky top-0 z-10">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             {returnType === "Exchange" ? <RefreshCcw className="w-5 h-5 text-primary" /> : <CheckCircle2 className="w-5 h-5 text-green-600" />}
             {returnType === "Exchange" ? "Exchange Slip" : "Return Receipt"}
@@ -52,7 +53,7 @@ export function ReturnReceiptModal({
         </div>
 
         {/* Receipt Content */}
-        <div className="p-8 overflow-y-auto print:overflow-visible print:p-10 font-sans text-sm">
+        <div id="return-receipt-printable" className="p-4 sm:p-8 overflow-y-auto font-sans text-sm bg-card text-foreground">
           {/* Shop branding */}
           <div className="text-center mb-10">
             <div className="inline-block bg-black text-white px-4 py-2 rounded-xl mb-4">

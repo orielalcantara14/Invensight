@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light" | "system";
+export type FontSize = "small" | "medium" | "large" | "extra-large";
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -15,6 +16,8 @@ interface ThemeProviderState {
   setAccentColor: (color: string) => void;
   isCompact: boolean;
   setIsCompact: (compact: boolean) => void;
+  fontSize: FontSize;
+  setFontSize: (size: FontSize) => void;
 }
 
 const initialState: ThemeProviderState = {
@@ -24,6 +27,8 @@ const initialState: ThemeProviderState = {
   setAccentColor: () => null,
   isCompact: false,
   setIsCompact: () => null,
+  fontSize: "medium",
+  setFontSize: () => null,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -42,6 +47,9 @@ export function ThemeProvider({
   );
   const [isCompact, setIsCompact] = useState<boolean>(
     () => localStorage.getItem(`${storageKey}-compact`) === "true"
+  );
+  const [fontSize, setFontSizeState] = useState<FontSize>(
+    () => (localStorage.getItem(`${storageKey}-fontsize`) as FontSize) || "medium"
   );
 
   useEffect(() => {
@@ -73,6 +81,19 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement;
+    const sizes: Record<FontSize, string> = {
+      "small": "16px",
+      "medium": "18px",
+      "large": "20px",
+      "extra-large": "22px",
+    };
+    const val = sizes[fontSize] || "18px";
+    root.style.fontSize = val;
+    root.style.setProperty("--font-size", val);
+  }, [fontSize]);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
     const colors: Record<string, string> = {
       blue: "#3b82f6",
       purple: "#a855f7",
@@ -83,7 +104,6 @@ export function ThemeProvider({
     
     const hex = colors[accentColor] || colors.blue;
     root.style.setProperty("--primary", hex);
-    // Also update sidebar primary if needed
     root.style.setProperty("--sidebar-primary", hex);
   }, [accentColor]);
 
@@ -102,6 +122,11 @@ export function ThemeProvider({
     setIsCompact: (compact: boolean) => {
       localStorage.setItem(`${storageKey}-compact`, String(compact));
       setIsCompact(compact);
+    },
+    fontSize,
+    setFontSize: (size: FontSize) => {
+      localStorage.setItem(`${storageKey}-fontsize`, size);
+      setFontSizeState(size);
     },
   };
 
