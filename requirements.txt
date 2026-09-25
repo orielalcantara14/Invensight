@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+psycopg2-binary
+python-dotenv
+bcrypt
+pandas>=2.0
+prophet>=1.1.5
+numpy>=1.24.0
+python-multipart
+openpyxl
+pyotp>=2.9.0
+qrcode>=8.0
+pillow>=10.0.0
+

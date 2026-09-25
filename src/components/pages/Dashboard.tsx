@@ -1,0 +1,306 @@
+import { TrendingUp, TrendingDown, Package, PhilippinePeso, ShoppingCart, AlertTriangle, CheckCircle, Truck } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useState, useEffect } from "react";
+import { api, type DashboardStats } from "@/services/api";
+import { useNavigate } from "react-router";
+import { cn } from "@/lib/utils";
+
+const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+export function Dashboard() {
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState<any[]>([]);
+  const [timeRange, setTimeRange] = useState<"7d" | "semiannual" | "annual">("semiannual");
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await api.getDashboardStats(timeRange);
+      setStats(res);
+      setError(null);
+    } catch (err: any) {
+      console.error("Dashboard error:", err);
+      setError(err.message || "Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [timeRange]);
+
+  useEffect(() => {
+    api.getUpcomingDeliveries()
+      .then(res => {
+        setUpcomingDeliveries(res.deliveries || []);
+      })
+      .catch(err => {
+        console.error("Failed to load upcoming deliveries:", err);
+      });
+  }, []);
+
+  if (loading && !stats) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="text-center bg-red-50 p-8 rounded-lg border border-red-200">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-red-900 mb-2">Error Loading Dashboard</h3>
+          <p className="text-red-700 mb-4">{error}</p>
+          <button 
+            onClick={() => { setLoading(true); setError(null); fetchStats(); }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const kpis = [
+    { label: "Total Revenue", value: stats ? `₱${stats.total_revenue.toLocaleString()}` : "N/A", icon: PhilippinePeso, color: "text-green-600" },
+    { label: "Completed Sales", value: stats ? stats.completed_sales.toLocaleString() : "N/A", icon: CheckCircle, color: "text-primary" },
+    { label: "Out of Stock", value: stats ? stats.out_of_stock_count.toLocaleString() : "0", icon: Package, color: "text-red-600" },
+    { label: "Low Stock", value: stats ? stats.low_stock_count.toLocaleString() : "0", icon: AlertTriangle, color: "text-orange-600" },
+  ];
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 relative">
+      {loading && (
+        <div className="absolute inset-0 bg-card/20 backdrop-blur-[1px] flex items-center justify-center z-50 pointer-events-none">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+      {/* Header */}
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">JonBrix</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Motorcycle Parts & Accessories</p>
+      </div>
+
+      {/* Expected Delivery Reminder */}
+      {upcomingDeliveries.length > 0 && (
+        <div className="mb-6 bg-primary/10 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+          <Truck className="w-5 h-5 text-primary dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+              {upcomingDeliveries.length === 1 
+                ? "You have an expected delivery arriving tomorrow." 
+                : `You have ${upcomingDeliveries.length} expected deliveries arriving tomorrow.`}
+            </h3>
+            <div className="mt-2 space-y-1">
+              {upcomingDeliveries.map((delivery) => (
+                <p key={delivery.order_id} className="text-sm text-primary/90 dark:text-blue-400">
+                  <strong>Order #{delivery.order_id}</strong> from {delivery.supplier_name || "Unknown Supplier"} - {delivery.total_items} item{delivery.total_items !== 1 ? "s" : ""}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        {kpis.map((kpi) => (
+          <div 
+            key={kpi.label} 
+            className={cn(
+               "bg-card p-4 sm:p-5 rounded-lg border border-border/50 shadow-xs transition-all duration-200",
+               (kpi as any).path && "cursor-pointer hover:shadow-sm hover:border-zinc-400 active:translate-y-0"
+            )}
+            onClick={() => (kpi as any).path && navigate((kpi as any).path)}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{kpi.label}</span>
+              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+            </div>
+            <div className="text-2xl font-bold text-foreground font-mono">{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 sm:mb-8">
+        {/* Sales & Forecasting */}
+        <div className="xl:col-span-2 bg-card p-4 sm:p-6 rounded-lg shadow-xs border border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Sales & Forecasting</h2>
+            <div className="flex items-center bg-muted/40 rounded-lg p-1 gap-1 border border-border/30 self-start sm:self-auto">
+              {(["7d", "semiannual", "annual"] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={cn(
+                    "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
+                    timeRange === range
+                      ? "bg-card text-foreground shadow-xs border border-border/40"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {range === "7d" ? "7 Days" : range === "semiannual" ? "Semiannual" : "Annual"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-[300px]">
+            {stats && stats.sales_trend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.sales_trend}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#64748b" strokeOpacity={0.1} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }} dx={-10} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
+                    formatter={(value: number) => [`₱${value.toLocaleString()}`, ""]}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                  <Line 
+                    type="monotone" 
+                    dataKey="actual_sales" 
+                    name="Actual Sales" 
+                    stroke="var(--primary)" 
+                    strokeWidth={2} 
+                    dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="forecast_sales" 
+                    name="Forecast" 
+                    stroke="#10b981" 
+                    strokeWidth={2} 
+                    strokeDasharray="5 5"
+                    dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground/70">
+                <div className="text-center">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No sales data available</p>
+                  <p className="text-sm mt-1">Start adding sales to see trends</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sales by Category */}
+        <div className="bg-card p-4 sm:p-6 rounded-lg shadow-xs border border-border/50">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4">Sales by Category</h2>
+          <div className="h-[300px]">
+            {stats && stats.sales_by_category.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.sales_by_category}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    nameKey="category"
+                  >
+                    {stats.sales_by_category.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: number, name: string, props: any) => [
+                      `₱${value.toLocaleString()} (${props.payload.percentage}%)`, 
+                      name
+                    ]}
+                  />
+                  <Legend verticalAlign="bottom" height={36} layout="horizontal" />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground/70">
+                <div className="text-center">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No category data</p>
+                  <p className="text-sm mt-1">Data not available</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Top Products Table */}
+      <div className="bg-card rounded-lg shadow-xs border border-border/55">
+        <div className="p-5 border-b border-border/50">
+          <h2 className="text-sm font-semibold text-foreground">Top Selling Products</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-muted/30 border-b border-border/50">
+              <tr>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Product Name</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Revenue</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Units Sold</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Current Stock</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/70 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {stats && stats.top_products.length > 0 ? (
+                stats.top_products.map((product, idx) => (
+                  <tr key={idx} className="group hover:bg-muted/10 dark:hover:bg-zinc-900/20 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-foreground">{product.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-foreground font-mono">₱{product.revenue.toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-mono">{product.units_sold}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-muted-foreground font-mono">{product.current_stock}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {product.status === "Critical" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-650">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          Critical
+                        </span>
+                      ) : product.status === "Low" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-605">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Low
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Normal
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-muted-foreground font-medium">No product data available</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">Add products to start tracking sales</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

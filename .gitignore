@@ -4,7 +4,7 @@ node_modules/
 # Build output
 dist/
 
-# Environment variables (contain secrets — never commit these)
+# Environment variables (contain secrets - never commit these)
 .env
 .env.local
 .env.*.local
@@ -28,6 +28,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Visual Studio
+.vs/
+
 # Ignored docs
 README.md
 
@@ -36,3 +39,14 @@ uploads/avatars/*
 !uploads/avatars/.gitkeep
 server/uploads/avatars/*
 !server/uploads/avatars/.gitkeep
+
+# Database backups / local data
+database/*.dump
+database/*.sql
+database/*.csv
+
+# Duplicate nested repositories / local backups
+/Invensight/
+/orielalcantara14/
+/Invensight_backup/
+/orielalcantara14_Invensight_backup/

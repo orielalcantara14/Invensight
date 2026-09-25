@@ -1,0 +1,447 @@
+import React, { useState, useEffect, useRef, type FormEvent } from "react";
+import { BaseModal } from "./BaseModal";
+import type { User, Role } from "@/types";
+import type { UpdateUserPayload } from "@/services/api";
+import { PermissionsModal } from "./PermissionsModal";
+import { Shield, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
+
+interface EditUserModalProps {
+  isOpen: boolean;
+  user: User | null;
+  onClose: () => void;
+  onSave: (userId: number, payload: UpdateUserPayload) => void | Promise<void>;
+  roleNames: string[];
+  roles: Role[];
+  error?: string | null;
+  saving?: boolean;
+}
+
+export function EditUserModal({
+  isOpen,
+  user,
+  onClose,
+  onSave,
+  roleNames = [],
+  roles = [],
+  error = null,
+  saving = false,
+}: EditUserModalProps) {
+  const [username, setUsername] = useState("");
+  const [surname, setSurname] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [status, setStatus] = useState<"Active" | "Archived">("Active");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [permissions, setPermissions] = useState<Record<string, string[]>>({});
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const initialFocusRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setUsername(user.username || "");
+
+      // Parse Full Name: formats "Surname, FirstName MiddleName" or "FirstName MiddleName Surname"
+      const raw = user.fullName || "";
+      if (raw.includes(",")) {
+        const [sn, rest] = raw.split(",").map(s => s.trim());
+        setSurname(sn || "");
+        const parts = (rest || "").split(/\s+/).filter(Boolean);
+        if (parts.length === 0) {
+          setFirstName("");
+          setMiddleName("");
+        } else if (parts.length === 1) {
+          setFirstName(parts[0]);
+          setMiddleName("");
+        } else {
+          setMiddleName(parts[parts.length - 1]);
+          setFirstName(parts.slice(0, -1).join(" "));
+        }
+      } else {
+        const parts = raw.split(/\s+/).filter(Boolean);
+        if (parts.length === 1) {
+          setSurname(parts[0]);
+          setFirstName("");
+          setMiddleName("");
+        } else if (parts.length === 2) {
+          setSurname(parts[1]);
+          setFirstName(parts[0]);
+          setMiddleName("");
+        } else if (parts.length >= 3) {
+          setSurname(parts[parts.length - 1]);
+          setMiddleName(parts[parts.length - 2]);
+          setFirstName(parts.slice(0, -2).join(" "));
+        } else {
+          setSurname("");
+          setFirstName("");
+          setMiddleName("");
+        }
+      }
+
+      const userRole = user.role || "";
+      setEmail(user.email || "");
+      setRole(userRole);
+      setStatus(user.status);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowNewPassword(false);
+      setShowConfirmNewPassword(false);
+      
+      const matched = roles.find(r => r.name.trim().toLowerCase() === userRole.trim().toLowerCase());
+      const roleDefaultPerms = matched?.permissions || {};
+      
+      if (user.permissions && Object.keys(user.permissions).length > 0) {
+        setPermissions(user.permissions);
+      } else {
+        setPermissions(roleDefaultPerms);
+      }
+      setTimeout(() => initialFocusRef.current?.focus(), 100);
+    }
+  }, [isOpen, user, roles]);
+
+  const validatePassword = (pass: string) => {
+    return {
+      length: pass.length >= 8,
+      upper: /[A-Z]/.test(pass),
+      lower: /[a-z]/.test(pass),
+      number: /[0-9]/.test(pass),
+      special: /[!@#$%^&*]/.test(pass)
+    };
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (newPassword.trim()) {
+      const v = validatePassword(newPassword);
+      const isValid = Object.values(v).every(Boolean);
+      if (!isValid) {
+        toast.error("New password does not meet security requirements");
+        return;
+      }
+      if (newPassword !== confirmNewPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
+
+    if (!surname.trim() || !firstName.trim()) {
+      toast.error("Surname and First Name are required");
+      return;
+    }
+
+    const fullName = `${surname.trim()}, ${firstName.trim()} ${middleName.trim()}`.trim();
+
+    const payload: UpdateUserPayload = {
+      username: username.trim(),
+      full_name: fullName,
+      email: email.trim() || null,
+      role,
+      is_active: status === "Active",
+      permissions: permissions,
+    };
+    const pw = newPassword.trim();
+    if (pw) {
+      payload.new_password = pw;
+    }
+    await onSave(user.id, payload);
+  };
+
+  if (!user) return null;
+
+  const matchedRole = roles.find(r => r.name.trim().toLowerCase() === role.trim().toLowerCase());
+  const matchedPermissions = matchedRole?.permissions || {};
+
+  const handleRoleChange = (newRole: string) => {
+    setRole(newRole);
+    const matched = roles.find(r => r.name.trim().toLowerCase() === newRole.trim().toLowerCase());
+    if (matched && matched.permissions) {
+      setPermissions(matched.permissions);
+    }
+  };
+
+  return (
+    <>
+      <BaseModal isOpen={isOpen} onClose={onClose} title="Edit User" maxWidth="md">
+        {error && (
+          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs font-semibold text-destructive">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-username" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                Username
+              </label>
+              <input
+                ref={initialFocusRef}
+                id="edit-username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full rounded-lg border border-border px-3 py-2 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+                disabled={saving}
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-role" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                Role
+              </label>
+              <select
+                id="edit-role"
+                value={role}
+                onChange={(e) => handleRoleChange(e.target.value)}
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                required
+                disabled={saving || roleNames.length === 0}
+              >
+                {roleNames.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-[10px] font-black text-foreground uppercase tracking-widest border-b border-border pb-1">Personal Information</p>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label htmlFor="edit-surname" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                  Surname
+                </label>
+                <input
+                  id="edit-surname"
+                  type="text"
+                  value={surname}
+                  onChange={(e) => setSurname(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                  disabled={saving}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label htmlFor="edit-firstName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                    First Name
+                  </label>
+                  <input
+                    id="edit-firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
+                    disabled={saving}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-middleName" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                    Middle Name
+                  </label>
+                  <input
+                    id="edit-middleName"
+                    type="text"
+                    value={middleName}
+                    onChange={(e) => setMiddleName(e.target.value)}
+                    className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-email" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                Email Address
+              </label>
+              <input
+                id="edit-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={saving}
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-status" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                Status
+              </label>
+              <select
+                id="edit-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as "Active" | "Archived")}
+                className="w-full rounded-lg border border-border px-3 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                disabled={saving}
+              >
+                <option value="Active">Active</option>
+                <option value="Archived">Archived</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <p className="text-[10px] font-black text-foreground uppercase tracking-widest border-b border-border pb-1">Security Update</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="edit-new-password" className="mb-1 block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                  New password
+                </label>
+                <div className="relative">
+                  <input
+                    id="edit-new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Leave blank to keep current"
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border border-border pl-3 pr-10 py-2.5 font-bold transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={saving}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-1"
+                    title={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="edit-confirm-password" className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest">
+                    Confirm New password
+                  </label>
+                  {confirmNewPassword && (
+                    <span className={`text-[9px] font-bold ${confirmNewPassword === newPassword ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {confirmNewPassword === newPassword ? "✓ Match" : "✗ No match"}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    id="edit-confirm-password"
+                    type={showConfirmNewPassword ? "text" : "password"}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Repeat new password"
+                    autoComplete="new-password"
+                    className={`w-full rounded-lg border pl-3 pr-10 py-2.5 font-bold transition-all duration-200 focus:outline-none focus:ring-2 ${
+                      confirmNewPassword
+                        ? confirmNewPassword === newPassword
+                          ? "border-emerald-500/70 focus:ring-emerald-500/20"
+                          : "border-red-500/70 focus:ring-red-500/20"
+                        : "border-border focus:border-transparent focus:ring-primary"
+                    }`}
+                    disabled={saving}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-1"
+                    title={showConfirmNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Password Requirements Checklist - Only show if typing new password */}
+            {newPassword.length > 0 && (
+              <div className="bg-muted/50 p-4 rounded-xl border border-border space-y-2 translate-y-[-8px]">
+                <p className="text-[10px] font-black text-foreground uppercase tracking-widest mb-3">Security Requirements</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <RequirementItem label="8-12 Characters" met={newPassword.length >= 8} />
+                  <RequirementItem label="Uppercase" met={/[A-Z]/.test(newPassword)} />
+                  <RequirementItem label="Lowercase" met={/[a-z]/.test(newPassword)} />
+                  <RequirementItem label="Number" met={/[0-9]/.test(newPassword)} />
+                  <RequirementItem label="Special (!@#$%^&*)" met={/[!@#$%^&*]/.test(newPassword)} />
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${newPassword.length >= 12 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className={`text-[10px] font-bold ${newPassword.length >= 12 ? 'text-green-600' : 'text-muted-foreground/70'}`}>Recommended (12+)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setIsPermissionsModalOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <Shield className="h-4 w-4 text-primary" />
+              Manage Permissions
+              <span className="ml-1 text-[10px] text-muted-foreground/70 font-normal">
+                ({Object.keys(permissions).length > 0 ? Object.keys(permissions).length : Object.keys(matchedPermissions).length} modules allowed)
+              </span>
+            </button>
+          </div>
+
+          {error ? (
+            <p className="text-sm text-red-600" role="alert">
+              {error === "Actor not found" ? "Your session is invalid. Please log out and log in again." : error}
+            </p>
+          ) : null}
+
+          <div className="flex gap-3 border-t border-border pt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 rounded-lg bg-muted py-2.5 font-bold text-foreground transition-colors duration-200 hover:bg-gray-200 disabled:opacity-50 text-xs uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || roleNames.length === 0}
+              className="flex-1 rounded-lg bg-primary py-2.5 font-bold text-white transition-colors duration-200 hover:bg-primary/90 disabled:opacity-50 text-xs uppercase tracking-widest shadow-lg shadow-blue-200"
+            >
+              {saving ? "Saving…" : "Update Profile"}
+            </button>
+          </div>
+        </form>
+      </BaseModal>
+
+      <PermissionsModal
+        isOpen={isPermissionsModalOpen}
+        onClose={() => setIsPermissionsModalOpen(false)}
+        onSave={(p) => {
+          setPermissions(p);
+          setIsPermissionsModalOpen(false);
+        }}
+        initialPermissions={permissions}
+        primaryLabel="Save Changes"
+        isReadOnly={false}
+      />
+    </>
+  );
+}
+
+function RequirementItem({ label, met }: { label: string, met: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-red-400 opacity-50'}`} />
+      <span className={`text-[10px] font-bold uppercase tracking-tight ${met ? 'text-green-600' : 'text-muted-foreground/70'}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
