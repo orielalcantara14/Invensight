@@ -10,8 +10,8 @@ load_dotenv()
 
 router = APIRouter()
 
-PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "sk_test_kw8iRka1GRSvzamLKByrcoie")
-PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY", "pk_test_qF59Ykv6EyHppyYW14PiBpMj")
+PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY")
+PAYMONGO_PUBLIC_KEY = os.getenv("PAYMONGO_PUBLIC_KEY")
 
 def get_auth_header():
     auth_str = f"{PAYMONGO_SECRET_KEY}:"

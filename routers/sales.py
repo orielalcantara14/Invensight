@@ -25,7 +25,7 @@ router = APIRouter()
 PHT = timezone(timedelta(hours=8))
 TAX_RATE = 0.03
 
-PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY", "sk_test_kw8iRka1GRSvzamLKByrcoie")
+PAYMONGO_SECRET_KEY = os.getenv("PAYMONGO_SECRET_KEY")
 
 def get_auth_header():
     auth_str = f"{PAYMONGO_SECRET_KEY}:"
