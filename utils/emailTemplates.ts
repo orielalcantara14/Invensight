@@ -1,0 +1,153 @@
+/**
+ * JonBrix Simple & Clean Email Template for EmailJS
+ */
+
+export interface WelcomeEmailParams {
+  firstName?: string;
+  fullName?: string;
+  systemId?: string;
+  username?: string;
+  role: string;
+  tempPass: string;
+  loginUrl?: string;
+  shopName?: string;
+}
+
+/**
+ * Raw HTML template for EmailJS Template Editor (Content tab on emailjs.com)
+ * Uses standard EmailJS double-curly variables:
+ * {{first_name}}, {{role}}, {{username}}, {{password}}, {{login_url}}
+ */
+export const INVENSIGHT_EMAILJS_TEMPLATE_CODE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your JonBrix Account Details</title>
+</head>
+<body style="margin: 0; padding: 30px 15px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left;">
+          
+          <!-- Header / Brand -->
+          <tr>
+            <td style="padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
+              <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px;">
+                JonBrix
+              </h2>
+              <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b;">
+                Sales &amp; Inventory System
+              </p>
+            </td>
+          </tr>
+
+          <!-- Greeting & Body Message -->
+          <tr>
+            <td style="padding-top: 22px;">
+              <p style="margin: 0 0 14px 0; font-size: 15px; color: #0f172a; font-weight: 600;">
+                Hello {{first_name}},
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569;">
+                Welcome to JonBrix! An account has been created for you. You can now log in using the details below:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Credentials Box -->
+          <tr>
+            <td>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748b;">
+                    Username:
+                  </td>
+                  <td align="right" style="padding-bottom: 10px; font-size: 14px; font-weight: 700; color: #0f172a; font-family: monospace;">
+                    {{username}}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748b;">
+                    Temporary Password:
+                  </td>
+                  <td align="right" style="padding-bottom: 10px; font-size: 14px; font-weight: 700; color: #0f172a; font-family: monospace;">
+                    {{password}}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 13px; color: #64748b;">
+                    Role:
+                  </td>
+                  <td align="right" style="font-size: 13px; font-weight: 700; color: #2563eb;">
+                    {{role}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Reminder Notice -->
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <p style="margin: 0; font-size: 13px; color: #64748b; background-color: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 6px;">
+                <strong>Please note:</strong> You will be asked to change this temporary password the first time you log in.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Login Button -->
+          <tr>
+            <td align="center" style="padding-bottom: 26px;">
+              <a href="https://www.inven-sight.com/" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 8px;">
+                Log In to JonBrix
+              </a>
+            </td>
+          </tr>
+
+          <!-- Sign-off -->
+          <tr>
+            <td style="padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 13px; color: #64748b;">
+              <p style="margin: 0;">Thank you,</p>
+              <p style="margin: 3px 0 0 0; font-weight: 600; color: #0f172a;">JonBrix Team</p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Small Footer -->
+        <p style="margin: 20px 0 0 0; font-size: 11px; color: #94a3b8; text-align: center;">
+          JonBrix Motor Parts &bull; Automated notification
+        </p>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+/**
+ * Generates the dynamic HTML string for direct rendering or sending
+ */
+export function generateWelcomeEmailHtml({
+  firstName,
+  fullName,
+  systemId,
+  username,
+  role,
+  tempPass,
+  loginUrl = "https://www.inven-sight.com/",
+}: WelcomeEmailParams): string {
+  const nameToUse = firstName || fullName || "User";
+  const userIdentifier = username || systemId || "";
+  const targetUrl = loginUrl || "https://www.inven-sight.com/";
+  return INVENSIGHT_EMAILJS_TEMPLATE_CODE
+    .replace(/\{\{first_name\}\}/g, nameToUse)
+    .replace(/\{\{full_name\}\}/g, nameToUse)
+    .replace(/\{\{role\}\}/g, (role || "Staff").toUpperCase())
+    .replace(/\{\{username\}\}/g, userIdentifier)
+    .replace(/\{\{system_id\}\}/g, userIdentifier)
+    .replace(/\{\{password\}\}/g, tempPass)
+    .replace(/\{\{login_url\}\}/g, targetUrl);
+}

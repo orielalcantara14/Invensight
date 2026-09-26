@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './theme.css';
+
+/* Hide browser default password reveal and clear icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 8mm;
+  }
+
+  html, body, #root {
+    background: #ffffff !important;
+    color: #111827 !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation sidebar, top navigation header, close buttons, modal backdrop overlays */
+  aside,
+  nav,
+  header.border-b,
+  .print\\:hidden,
+  .backdrop-blur-sm,
+  .backdrop-blur-xs,
+  .backdrop-blur-\\[2px\\],
+  .bg-black\\/40,
+  .bg-black\\/20,
+  .bg-black\\/55,
+  .bg-black\\/60 {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Unconstrain layout wrappers */
+  .h-screen,
+  .min-h-screen,
+  .overflow-hidden,
+  .overflow-auto,
+  .overflow-y-auto {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Modals / Overlays on print */
+  .fixed.inset-0,
+  .report-viewer-overlay {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Modal cards and report containers on print */
+  .report-viewer-card {
+    position: static !important;
+    display: block !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Preserve layout systems on print */
+  .grid {
+    display: grid !important;
+  }
+
+  .flex {
+    display: flex !important;
+  }
+
+  .signature-block, .page-break-avoid, .print-card, tr, .report-header-banner, .report-footer {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    width: 100% !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tbody {
+    display: table-row-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
