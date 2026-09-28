@@ -605,10 +605,10 @@ def init_database_schema():
                     log.info("Seeded initial root admin account: %s", username)
                 else:
                     cur.execute("""
-                        UPDATE users SET password_hash = %s, is_active = TRUE, role = 'administrator'
+                        UPDATE users SET is_active = TRUE, role = 'administrator'
                         WHERE username = %s
-                    """, (hash_pw, username))
-                    log.info("Synchronized root admin credentials for: %s", username)
+                    """, (username,))
+                    log.info("Verified existing root admin account: %s", username)
 
             # 5. Seed Demo Data (If empty)
             cur.execute("SELECT COUNT(*) FROM products")
