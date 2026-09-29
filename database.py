@@ -34,7 +34,7 @@ def get_connection():
                 port=int(os.getenv("DB_PORT", "5432")),
                 dbname=os.getenv("DB_NAME", "InvenSight"),
                 user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", "Rocketman09"), # Fallback to common dev pass
+                password=os.getenv("DB_PASSWORD", ""), # Local-development fallback
                 connect_timeout=timeout,
             )
         except psycopg2.OperationalError:
