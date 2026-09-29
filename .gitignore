@@ -50,3 +50,7 @@ database/*.csv
 /orielalcantara14/
 /Invensight_backup/
 /orielalcantara14_Invensight_backup/
+
+# Local database backups
+*.backup
+*.dump
