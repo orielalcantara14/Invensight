@@ -54,3 +54,7 @@ database/*.csv
 # Local database backups
 *.backup
 *.dump
+
+.env.production
+
+.env.production
