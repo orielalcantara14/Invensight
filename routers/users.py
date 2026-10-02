@@ -1317,7 +1317,7 @@ def list_roles(x_actor_user_id: str | None = Header(default=None, alias="X-Actor
             actor = _get_actor_or_403(cur, actor_user_id)
             is_root = actor.get("is_root_admin")
 
-            where_clauses = ["r.user_id IS NULL", "(r.status IS NULL OR r.status = 'Active')"]
+            where_clauses = ["r.user_id IS NULL"]
             params = [_root_admin_username()]
 
             if not is_root:
@@ -1722,3 +1722,4 @@ def reset_root_admin(
         conn.close()
 
     return {"ok": True, "user_id": out["user_id"], "username": out["username"]}
+
