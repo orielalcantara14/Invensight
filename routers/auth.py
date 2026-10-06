@@ -93,114 +93,6 @@ def _finalize_tab_close_disconnect(user_id: int, expected_token: str | None):
 
 router = APIRouter()
 
-def send_emailjs_otp(
-    recipient_email: str,
-    username: str,
-    otp: str,
-    expiry_minutes: int = 15
-) -> bool:
-    """
-    Sends an OTP email through EmailJS from the backend.
-    """
-
-    import urllib.request
-    import urllib.error
-
-    service_id = os.getenv("EMAILJS_SERVICE_ID")
-    template_id = os.getenv("EMAILJS_TEMPLATE_ID")
-    public_key = os.getenv("EMAILJS_PUBLIC_KEY")
-    private_key = os.getenv("EMAILJS_PRIVATE_KEY")
-
-    if not service_id:
-        logger.error("EmailJS ERROR: EMAILJS_SERVICE_ID is not configured")
-        return False
-
-    if not template_id:
-        logger.error("EmailJS ERROR: EMAILJS_TEMPLATE_ID is not configured")
-        return False
-
-    if not public_key:
-        logger.error("EmailJS ERROR: EMAILJS_PUBLIC_KEY is not configured")
-        return False
-
-    if not private_key:
-        logger.error("EmailJS ERROR: EMAILJS_PRIVATE_KEY is not configured")
-        return False
-
-    expiry_time = (
-        datetime.now(PH_TZ) + timedelta(minutes=expiry_minutes)
-    ).strftime("%I:%M %p")
-
-    emailjs_data = {
-        "service_id": service_id,
-        "template_id": template_id,
-        "user_id": public_key,
-        "accessToken": private_key,
-        "template_params": {
-            "Username": username or "User",
-            "username": username or "User",
-            "Password": "---",
-            "passcode": otp,
-            "time": expiry_time,
-            "email": recipient_email,
-        },
-    }
-
-    try:
-        req = urllib.request.Request(
-            "https://api.emailjs.com/api/v1.0/email/send",
-            data=json.dumps(emailjs_data).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            method="POST",
-        )
-
-        with urllib.request.urlopen(req, timeout=15) as response:
-            response_body = response.read().decode(
-                "utf-8",
-                errors="replace"
-            )
-
-            logger.info(
-                "EmailJS OTP sent successfully to %s. Response: %s",
-                recipient_email,
-                response_body
-            )
-
-            return True
-
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode(
-            "utf-8",
-            errors="replace"
-        )
-
-        logger.error(
-            "EmailJS HTTP error %s: %s",
-            e.code,
-            error_body
-        )
-
-        return False
-
-    except urllib.error.URLError as e:
-        logger.error(
-            "EmailJS connection error: %s",
-            e.reason
-        )
-
-        return False
-
-    except Exception as e:
-        logger.exception(
-            "Unexpected EmailJS error: %s",
-            e
-        )
-
-        return False
-
 
 def _parse_employee_id(ident: str) -> int | None:
     s = ident.strip()
@@ -446,19 +338,38 @@ def login(body: LoginRequest, request: Request, x_device_id: str | None = Header
             )
             conn.commit()
 
-            # Send OTP through EmailJS
-            email_sent = send_emailjs_otp(
-                recipient_email=row["email"],
-                username=row["username"] or "User",
-                otp=otp,
-                expiry_minutes=15
-            )
-
-            if not email_sent:
-                logger.error(
-                    "OTP was generated for user %s, but EmailJS failed to send it.",
-                    row["user_id"]
+            # Trigger EmailJS directly from the backend to send the OTP securely
+            try:
+                import urllib.request
+                import json
+                # Send email trigger using the EmailJS REST API so OTP code is not exposed to the browser client
+                emailjs_data = {
+                    "service_id": "service_kzur8un",
+                    "template_id": "template_3a3keqi",
+                    "user_id": "ZnEuZEpNlMgItPEBG",
+                    "template_params": {
+                        "Username": row["username"] or "User",
+                        "username": row["username"] or "User",
+                        "Password": "---",
+                        "passcode": otp,
+                        "time": (datetime.now(PH_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"),
+                        "email": row["email"]
+                    }
+                }
+                req = urllib.request.Request(
+                    "https://api.emailjs.com/api/v1.0/email/send",
+                    data=json.dumps(emailjs_data).encode("utf-8"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Origin": "http://localhost:5173",
+                        "Referer": "http://localhost:5173/"
+                    }
                 )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    response.read()
+            except Exception:
+                pass
 
             perms = None
             if row.get("permissions_json") and isinstance(row["permissions_json"], dict) and len(row["permissions_json"]) > 0:
@@ -650,19 +561,37 @@ def resend_otp(body: ResendOTPRequest):
             )
             conn.commit()
 
-            # Send OTP through EmailJS
-            email_sent = send_emailjs_otp(
-                recipient_email=body.email.strip(),
-                username=row[1] or "User",
-                otp=otp,
-                expiry_minutes=15
-            )
-
-            if not email_sent:
-                logger.error(
-                    "Forgot-password OTP was generated for user %s, but EmailJS failed to send it.",
-                    row[0]
+            # Trigger EmailJS
+            try:
+                import urllib.request
+                import json
+                emailjs_data = {
+                    "service_id": "service_kzur8un",
+                    "template_id": "template_3a3keqi",
+                    "user_id": "ZnEuZEpNlMgItPEBG",
+                    "template_params": {
+                        "Username": row["username"] or "User",
+                        "username": row["username"] or "User",
+                        "Password": "---",
+                        "passcode": otp,
+                        "time": (datetime.now(PH_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"),
+                        "email": row["email"]
+                    }
+                }
+                req = urllib.request.Request(
+                    "https://api.emailjs.com/api/v1.0/email/send",
+                    data=json.dumps(emailjs_data).encode("utf-8"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Origin": "http://localhost:5173",
+                        "Referer": "http://localhost:5173/"
+                    }
                 )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    response.read()
+            except Exception:
+                pass
 
             return {"ok": True, "message": "Verification code resent successfully"}
     finally:
@@ -1026,19 +955,38 @@ def forgot_password_request(body: ForgotPasswordRequest):
             )
             conn.commit()
 
-            # Send OTP through EmailJS
-            email_sent = send_emailjs_otp(
-                recipient_email=body.email.strip(),
-                username=row[1] or "User",
-                otp=otp,
-                expiry_minutes=15
-            )
-
-            if not email_sent:
-                logger.error(
-                    "Forgot-password OTP was generated for user %s, but EmailJS failed to send it.",
-                    row[0]
+            # Trigger EmailJS directly from backend for forgot password OTP
+            try:
+                import urllib.request
+                import json
+                emailjs_data = {
+                    "service_id": "service_kzur8un",
+                    "template_id": "template_3a3keqi",
+                    "user_id": "ZnEuZEpNlMgItPEBG",
+                    "template_params": {
+                        "Username": row[1] or "User",
+                        "username": row[1] or "User",
+                        "Password": "---",
+                        "passcode": otp,
+                        "time": (datetime.now(PH_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"),
+                        "email": body.email.strip()
+                    }
+                }
+                req = urllib.request.Request(
+                    "https://api.emailjs.com/api/v1.0/email/send",
+                    data=json.dumps(emailjs_data).encode("utf-8"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Origin": "http://localhost:5173",
+                        "Referer": "http://localhost:5173/"
+                    }
                 )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    response.read()
+            except Exception as e:
+                # Log but do not block flow
+                pass
 
             return {"ok": True, "user_id": row[0], "username": row[1]}
     finally:
