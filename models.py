@@ -403,9 +403,11 @@ class VerifyEmailRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: str
+    username: str
 
 class ResetPasswordRequest(BaseModel):
     email: str
+    username: str
     otp: str
     new_password: str
 

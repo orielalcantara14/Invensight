@@ -794,7 +794,7 @@ export const api = {
     }
     return requestWithUser<{ ok: boolean }>(uid, "/api/change-password", { method: "POST", body: JSON.stringify(payload) });
   },
-  forgotPassword: (email: string) => request<{ ok: boolean; user_id?: number; username?: string; otp?: string }>("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  forgotPassword: (username: string, email: string) => request<{ ok: boolean; user_id?: number; username?: string; otp?: string }>("/api/forgot-password", { method: "POST", body: JSON.stringify({ username, email }) }),
   resetPassword: (payload: any) => request<{ ok: boolean }>("/api/reset-password", { method: "POST", body: JSON.stringify(payload) }),
   verifySession: (userId: number) => requestWithUser<{ ok: boolean; user: any }>(userId, "/api/auth/verify"),
   heartbeat: (userId: number) => requestWithUser<{ ok: boolean; status: string }>(userId, "/api/auth/heartbeat", { method: "POST" }),
@@ -1290,4 +1290,5 @@ export interface MechanicServicesResponse {
   };
   services: MechanicServiceJob[];
 }
+
 

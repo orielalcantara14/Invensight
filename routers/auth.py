@@ -942,7 +942,7 @@ def forgot_password_request(body: ForgotPasswordRequest):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT user_id, username FROM users WHERE LOWER(email) = LOWER(%s) AND is_active = TRUE", (body.email,))
+            cur.execute("SELECT user_id, username FROM users WHERE LOWER(email) = LOWER(%s) AND LOWER(username) = LOWER(%s) AND is_active = TRUE", (body.email, body.username))
             row = cur.fetchone()
             if not row:
                 # To prevent email enumeration, we return success even if email not found
@@ -1004,9 +1004,9 @@ def reset_password(body: ResetPasswordRequest):
                 """
                 SELECT user_id, mfa_code, mfa_expiry, password_hash,
                        (mfa_expiry < CURRENT_TIMESTAMP) AS is_expired
-                FROM users WHERE LOWER(email) = LOWER(%s)
+                FROM users WHERE LOWER(email) = LOWER(%s) AND LOWER(username) = LOWER(%s)
                 """,
-                (body.email,),
+                (body.email, body.username),
             )
             row = cur.fetchone()
             if not row or not row[1] or row[1] != body.otp:
@@ -1040,3 +1040,7 @@ def reset_password(body: ResetPasswordRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+
+
+

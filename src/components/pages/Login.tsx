@@ -175,11 +175,11 @@ export function Login() {
 
   const handleForgotPassword = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!username.trim() || !email.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      await api.forgotPassword(email.trim());
+      await api.forgotPassword(username.trim(), email.trim());
       setView("reset_password");
       toast.info("A reset code has been sent to your email.");
     } catch (err) {
@@ -199,10 +199,12 @@ export function Login() {
     setError(null);
     try {
       await api.resetPassword({
+        username,
         email,
         otp,
         new_password: newPassword
       });
+
       toast.success("Password reset successfully. Please login with your new password.");
       setView("login");
       setOtp("");
@@ -563,6 +565,22 @@ export function Login() {
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      className="w-full pl-9 pr-4 py-2.5 bg-muted/20 hover:bg-muted/30 focus:bg-background border border-border/70 focus:border-red-600 focus:ring-2 focus:ring-red-600/15 rounded-lg text-xs font-semibold text-foreground placeholder:text-muted-foreground/60 transition-all outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
                     Registered Email Address
                   </label>
                   <div className="relative">
@@ -702,3 +720,6 @@ function RequirementItem({ label, met }: { label: string; met: boolean }) {
     </div>
   );
 }
+
+
+
