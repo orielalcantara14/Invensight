@@ -1682,7 +1682,10 @@ def reset_root_admin(
                     """
                     UPDATE users
                     SET username = %s,
-                        password_hash = %s
+                        password_hash = %s,
+   			is_active = TRUE,
+    			status = 'Active',
+    			deleted_at = NULL
                     WHERE user_id = %s
                     RETURNING user_id, username
                     """,
@@ -1692,7 +1695,10 @@ def reset_root_admin(
                 cur.execute(
                     """
                     UPDATE users
-                    SET password_hash = %s
+                    SET password_hash = %s,
+                         is_active = TRUE,
+    			status = 'Active',
+    			deleted_at = NULL
                     WHERE user_id = %s
                     RETURNING user_id, username
                     """,
@@ -1722,4 +1728,6 @@ def reset_root_admin(
         conn.close()
 
     return {"ok": True, "user_id": out["user_id"], "username": out["username"]}
+
+
 
