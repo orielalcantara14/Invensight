@@ -1028,85 +1028,172 @@ def run_migrations():
 
             # 16. User Name Snapshotting & Historical Backfill
             try:
-                # Add columns to pos_shifts, sales, purchase_orders, mechanic_payouts
+                # Add snapshot columns only when their tables exist.
+                # This keeps production databases compatible even if
+                # optional tables such as pos_shifts are not present.
+
                 cur.execute("""
-                    ALTER TABLE pos_shifts ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(255);
-                    ALTER TABLE pos_shifts ADD COLUMN IF NOT EXISTS username VARCHAR(100);
-                    ALTER TABLE sales ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(255);
-                    ALTER TABLE sales ADD COLUMN IF NOT EXISTS cashier_username VARCHAR(100);
-                    ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS created_by_name VARCHAR(255);
-                    ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS voided_by_name VARCHAR(255);
-                    ALTER TABLE mechanic_payouts ADD COLUMN IF NOT EXISTS processed_by_name VARCHAR(255);
+                    DO $$
+                    BEGIN
+                        -- POS shifts
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'pos_shifts'
+                        ) THEN
+                            ALTER TABLE pos_shifts
+                                ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(255);
+                            ALTER TABLE pos_shifts
+                                ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+                        END IF;
+
+                        -- Sales
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'sales'
+                        ) THEN
+                            ALTER TABLE sales
+                                ADD COLUMN IF NOT EXISTS cashier_name VARCHAR(255);
+                            ALTER TABLE sales
+                                ADD COLUMN IF NOT EXISTS cashier_username VARCHAR(100);
+                        END IF;
+
+                        -- Purchase orders
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'purchase_orders'
+                        ) THEN
+                            ALTER TABLE purchase_orders
+                                ADD COLUMN IF NOT EXISTS created_by_name VARCHAR(255);
+                            ALTER TABLE purchase_orders
+                                ADD COLUMN IF NOT EXISTS voided_by_name VARCHAR(255);
+                        END IF;
+
+                        -- Mechanic payouts
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'mechanic_payouts'
+                        ) THEN
+                            ALTER TABLE mechanic_payouts
+                                ADD COLUMN IF NOT EXISTS processed_by_name VARCHAR(255);
+                        END IF;
+                    END $$;
                 """)
 
-                # Backfill pos_shifts from users table
+                # Backfill POS shifts only if the table exists.
                 cur.execute("""
-                    UPDATE pos_shifts s
-                    SET cashier_name = COALESCE(u.full_name, u.username),
-                        username = u.username
-                    FROM users u
-                    WHERE s.user_id = u.user_id AND s.cashier_name IS NULL;
+                    DO $$
+                    BEGIN
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'pos_shifts'
+                        ) THEN
+
+                            UPDATE pos_shifts s
+                            SET cashier_name = COALESCE(u.full_name, u.username),
+                                username = u.username
+                            FROM users u
+                            WHERE s.user_id = u.user_id
+                              AND s.cashier_name IS NULL;
+
+                            UPDATE pos_shifts s
+                            SET cashier_name = SUBSTRING(
+                                    a.details FROM 'User\\s+([^\\s(:]+)'
+                                ),
+                                username = SUBSTRING(
+                                    a.details FROM 'User\\s+([^\\s(:]+)'
+                                )
+                            FROM auditlog a
+                            WHERE a.entity_type = 'pos_shift'
+                              AND a.entity_id = s.shift_id
+                              AND s.cashier_name IS NULL
+                              AND a.details ~ 'User\\s+[^\\s(:]+';
+
+                            UPDATE pos_shifts
+                            SET cashier_name = 'Sohitado, John Reimarc A.'
+                            WHERE username = 'reimarc'
+                              AND (
+                                  cashier_name = 'reimarc'
+                                  OR cashier_name IS NULL
+                              );
+
+                        END IF;
+                    END $$;
                 """)
 
-                # Backfill pos_shifts from auditlog for shifts with deleted users
-                cur.execute("""
-                    UPDATE pos_shifts s
-                    SET cashier_name = SUBSTRING(a.details FROM 'User\\s+([^\\s(:]+)'),
-                        username = SUBSTRING(a.details FROM 'User\\s+([^\\s(:]+)')
-                    FROM auditlog a
-                    WHERE a.entity_type = 'pos_shift' 
-                      AND a.entity_id = s.shift_id 
-                      AND s.cashier_name IS NULL
-                      AND a.details ~ 'User\\s+[^\\s(:]+';
-
-                    UPDATE pos_shifts
-                    SET cashier_name = 'Sohitado, John Reimarc A.'
-                    WHERE username = 'reimarc' AND (cashier_name = 'reimarc' OR cashier_name IS NULL);
-                """)
-
-                # Backfill sales from users table
+                # Backfill sales from users and audit logs.
                 cur.execute("""
                     UPDATE sales s
                     SET cashier_name = COALESCE(u.full_name, u.username),
                         cashier_username = u.username
                     FROM users u
-                    WHERE s.user_id = u.user_id AND s.cashier_name IS NULL;
+                    WHERE s.user_id = u.user_id
+                      AND s.cashier_name IS NULL;
                 """)
 
-                # Backfill sales from auditlog for deleted users
                 cur.execute("""
                     UPDATE sales s
-                    SET cashier_name = SUBSTRING(a.details FROM 'User\\s+([^\\s(:]+)'),
-                        cashier_username = SUBSTRING(a.details FROM 'User\\s+([^\\s(:]+)')
+                    SET cashier_name = SUBSTRING(
+                            a.details FROM 'User\\s+([^\\s(:]+)'
+                        ),
+                        cashier_username = SUBSTRING(
+                            a.details FROM 'User\\s+([^\\s(:]+)'
+                        )
                     FROM auditlog a
-                    WHERE a.entity_type = 'sales' 
-                      AND a.entity_id = s.invoice_id 
+                    WHERE a.entity_type = 'sales'
+                      AND a.entity_id = s.invoice_id
                       AND s.cashier_name IS NULL
                       AND a.details ~ 'User\\s+[^\\s(:]+';
 
                     UPDATE sales
                     SET cashier_name = 'Sohitado, John Reimarc A.'
-                    WHERE cashier_username = 'reimarc' AND (cashier_name = 'reimarc' OR cashier_name IS NULL);
+                    WHERE cashier_username = 'reimarc'
+                      AND (
+                          cashier_name = 'reimarc'
+                          OR cashier_name IS NULL
+                      );
                 """)
 
-                # Backfill purchase_orders from users table
+                # Backfill purchase orders only if the table exists.
                 cur.execute("""
-                    UPDATE purchase_orders po
-                    SET created_by_name = COALESCE(u.full_name, u.username)
-                    FROM users u
-                    WHERE po.user_id = u.user_id AND po.created_by_name IS NULL;
+                    DO $$
+                    BEGIN
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = 'public'
+                              AND table_name = 'purchase_orders'
+                        ) THEN
 
-                    UPDATE purchase_orders po
-                    SET voided_by_name = COALESCE(uv.full_name, uv.username)
-                    FROM users uv
-                    WHERE po.voided_by_user_id = uv.user_id AND po.voided_by_name IS NULL;
+                            UPDATE purchase_orders po
+                            SET created_by_name = COALESCE(u.full_name, u.username)
+                            FROM users u
+                            WHERE po.user_id = u.user_id
+                              AND po.created_by_name IS NULL;
+
+                            UPDATE purchase_orders po
+                            SET voided_by_name = COALESCE(uv.full_name, uv.username)
+                            FROM users uv
+                            WHERE po.voided_by_user_id = uv.user_id
+                              AND po.voided_by_name IS NULL;
+
+                        END IF;
+                    END $$;
                 """)
+
+                log.info("User name snapshot migration completed successfully.")
+
             except Exception as e:
                 log.error("Error migrating name snapshots: %s", e)
-
-        log.info("Schema migrations completed successfully.")
-    except Exception as e:
-        log.error("Migration error: %s", e)
     finally:
         conn.close()
 
