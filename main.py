@@ -609,6 +609,56 @@ def init_database_schema():
                         WHERE username = %s
                     """, (username,))
                     log.info("Verified existing root admin account: %s", username)
+            # 5. Ensure Product Categories Exist
+            # Keep category_id = 1 as Services because existing
+            # service products already reference this category.
+            category_seed = [
+                (1, "Services"),
+                (2, "Engine Parts"),
+                (3, "Fuel & Air System"),
+                (4, "Electrical & Ignition"),
+                (5, "Battery & Charging"),
+                (6, "Brake System"),
+                (7, "Transmission & CVT"),
+                (8, "Suspension & Steering"),
+                (9, "Tires & Inner Tubes"),
+                (10, "Lubricants & Fluids"),
+                (11, "Cooling System"),
+                (12, "Body & Exterior Parts"),
+                (13, "Lights & Accessories"),
+                (14, "Motorcycle Accessories"),
+                (15, "Maintenance Supplies"),
+                (16, "Fasteners & Small Parts"),
+                (17, "Performance & Upgrade Parts"),
+                (18, "Safety & Riding Gear"),
+                (19, "Other Parts & Accessories"),
+            ]
+
+            for category_id, category_name in category_seed:
+                cur.execute(
+                    """
+                    INSERT INTO categories (category_id, category_name, is_active)
+                    VALUES (%s, %s, TRUE)
+                    ON CONFLICT (category_id)
+                    DO UPDATE SET
+                        category_name = EXCLUDED.category_name,
+                        is_active = TRUE
+                    """,
+                    (category_id, category_name),
+                )
+
+            # Keep the SERIAL sequence synchronized with the highest category ID
+            cur.execute(
+                """
+                SELECT setval(
+                    pg_get_serial_sequence('categories', 'category_id'),
+                    COALESCE((SELECT MAX(category_id) FROM categories), 1),
+                    true
+                )
+                """
+            )
+
+            log.info("Product categories verified successfully.")		
 
             # 5. Seed Demo Data (If empty)
             cur.execute("SELECT COUNT(*) FROM products")
@@ -620,13 +670,6 @@ def init_database_schema():
                     INSERT INTO supplier (supplier_id, supplier_name, status)
                     VALUES (1, 'Main Supplier Corp', 'Active')
                     ON CONFLICT (supplier_id) DO NOTHING
-                """)
-                
-                # Categories
-                cur.execute("""
-                    INSERT INTO categories (category_id, category_name)
-                    VALUES (1, 'Engine Parts'), (2, 'Accessories')
-                    ON CONFLICT (category_id) DO NOTHING
                 """)
                 
                 # Products

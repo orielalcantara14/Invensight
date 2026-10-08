@@ -1,22 +1,172 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { BaseModal } from "./BaseModal";
 import { api, type Category, type Supplier } from "@/services/api";
 import { toast } from "sonner";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SPECIFIC_CATEGORIES = [
-  "Engine Oil", "Gear Oil", "Fork Oil", "Penetrant", "Grease", "Gasket Maker",
-  "Cleaner", "Brake Fluid", "Coolant", "Additive", "Bearing", "Fuel Filter",
-  "Oil Filter", "Light Bulb", "Switch", "Relay", "Fuse", "Consumables",
-  "Horn", "Socket", "Regulator", "CDI", "LED Bulb", "Battery", "Ignition",
-  "Spark Plug", "Tire Sealant", "Tire", "Valve Stem", "Tire Care", "Tire (Used)",
-  "Inner Tube", "Drive Belt", "Flyball", "Oil Seal", "Gasket", "Slider Piece",
-  "Clutch Shoe", "Air Filter", "Carburetor", "Fuel Pump", "Gear Box",
-  "Clutch Lining", "Clutch Spring", "Pulley Set", "Sprockets", "Chain",
-  "Brake Pad", "Cable", "Repair Kit", "Mirror Acc.", "Brake Shoe", "Ballrace",
-  "Hose", "Hardware", "Accessory", "O-Ring", "Chemicals"
-].sort();
+const SPECIFIC_CATEGORIES_BY_CATEGORY: Record<string, string[]> = {
+    "Engine Parts": [
+        "Gasket",
+        "Piston",
+        "Piston Ring",
+        "Cylinder",
+        "Valve",
+        "Camshaft",
+        "Engine Bearing",
+    ],
+
+    "Fuel & Air System": [
+        "Carburetor",
+        "Fuel Filter",
+        "Fuel Hose",
+        "Air Filter",
+        "Injector",
+        "Intake Manifold",
+    ],
+
+    "Electrical & Ignition": [
+        "Spark Plug",
+        "Ignition Coil",
+        "CDI",
+        "Rectifier/Regulator",
+        "Wiring",
+        "Relay",
+    ],
+
+    "Battery & Charging": [
+        "Battery",
+        "Battery Terminal",
+        "Battery Charger",
+        "Charging Components",
+    ],
+
+    "Brake System": [
+        "Brake Pad",
+        "Brake Shoe",
+        "Brake Disc",
+        "Brake Lever",
+        "Brake Cable",
+        "Master Cylinder",
+    ],
+
+    "Transmission & CVT": [
+        "CVT Belt",
+        "Roller",
+        "Clutch",
+        "Clutch Lining",
+        "Variator",
+        "Drive Gear",
+        "Chain & Sprocket",
+    ],
+
+    "Suspension & Steering": [
+        "Front Fork",
+        "Rear Shock",
+        "Fork Seal",
+        "Steering Bearing",
+        "Ball Race",
+        "Handlebar",
+    ],
+
+    "Tires & Inner Tubes": [
+        "Motorcycle Tire",
+        "Inner Tube",
+        "Tubeless Valve/Pito",
+        "Tire Accessories",
+    ],
+
+    "Lubricants & Fluids": [
+        "Engine Oil",
+        "Gear Oil",
+        "Brake Fluid",
+        "Coolant",
+        "Chain Lubricant",
+    ],
+
+    "Cooling System": [
+        "Radiator",
+        "Radiator Hose",
+        "Radiator Cap",
+        "Cooling Fan",
+        "Coolant Components",
+    ],
+
+    "Body & Exterior Parts": [
+        "Fairings",
+        "Side Covers",
+        "Mudguard",
+        "Fender",
+        "Footrest",
+        "Grab Bar",
+    ],
+
+    "Lights & Accessories": [
+        "Headlight",
+        "Tail Light",
+        "Signal Light",
+        "Bulb",
+        "LED Light",
+        "Auxiliary Light",
+    ],
+
+    "Motorcycle Accessories": [
+        "Phone Holder",
+        "Top Box",
+        "Saddle Bag",
+        "Mirrors",
+        "Grips",
+        "Horns",
+    ],
+
+    "Maintenance Supplies": [
+        "Cleaning Products",
+        "Degreaser",
+        "Chain Cleaner",
+        "Tire Sealant",
+        "Maintenance Tools",
+    ],
+
+    "Fasteners & Small Parts": [
+        "Bolts",
+        "Nuts",
+        "Washers",
+        "Screws",
+        "Clips",
+        "Clamps",
+        "O-Rings",
+    ],
+
+    "Performance & Upgrade Parts": [
+        "Performance Exhaust",
+        "Racing CDI",
+        "Upgraded Suspension",
+        "Performance Air Filter",
+    ],
+
+    "Safety & Riding Gear": [
+        "Helmet",
+        "Gloves",
+        "Raincoat",
+        "Knee/Elbow Protection",
+        "Reflective Gear",
+    ],
+
+    "Other Parts & Accessories": [
+        "Other Parts & Accessories",
+    ],
+
+    Services: [
+        "Change Oil",
+        "Tune-up",
+        "Tire Change",
+        "CVT Cleaning",
+        "Ball Race Replacement",
+        "Front Shock Repack",
+        "Brake Pad/Shoe Replacement",
+        "Others",
+    ],
+};
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -197,9 +347,17 @@ export function AddProductModal({
     }
   };
 
-  const filteredSpecificCategories = SPECIFIC_CATEGORIES.filter(cat => 
-    cat.toLowerCase().includes(formData.specific_category.toLowerCase())
-  );
+    const selectedCategory = categories.find(
+        (cat) => String(cat.category_id) === formData.category_id
+    );
+
+    const availableSpecificCategories = selectedCategory
+        ? SPECIFIC_CATEGORIES_BY_CATEGORY[selectedCategory.category_name] || []
+        : [];
+
+    const filteredSpecificCategories = availableSpecificCategories.filter((cat) =>
+        cat.toLowerCase().includes(formData.specific_category.toLowerCase())
+    );
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title={title} maxWidth="xl">
@@ -211,21 +369,31 @@ export function AddProductModal({
               Product Name *
             </label>
             <input
-              type="text"
-              value={formData.product_name}
-              onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter product name..."
-              required
-            />
+  		type="text"
+  		value={formData.product_name}
+  		onChange={(e) =>
+    		setFormData({
+      		...formData,
+      		product_name: e.target.value,
+    		})
+  		}
+  		className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+ 		 placeholder="Enter product name..."
+  		required
+	/>
           </div>
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-muted-foreground mb-1">
               Unit Measurement
             </label>
             <select
-              value={formData.unit_of_measurement}
-              onChange={(e) => setFormData({ ...formData, unit_of_measurement: e.target.value })}
+  		value={formData.unit_of_measurement}
+  		onChange={(e) =>
+    			setFormData({
+     			 ...formData,
+      			unit_of_measurement: e.target.value,
+    		})
+  		}
               className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">— Select Unit —</option>
@@ -245,8 +413,14 @@ export function AddProductModal({
               Category
             </label>
             <select
-              value={formData.category_id}
-              onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+  		value={formData.category_id}
+  		onChange={(e) =>
+    			setFormData({
+     			 ...formData,
+      			category_id: e.target.value,
+      			specific_category: "",
+    		})
+  		}
               className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isLoadingCategories}
             >
@@ -263,20 +437,36 @@ export function AddProductModal({
               Specific Category
             </label>
             <div className="relative">
-              <input
-                type="text"
-                className="w-full pl-3 pr-10 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Search specific category..."
-                value={formData.specific_category}
-                onFocus={() => setIsDropdownOpen(true)}
-                onChange={(e) => {
-                  setFormData({ ...formData, specific_category: e.target.value });
-                  setIsDropdownOpen(true);
-                }}
+                          <input
+                              type="text"
+                              className="w-full pl-3 pr-10 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-muted disabled:cursor-not-allowed"
+                              placeholder={
+                                  formData.category_id
+                                      ? "Search specific category..."
+                                      : "Select a category first..."
+                              }
+                              value={formData.specific_category}
+                              disabled={!formData.category_id}
+                              onFocus={() => {
+                                  if (formData.category_id) {
+                                      setIsDropdownOpen(true);
+                                  }
+                              }}
+                              onChange={(e) => {
+                                  setFormData({
+                                      ...formData,
+                                      specific_category: e.target.value,
+                                  });
+                                  setIsDropdownOpen(true);
+                              }}
               />
               <div 
                 className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                              onClick={() => {
+                                  if (formData.category_id) {
+                                      setIsDropdownOpen(!isDropdownOpen);
+                                  }
+                              }}
               >
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground/70 transition-transform", isDropdownOpen && "rotate-180")} />
               </div>
@@ -429,3 +619,4 @@ export function AddProductModal({
     </BaseModal>
   );
 }
+
