@@ -12,6 +12,14 @@ interface ReceiveOrderModalProps {
   initialNotReceivedMode?: boolean;
 }
 
+const getLocalDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const COMMON_REASONS = [
   "Supplier out of stock",
   "Order cancelled by supplier",
@@ -28,6 +36,11 @@ export function ReceiveOrderModal({
   initialNotReceivedMode = false,
 }: ReceiveOrderModalProps) {
   const [receiptNumber, setReceiptNumber] = useState("");
+  const [idempotencyKey, setIdempotencyKey] = useState(
+  () => crypto.randomUUID()
+);
+  const [actualReceivedDate, setActualReceivedDate] = useState(getLocalDate());
+  const [actualUnitCosts, setActualUnitCosts] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState(order?.notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -40,6 +53,9 @@ export function ReceiveOrderModal({
   useEffect(() => {
     if (isOpen && order) {
       setReceiptNumber("");
+      setIdempotencyKey(crypto.randomUUID());
+      setActualReceivedDate(getLocalDate());
+      setActualUnitCosts({});
       setNotes(order.notes || "");
       setIsSuccess(false);
       setIsNotReceivedSuccess(false);
@@ -51,8 +67,9 @@ export function ReceiveOrderModal({
       const initialDamages: Record<number, number> = {};
 
       (order.items || []).forEach((item) => {
-        initialReceived[item.product_id] = item.quantity;
-        initialDamages[item.product_id] = 0;
+        const previouslyReceived = item.received_quantity || 0;
+        initialReceived[item.item_id] = Math.max(0, item.quantity - previouslyReceived);
+        initialDamages[item.item_id] = 0;
       });
 
       setReceivedQtys(initialReceived);
@@ -62,20 +79,32 @@ export function ReceiveOrderModal({
 
   if (!isOpen || !order) return null;
 
-  const handleReceivedQtyChange = (productId: number, val: string) => {
-    const num = parseInt(val) || 0;
-    if (num < 0) return;
-    setReceivedQtys((prev) => ({ ...prev, [productId]: num }));
-  };
-
-  const handleDamageChange = (productId: number, val: string, maxBaseUnits: number) => {
-    const num = parseInt(val) || 0;
-    if (num < 0) return;
-    if (num > maxBaseUnits) {
-      toast.error(`Damage count cannot exceed total stock units (${maxBaseUnits})`);
+  const handleReceivedQtyChange = (itemId: number, val: string, maxQuantity: number) => {
+    const num = val === "" ? 0 : Number.parseInt(val, 10);
+    if (!Number.isFinite(num) || num < 0) return;
+    if (num > maxQuantity) {
+      toast.error(`Quantity cannot exceed the remaining ${maxQuantity} units`);
       return;
     }
-    setItemDamages((prev) => ({ ...prev, [productId]: num }));
+    setReceivedQtys((prev) => ({ ...prev, [itemId]: num }));
+
+    // Revalidate the damage entry when the delivery quantity changes.
+    setItemDamages((prev) => {
+      const rateItem = (order?.items || []).find((item) => item.item_id === itemId);
+      if (!rateItem) return prev;
+      const maxDamage = num * getItemConversionRate(rateItem);
+      return { ...prev, [itemId]: Math.min(prev[itemId] || 0, maxDamage) };
+    });
+  };
+
+  const handleDamageChange = (itemId: number, val: string, maxBaseUnits: number) => {
+    const num = val === "" ? 0 : Number.parseInt(val, 10);
+    if (!Number.isFinite(num) || num < 0) return;
+    if (num > maxBaseUnits) {
+      toast.error(`Damage count cannot exceed the delivered stock units (${maxBaseUnits})`);
+      return;
+    }
+    setItemDamages((prev) => ({ ...prev, [itemId]: num }));
   };
 
   const getItemConversionRate = (item: PurchaseOrderItem) => {
@@ -90,36 +119,105 @@ export function ReceiveOrderModal({
   };
 
   const totalInventoryToAdd = (order.items || []).reduce((sum, item) => {
-    const recv = receivedQtys[item.product_id] !== undefined ? receivedQtys[item.product_id] : item.quantity;
+    const remaining = Math.max(0, item.quantity - (item.received_quantity || 0));
+    const recv = receivedQtys[item.item_id] !== undefined ? receivedQtys[item.item_id] : remaining;
     const rate = getItemConversionRate(item);
-    const dmg = itemDamages[item.product_id] || 0;
+    const dmg = itemDamages[item.item_id] || 0;
     const net = Math.max(0, (recv * rate) - dmg);
     return sum + net;
   }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!receiptNumber.trim()) {
       toast.error("Receipt number is required");
       return;
     }
 
+    if (!actualReceivedDate) {
+      toast.error("Please enter the actual delivery date.");
+      return;
+    }
+
+    if (actualReceivedDate > getLocalDate()) {
+      toast.error("Actual delivery date cannot be in the future.");
+      return;
+    }
+
+    const hasMissingCost = (order.items || []).some((item) => {
+      const received =
+        receivedQtys[item.item_id] !== undefined
+          ? receivedQtys[item.item_id]
+          : Math.max(
+              0,
+              item.quantity - (item.received_quantity || 0)
+            );
+
+      if (received <= 0) return false;
+
+      const cost = actualUnitCosts[item.item_id];
+
+      return (
+        cost === undefined ||
+        cost.trim() === "" ||
+        !Number.isFinite(Number(cost)) ||
+        Number(cost) < 0
+      );
+    });
+
+    if (hasMissingCost) {
+      toast.error(
+        "Enter a valid actual purchase cost for every item being received."
+      );
+      return;
+    }
+
     setIsSubmitting(true);
+
     try {
       const payload: MarkOrderReceivedPayload = {
+        idempotency_key: idempotencyKey,
         receipt_number: receiptNumber.trim(),
+        actual_received_date: actualReceivedDate,
         notes: notes.trim() || undefined,
-        items: (order.items || []).map((item) => ({
-          product_id: item.product_id,
-          received_quantity: receivedQtys[item.product_id] !== undefined ? receivedQtys[item.product_id] : item.quantity,
-          damage_count: itemDamages[item.product_id] || 0,
-          damage_unit: item.unit_of_measurement || "PCS",
-        })),
+        items: (order.items || []).map((item) => {
+          const remaining = Math.max(
+            0,
+            item.quantity - (item.received_quantity || 0)
+          );
+
+          const received =
+            receivedQtys[item.item_id] !== undefined
+              ? receivedQtys[item.item_id]
+              : remaining;
+
+          return {
+            item_id: item.item_id,
+            product_id: item.product_id,
+            received_quantity: received,
+            damage_count: itemDamages[item.item_id] || 0,
+            damage_unit: "PCS",
+            actual_unit_cost:
+              received > 0
+                ? Number(actualUnitCosts[item.item_id])
+                : 0,
+          };
+        }),
       };
 
-      await api.markOrderAsReceived(order.order_id, payload);
+      const result = await api.markOrderAsReceived(
+        order.order_id,
+        payload
+      );
+
       setIsSuccess(true);
-      toast.success("Order marked as received and stock updated");
+      toast.success(
+        result.status === "Received"
+          ? "Purchase order fully received; stock updated"
+          : "Delivery recorded; remaining quantities updated"
+      );
+
       setTimeout(() => {
         onSuccess();
         onClose();
@@ -129,6 +227,7 @@ export function ReceiveOrderModal({
       setIsSubmitting(false);
     }
   };
+
 
   const handleNotReceivedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,7 +400,6 @@ export function ReceiveOrderModal({
                   </div>
                 </div>
               </div>
-
               {/* Receipt Number Input */}
               <div>
                 <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-2.5">
@@ -317,6 +415,28 @@ export function ReceiveOrderModal({
                 />
               </div>
 
+              {/* Actual Delivery Date */}
+              <div className="mt-4">
+                <label
+                  htmlFor="actual-received-date"
+                  className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-2.5"
+                >
+                  Actual Delivery Date *
+                </label>
+                <input
+                  id="actual-received-date"
+                  type="date"
+                  value={actualReceivedDate}
+                  max={getLocalDate()}
+                  onChange={(e) => setActualReceivedDate(e.target.value)}
+                  required
+                  className="w-full bg-card border border-border p-4 rounded-2xl font-bold text-foreground text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Enter the date the supplier actually delivered the items, not today's recording date.
+                </p>
+              </div>
+
               {/* Order Items Cards */}
               <div className="space-y-3">
                 <label className="block text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em]">
@@ -326,14 +446,18 @@ export function ReceiveOrderModal({
                 <div className="space-y-3">
                   {(order.items || []).map((item) => {
                     const rate = getItemConversionRate(item);
-                    const currentRecv = receivedQtys[item.product_id] !== undefined ? receivedQtys[item.product_id] : item.quantity;
+                    const previouslyReceived = item.received_quantity || 0;
+                    const remaining = Math.max(0, item.quantity - previouslyReceived);
+                    const currentRecv = receivedQtys[item.item_id] !== undefined
+                      ? receivedQtys[item.item_id]
+                      : remaining;
                     const maxBaseUnits = currentRecv * rate;
-                    const unitLabel = item.purchase_unit || "BOX";
+                    const unitLabel = item.purchase_unit || "PCS";
                     const packSizeLabel = item.conversion || `${rate} PCS / ${unitLabel}`;
 
                     return (
                       <div
-                        key={item.product_id}
+                        key={item.item_id}
                         className="bg-muted/40 border border-border/60 p-4 rounded-3xl space-y-3"
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -346,8 +470,50 @@ export function ReceiveOrderModal({
                             </p>
                           </div>
                           <span className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs rounded-xl shrink-0">
-                            {item.quantity} {unitLabel}
+                            Ordered: {item.quantity} {unitLabel}
                           </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold text-muted-foreground">
+                          <div className="rounded-xl bg-card/70 border border-border/50 p-2">
+                            <span className="block uppercase tracking-wide">Received before</span>
+                            <span className="text-sm font-black text-foreground">{previouslyReceived}</span>
+                          </div>
+                          <div className="rounded-xl bg-card/70 border border-border/50 p-2">
+                            <span className="block uppercase tracking-wide">Remaining</span>
+                            <span className="text-sm font-black text-foreground">{remaining}</span>
+                          </div>
+                        <div className="mt-3">
+                         <label
+                            htmlFor={`actual-cost-${item.item_id}`}
+                            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Actual Cost per {item.purchase_unit || "PCS"} (₱)
+                          </label>
+                          <input
+                            id={`actual-cost-${item.item_id}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={actualUnitCosts[item.item_id] ?? ""}
+                            onChange={(e) =>
+                              setActualUnitCosts((prev) => ({
+                               ...prev,
+                               [item.item_id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter actual purchase cost"
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Enter the cost for one purchase unit, not one individual piece.
+                          </p>
+                        </div>
+
+                          <div className="rounded-xl bg-card/70 border border-border/50 p-2">
+                            <span className="block uppercase tracking-wide">This delivery</span>
+                            <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{currentRecv}</span>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/40">
@@ -358,8 +524,9 @@ export function ReceiveOrderModal({
                             <input
                               type="number"
                               min="0"
+                              max={remaining}
                               value={currentRecv}
-                              onChange={(e) => handleReceivedQtyChange(item.product_id, e.target.value)}
+                              onChange={(e) => handleReceivedQtyChange(item.item_id, e.target.value, remaining)}
                               className="w-full bg-card border border-border py-2.5 px-3 rounded-2xl font-black text-foreground font-mono text-center text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             />
                           </div>
@@ -371,8 +538,8 @@ export function ReceiveOrderModal({
                               type="number"
                               min="0"
                               max={maxBaseUnits}
-                              value={itemDamages[item.product_id] || 0}
-                              onChange={(e) => handleDamageChange(item.product_id, e.target.value, maxBaseUnits)}
+                              value={itemDamages[item.item_id] || 0}
+                              onChange={(e) => handleDamageChange(item.item_id, e.target.value, maxBaseUnits)}
                               className="w-full bg-card border border-border py-2.5 px-3 rounded-2xl font-black text-red-500 font-mono text-center text-sm focus:ring-2 focus:ring-red-500 outline-none"
                             />
                           </div>
@@ -428,6 +595,7 @@ export function ReceiveOrderModal({
                 <button
                   type="button"
                   onClick={() => setIsNotReceivedMode(true)}
+                  disabled={isSubmitting || (order.items || []).some((item) => (item.received_quantity || 0) > 0)}
                   className="px-5 py-3.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider border border-rose-500/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                   title="Mark this delivery as not received"
                 >

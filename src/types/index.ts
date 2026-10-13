@@ -155,7 +155,14 @@ export interface GeneratedReport {
 
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
-export type POStatus = 'Pending' | 'Received' | 'Not Received' | 'Cancelled' | 'Archived' | 'Voided';
+export type POStatus =
+  | 'Pending'
+  | 'Partially Received'
+  | 'Received'
+  | 'Not Received'
+  | 'Cancelled'
+  | 'Archived'
+  | 'Voided';
 
 export interface PurchaseOrderItem {
   item_id: number;

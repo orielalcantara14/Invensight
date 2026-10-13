@@ -507,6 +507,7 @@ export function Reports() {
                     >
                       <option value="">All Statuses</option>
                       <option value="Received">Received (PO)</option>
+                      <option value="Partially Received">Partially Received (PO)</option>
                       <option value="Pending">Pending (PO)</option>
                       <option value="Not Received">Not Received (PO)</option>
                       <option value="Refund">(RMA) Refund</option>

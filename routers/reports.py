@@ -664,7 +664,7 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
                 }
 
             elif payload.report_type == "orders_returns":
-                po_status = payload.status if payload.status in ("Received", "Pending", "Not Received", "Voided") else None
+                po_status = payload.status if payload.status in ("Received", "Partially Received", "Pending", "Not Received", "Voided") else None
                 rma_type = payload.status if payload.status in ("Refund", "Exchange") else None
 
                 po_status_cond = "AND po.status = %s" if po_status else ("AND 1 = 0" if payload.status and not po_status else "")
@@ -721,6 +721,7 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
                 total_po = len(po_list)
                 pending_po = sum(1 for po in po_list if po["status"] == "Pending")
                 received_po = sum(1 for po in po_list if po["status"] == "Received")
+                partially_received_po = sum(1 for po in po_list if po["status"] == "Partially Received")
                 not_received_po = sum(1 for po in po_list if po["status"] == "Not Received")
                 total_po_val = sum(float(po.get("total_amount") or 0) for po in po_list if po["status"] not in ("Cancelled", "Voided", "Not Received"))
 
@@ -728,6 +729,7 @@ def generate_report(payload: GenerateReportPayload, x_actor_user_id: str | None 
                     "total_purchase_orders": total_po,
                     "pending_orders": pending_po,
                     "received_orders": received_po,
+                    "partially_received_orders": partially_received_po,
                     "not_received_orders": not_received_po,
                     "total_returns": len(customer_returns),
                     "refund_requests": sum(1 for r in customer_returns if r["return_type"] == "Refund"),

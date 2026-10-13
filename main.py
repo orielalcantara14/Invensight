@@ -844,7 +844,104 @@ def run_migrations():
 
             # 7. Inventory & PO Reconciliation Schema Updates
             cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS reference_po_id VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replaced_by_po_id VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replacement_reason TEXT")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replacement_type VARCHAR(50)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS voided_by_user_id INTEGER")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS voided_at TIMESTAMP")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS void_reason TEXT")
             cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS damage_count INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS received_quantity INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS received_at TIMESTAMP")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS reference_po_id VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replaced_by_po_id VARCHAR(100)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replacement_reason TEXT")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS replacement_type VARCHAR(50)")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS voided_by_user_id INTEGER")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS voided_at TIMESTAMP")
+            cur.execute("ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS void_reason TEXT")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS damage_count INTEGER 	    DEFAULT 0")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS received_quantity INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS received_at TIMESTAMP")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS purchase_unit VARCHAR(50) DEFAULT 'PCS'")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS conversion VARCHAR(50) DEFAULT '1 PCS / UNIT'")
+            cur.execute("ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS conversion_rate INTEGER DEFAULT 1")
+
+            # Stock receiving history: one header per recorded delivery.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS stock_receipts (
+                    receipt_id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(50) NOT NULL
+                        REFERENCES purchase_orders(order_id) ON DELETE RESTRICT,
+                    supplier_id INTEGER NOT NULL
+                        REFERENCES supplier(supplier_id),
+                    receipt_number VARCHAR(100) NOT NULL,
+                    actual_received_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                    notes TEXT,
+                    received_by INTEGER REFERENCES users(user_id),
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Prevent a delivery submission from being recorded twice.
+            cur.execute("""
+                ALTER TABLE stock_receipts
+                ADD COLUMN IF NOT EXISTS idempotency_key UUID
+            """)
+            cur.execute("""
+                ALTER TABLE stock_receipts
+                ADD COLUMN IF NOT EXISTS result_status VARCHAR(30)
+            """)
+
+            cur.execute("""
+                ALTER TABLE stock_receipts
+                ADD COLUMN IF NOT EXISTS result_completed BOOLEAN
+            """)
+
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_stock_receipts_idempotency_key
+                ON stock_receipts(idempotency_key)
+                WHERE idempotency_key IS NOT NULL
+            """)
+
+            # Per-product details and actual cost for each delivery.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS stock_receipt_items (
+                    receipt_item_id SERIAL PRIMARY KEY,
+                    receipt_id INTEGER NOT NULL
+                        REFERENCES stock_receipts(receipt_id) ON DELETE RESTRICT,
+                    purchase_order_item_id INTEGER
+                        REFERENCES purchase_order_items(item_id) ON DELETE RESTRICT,
+                    product_id INTEGER NOT NULL
+                        REFERENCES products(product_id),
+                    quantity_received INTEGER NOT NULL CHECK (quantity_received >= 0),
+                    damaged_quantity INTEGER NOT NULL DEFAULT 0
+                        CHECK (damaged_quantity >= 0),
+                    purchase_unit VARCHAR(50) NOT NULL DEFAULT 'PCS',
+                    conversion_rate INTEGER NOT NULL DEFAULT 1
+                        CHECK (conversion_rate > 0),
+                    actual_unit_cost DECIMAL(12, 2) NOT NULL
+                        CHECK (actual_unit_cost >= 0),
+                    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_stock_receipts_order
+                ON stock_receipts(order_id)
+            """)
+
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_stock_receipts_supplier_date
+                ON stock_receipts(supplier_id, actual_received_date)
+            """)
+
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_stock_receipt_items_product
+                ON stock_receipt_items(product_id)
+            """)
+
             cur.execute("""
                 INSERT INTO system_settings (setting_key, setting_value, description)
                 VALUES ('last_expected_reset', '', 'Last date the inventory expected count was reset')

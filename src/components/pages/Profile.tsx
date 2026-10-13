@@ -171,6 +171,14 @@ export function Profile() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
 
+  const [totpSetupOpen, setTotpSetupOpen] = useState(false);
+  const [totpSecret, setTotpSecret] = useState("");
+  const [totpQrCode, setTotpQrCode] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpSaving, setTotpSaving] = useState(false);
+  const [totpError, setTotpError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (userId == null) return;
     setLoadError(null);
@@ -198,6 +206,65 @@ export function Profile() {
     void load();
   }, [load]);
 
+  const handleSetupTOTP = async () => {
+    if (userId == null) return;
+
+    setTotpLoading(true);
+    setTotpError(null);
+
+    try {
+      const result = await api.setupTOTP(userId);
+      setTotpSecret(result.secret);
+      setTotpQrCode(result.qr_code);
+      setTotpCode("");
+      setTotpSetupOpen(true);
+    } catch (err: any) {
+      const message = err?.message || "Failed to start Authenticator setup.";
+      setTotpError(message);
+      toast.error(message);
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+  const handleEnableTOTP = async () => {
+    if (userId == null) return;
+
+    const code = totpCode.trim();
+
+    if (!/^\d{6}$/.test(code)) {
+      setTotpError("Enter the 6-digit code from your Authenticator app.");
+      return;
+    }
+
+    if (!totpSecret) {
+      setTotpError("Authenticator setup has expired. Please start setup again.");
+      return;
+    }
+
+    setTotpSaving(true);
+    setTotpError(null);
+
+    try {
+      await api.enableTOTP({
+        user_id: userId,
+        secret: totpSecret,
+        totp_code: code,
+      });
+
+      setProfile((current) =>
+        current ? { ...current, totp_enabled: true } : current
+      );
+      setTotpSetupOpen(false);
+      setTotpCode("");
+      toast.success("Authenticator app enabled successfully.");
+    } catch (err: any) {
+      const message = err?.message || "Invalid Authenticator code.";
+      setTotpError(message);
+      toast.error(message);
+    } finally {
+      setTotpSaving(false);
+    }
+  };
   const handleVerifyEmail = async (otp: string): Promise<boolean> => {
     try {
       const updated = await api.verifyEmail(userId!, otp);
@@ -631,6 +698,35 @@ export function Profile() {
                   Change password
                 </button>
               </div>
+            <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                  Authenticator App
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {profile.totp_enabled
+                    ? "Two-factor authentication is enabled for this account."
+                    : "Use an authenticator app to generate secure login codes."}
+                </p>
+              </div>
+              {profile.totp_enabled ? (
+                <span className="inline-flex w-fit items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Enabled
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTotpError(null);
+                    void handleSetupTOTP();
+                  }}
+                  disabled={totpLoading}
+                  className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-zinc-900 bg-zinc-100 hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 border border-border/50 rounded-lg transition-colors shadow-xs"
+                >
+                  {totpLoading ? "Setting up..." : "Set up Authenticator"}
+                </button>
+              )}
+            </div>
             </div>
           </section>
 
@@ -822,6 +918,98 @@ export function Profile() {
         </div>
       ) : null}
 
+      {totpSetupOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="totp-dialog-title"
+        >
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-card p-4 sm:p-6 border border-border/50 shadow-lg">
+            <h2
+              id="totp-dialog-title"
+              className="text-lg font-bold text-foreground uppercase tracking-tight"
+            >
+              Set up Authenticator
+            </h2>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Scan the QR code with Google Authenticator, Microsoft Authenticator, or another compatible authenticator app.
+            </p>
+
+            {totpQrCode ? (
+              <div className="mt-5 flex justify-center">
+                <div className="rounded-xl bg-white p-3 shadow-sm">
+                  <img
+                    src={totpQrCode}
+                    alt="Authenticator setup QR code"
+                    className="h-48 w-48"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-lg border border-border/50 bg-muted/20 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Manual setup key
+              </p>
+              <p className="mt-1 break-all font-mono text-xs font-semibold text-foreground">
+                {totpSecret}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Use this key if you cannot scan the QR code.
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase mb-1">
+                Authenticator code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={totpCode}
+                onChange={(e) =>
+                  setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="000000"
+                className="w-full rounded-lg border border-border/60 px-3 py-2.5 text-center text-lg font-bold tracking-[0.35em] outline-none focus:border-zinc-400 bg-muted/20 hover:bg-muted/40 text-foreground transition-all"
+              />
+            </div>
+
+            {totpError ? (
+              <p className="mt-3 text-xs font-semibold text-red-600 dark:text-red-400" role="alert">
+                {totpError}
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTotpSetupOpen(false);
+                  setTotpCode("");
+                  setTotpError(null);
+                }}
+                disabled={totpSaving}
+                className="rounded-lg border border-border/50 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleEnableTOTP()}
+                disabled={totpSaving || totpCode.length !== 6}
+                className="rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              >
+                {totpSaving ? "Enabling..." : "Enable Authenticator"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <EmailVerificationModal
         isOpen={verificationOpen}
         onClose={() => setVerificationOpen(false)}
@@ -832,3 +1020,8 @@ export function Profile() {
     </div>
   );
 }
+
+
+
+
+

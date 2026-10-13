@@ -325,14 +325,19 @@ export interface CreateProductReturnPayload {
   reason?: string;
 }
 
+
 export interface MarkOrderReceivedPayload {
+  idempotency_key: string;
   receipt_number: string;
+  actual_received_date: string;
   notes?: string;
   items: Array<{
+    item_id: number;
     product_id: number;
-    received_quantity?: number;
+    received_quantity: number;
     damage_count: number;
     damage_unit?: string;
+    actual_unit_cost: number;
   }>;
 }
 
@@ -711,7 +716,7 @@ export const api = {
     notes?: string;
   }) => request<any>("/api/purchase-orders/replacement", { method: "POST", body: JSON.stringify(payload) }),
   markOrderAsReceived: (orderId: string, payload: MarkOrderReceivedPayload) => 
-    request<{ ok: boolean }>(`/api/purchase-orders/${orderId}/receive`, { method: "PUT", body: JSON.stringify(payload) }),
+    request<{ ok: boolean; status: string; completed: boolean; receipt_number: string }>(`/api/purchase-orders/${orderId}/receive`, { method: "PUT", body: JSON.stringify(payload) }),
   markOrderAsNotReceived: (orderId: string, payload: { notes: string }) => 
     request<{ ok: boolean; message?: string }>(`/api/purchase-orders/${orderId}/not-received`, { method: "PUT", body: JSON.stringify(payload) }),
   deletePurchaseOrder: (orderId: string) => request<{ ok: boolean }>(`/api/purchase-orders/${orderId}`, { method: "DELETE" }),

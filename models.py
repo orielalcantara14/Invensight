@@ -575,6 +575,8 @@ class PurchaseOrderItemResponse(BaseModel):
     product_id: int
     product_name: Optional[str] = None
     quantity: int
+    received_quantity: int = 0
+    received_at: Optional[str] = None
     unit_price: Optional[float] = None
     damage_count: int = 0
     purchase_unit: Optional[str] = "PCS"
@@ -606,17 +608,23 @@ class PurchaseOrderResponse(BaseModel):
     items: Optional[List[PurchaseOrderItemResponse]] = None
 
 
+
 class MarkOrderReceivedItem(BaseModel):
+    item_id: Optional[int] = None
     product_id: int
     received_quantity: Optional[int] = None
     damage_count: int = 0
     damage_unit: Optional[str] = "PCS"
+    actual_unit_cost: float = Field(ge=0)
+
+
 
 class MarkOrderReceivedRequest(BaseModel):
+    idempotency_key: str
     receipt_number: str
+    actual_received_date: str
     notes: Optional[str] = None
     items: List[MarkOrderReceivedItem]
-
 
 class MarkOrderNotReceivedRequest(BaseModel):
     notes: str
@@ -932,4 +940,3 @@ class UpdateMechanicRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("Mechanic name is required")
         return sanitize_string(v)
-

@@ -509,6 +509,13 @@ export function Orders() {
             Pending
           </span>
         );
+      case "Partially Received":
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-600 dark:text-sky-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            Partially Received
+          </span>
+        );
       case "Received":
         return (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-500">
@@ -720,6 +727,7 @@ export function Orders() {
                 >
                   <option value="">All Statuses</option>
                   <option value="Pending">Pending</option>
+                  <option value="Partially Received">Partially Received</option>
                   <option value="Received">Received</option>
                   <option value="Not Received">Not Received</option>
                   <option value="Voided">Voided</option>

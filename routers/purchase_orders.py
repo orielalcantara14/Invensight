@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Header
 from database import get_connection
 from models import (
-    CreatePurchaseOrderRequest, 
+    CreatePurchaseOrderRequest,
     CreateReplacementPurchaseOrderRequest,
-    PurchaseOrderResponse, 
+    PurchaseOrderResponse,
     PurchaseOrderItemResponse,
     MarkOrderReceivedRequest,
     MarkOrderNotReceivedRequest
@@ -13,9 +13,12 @@ from utils.audit import add_audit_log
 from routers.notifications import dispatch_notification
 from datetime import date, datetime, timedelta
 from typing import Optional
+from uuid import UUID
 import random
 import string
 import logging
+import math
+
 
 logger = logging.getLogger("invensight.purchase_orders")
 
@@ -36,7 +39,7 @@ def get_upcoming_deliveries():
         tomorrow = date.today() + timedelta(days=1)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT 
+                SELECT
                     po.order_id,
                     po.supplier_id,
                     s.supplier_name,
@@ -65,9 +68,9 @@ def get_upcoming_deliveries():
 def _generate_order_id(cur):
     try:
         cur.execute("""
-            SELECT order_id FROM purchase_orders 
+            SELECT order_id FROM purchase_orders
             WHERE order_id ~ '^PO-[0-9]+$'
-            ORDER BY CAST(SUBSTRING(order_id FROM 4) AS INTEGER) DESC 
+            ORDER BY CAST(SUBSTRING(order_id FROM 4) AS INTEGER) DESC
             LIMIT 1
         """)
         row = cur.fetchone()
@@ -76,7 +79,7 @@ def _generate_order_id(cur):
             return f"PO-{num + 1:06d}"
     except Exception:
         pass
-    
+
     try:
         cur.execute("SELECT COUNT(*) AS total FROM purchase_orders")
         row = cur.fetchone()
@@ -93,7 +96,7 @@ def get_purchase_orders(start_date: Optional[str] = None, end_date: Optional[str
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             query = """
-                SELECT 
+                SELECT
                     po.order_id,
                     po.supplier_id,
                     s.supplier_name,
@@ -125,9 +128,9 @@ def get_purchase_orders(start_date: Optional[str] = None, end_date: Optional[str
             if end_date:
                 query += " AND po.created_at <= %s::timestamp + interval '1 day' - interval '1 second'"
                 params.append(end_date)
-                
+
             query += " ORDER BY po.created_at DESC"
-            
+
             cur.execute(query, tuple(params))
             rows = cur.fetchall()
 
@@ -160,7 +163,7 @@ def get_purchase_orders(start_date: Optional[str] = None, end_date: Optional[str
                     order["voided_at"] = order["voided_at"].isoformat()
                 if isinstance(order.get("expected_delivery"), date):
                     order["expected_delivery"] = order["expected_delivery"].isoformat()
-                
+
                 origin_id, lineage = trace_lineage(order["order_id"])
                 order["origin_po_id"] = origin_id
                 order["origin_chain_ids"] = lineage
@@ -179,7 +182,7 @@ def get_purchase_order(order_id: str):
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT 
+                SELECT
                     po.order_id,
                     po.supplier_id,
                     s.supplier_name,
@@ -280,11 +283,13 @@ def get_purchase_order(order_id: str):
             order["latest_po_id"] = chain_forwards[-1]["order_id"] if chain_forwards else None
 
             cur.execute("""
-                SELECT 
+                SELECT
                     poi.item_id,
                     poi.product_id,
                     p.product_name,
                     poi.quantity,
+                    COALESCE(poi.received_quantity, 0) AS received_quantity,
+                    poi.received_at,
                     poi.unit_price,
                     poi.damage_count,
                     COALESCE(poi.purchase_unit, 'PCS') as purchase_unit,
@@ -327,9 +332,9 @@ def create_purchase_order(
 
             for item in payload.items:
                 cur.execute("""
-                    SELECT 
-                        p.product_id, 
-                        p.product_name, 
+                    SELECT
+                        p.product_id,
+                        p.product_name,
                         p.status,
                         CAST(p.unit_price AS FLOAT) as unit_price,
                         COALESCE(i.reorder_level, 10) AS reorder_level
@@ -423,8 +428,11 @@ def create_replacement_purchase_order(
             orig_order = cur.fetchone()
             if not orig_order:
                 raise HTTPException(status_code=404, detail=f"Reference purchase order '{payload.reference_order_id}' not found")
-            if orig_order["status"] == "Received":
-                raise HTTPException(status_code=400, detail="Cannot replace an order that has already been received.")
+            if orig_order["status"] in ("Received", "Partially Received"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot replace an order that has been received or partially received."
+                )
             if orig_order["status"] == "Voided":
                 raise HTTPException(status_code=400, detail=f"Order '{payload.reference_order_id}' is already voided.")
 
@@ -563,63 +571,311 @@ def mark_order_as_received(
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Lock the PO so two deliveries cannot update it simultaneously.
             cur.execute("""
-                SELECT po.order_id, po.supplier_id, s.supplier_name, po.status 
+                SELECT po.order_id, po.supplier_id, s.supplier_name,
+                       po.status, po.notes
                 FROM purchase_orders po
                 JOIN supplier s ON po.supplier_id = s.supplier_id
                 WHERE po.order_id = %s
+                FOR UPDATE OF po
             """, (order_id,))
             order_row = cur.fetchone()
+
             if not order_row:
                 raise HTTPException(status_code=404, detail="Purchase order not found")
-            if order_row["status"] == "Received":
-                raise HTTPException(status_code=400, detail="Order is already received")
 
-            # Create lookups for damage counts and received quantities from payload
-            damage_lookup = {item.product_id: item.damage_count for item in payload.items}
-            received_lookup = {item.product_id: item.received_quantity for item in payload.items if item.received_quantity is not None}
-            damage_map = {} # Track damages for auto-return
+            status = order_row["status"]
 
+            # Validate the delivery request ID.
+            try:
+                idempotency_key = str(UUID(payload.idempotency_key))
+            except (ValueError, TypeError, AttributeError):
+                raise HTTPException(
+                    status_code=400,
+                    detail="A valid delivery request ID is required"
+                )
+
+            # Check whether this exact delivery request was already recorded.
             cur.execute("""
-                SELECT product_id, quantity, COALESCE(conversion_rate, 1) as conversion_rate, COALESCE(purchase_unit, 'PCS') as purchase_unit
-                FROM purchase_order_items WHERE order_id = %s
+                SELECT order_id, receipt_number,
+                       result_status, result_completed
+                FROM stock_receipts
+                WHERE idempotency_key = %s
+            """, (idempotency_key,))
+            existing_receipt = cur.fetchone()
+
+            if existing_receipt:
+                if existing_receipt["order_id"] != order_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This delivery request ID belongs to another purchase order"
+                    )
+
+                conn.commit()
+                return {
+                    "ok": True,
+                    "status": existing_receipt["result_status"] or status,
+                    "completed": (
+                        existing_receipt["result_completed"]
+                        if existing_receipt["result_completed"] is not None
+                        else status == "Received"
+                    ),
+                    "receipt_number": existing_receipt["receipt_number"]
+                }
+
+            if status not in ("Pending", "Partially Received"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot receive an order with status '{status}'"
+                )
+
+            if not payload.receipt_number or not payload.receipt_number.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Receipt number is required"
+                )
+
+            try:
+                actual_received_date = date.fromisoformat(
+                    payload.actual_received_date
+                )
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Actual received date must use YYYY-MM-DD format"
+                )
+
+            if actual_received_date > date.today():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Actual received date cannot be in the future"
+                )
+
+
+            # Every submitted line must identify one exact PO line.
+            submitted = {}
+            for entry in payload.items:
+                if entry.item_id is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Each received item must include item_id"
+                    )
+                if entry.item_id in submitted:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Duplicate item_id: {entry.item_id}"
+                    )
+                if entry.received_quantity is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Received quantity is required for item {entry.item_id}"
+                    )
+                if entry.received_quantity < 0 or entry.damage_count < 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Received and damaged quantities cannot be negative"
+                    )
+                submitted[entry.item_id] = entry
+
+            if not submitted:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Enter the quantities delivered in this shipment"
+                )
+
+            # Lock the lines and read their cumulative received quantities.
+            cur.execute("""
+                SELECT item_id, product_id, quantity,
+                       COALESCE(received_quantity, 0) AS received_quantity,
+                       COALESCE(damage_count, 0) AS damage_count,
+                       GREATEST(COALESCE(conversion_rate, 1), 1) AS conversion_rate,
+                       COALESCE(purchase_unit, 'PCS') AS purchase_unit
+                FROM purchase_order_items
+                WHERE order_id = %s
+                ORDER BY item_id
+                FOR UPDATE
             """, (order_id,))
-            items = cur.fetchall()
+            rows = cur.fetchall()
 
-            for item in items:
-                pid = item["product_id"]
-                ordered_qty = item["quantity"]
-                conv_rate = int(item["conversion_rate"] or 1)
-                recv_order_qty = received_lookup.get(pid, ordered_qty)
-                item_damage = damage_lookup.get(pid, 0)
+            if not rows:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This purchase order has no items"
+                )
 
-                # Good units in base inventory count (stock pieces)
-                net_qty = max(0, (recv_order_qty * conv_rate) - item_damage)
-                
-                # Update item record with damage count & received quantity
+            lines = {row["item_id"]: row for row in rows}
+            unknown_ids = set(submitted) - set(lines)
+            if unknown_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"These item IDs do not belong to this order: {sorted(unknown_ids)}"
+                )
+
+            # Validate the entire delivery before changing inventory.
+            delivery_total = 0
+            damage_map = {}
+
+            for item_id, entry in submitted.items():
+                line = lines[item_id]
+
+                if entry.product_id != line["product_id"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product does not match purchase-order line {item_id}"
+                    )
+
+                remaining = line["quantity"] - line["received_quantity"]
+                if remaining < 0:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Previously received quantity exceeds ordered quantity for item {item_id}"
+                    )
+
+                receive_now = entry.received_quantity
+                damage_now = entry.damage_count
+                conv_rate = int(line["conversion_rate"] or 1)
+
+                if not math.isfinite(entry.actual_unit_cost) or entry.actual_unit_cost < 0:
+                    raise HTTPException(
+                      status_code=400,
+                      detail=f"Item {item_id}: actual purchase cost must be a finite, nonnegative number"
+                    )
+
+                if receive_now > remaining:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Item {item_id}: received quantity exceeds the "
+                            f"remaining quantity of {remaining}"
+                        )
+                    )
+
+                if damage_now > receive_now * conv_rate:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Item {item_id}: damaged quantity cannot exceed "
+                            "the quantity delivered in this shipment"
+                        )
+                    )
+                if receive_now == 0 and damage_now > 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Item {item_id}: damage requires a received quantity"
+                    )
+
+                delivery_total += receive_now
+
+                if damage_now:
+                    pid = line["product_id"]
+                    damage_map[pid] = damage_map.get(pid, 0) + damage_now
+
+            if delivery_total == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No units were received. Use the Did Not Receive action if applicable."
+                )
+
+            # Create one immutable record for this delivery.
+            cur.execute("""
+                INSERT INTO stock_receipts (
+                    order_id,
+                    supplier_id,
+                    receipt_number,
+                    actual_received_date,
+                    notes,
+                    received_by,
+                    idempotency_key
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING receipt_id
+            """, (
+                order_id,
+                order_row["supplier_id"],
+                payload.receipt_number.strip(),
+                actual_received_date,
+                payload.notes.strip() if payload.notes else None,
+                int(x_actor_user_id) if x_actor_user_id and x_actor_user_id.isdigit() else None,
+                idempotency_key
+            ))
+            receipt_row = cur.fetchone()
+            receipt_id = receipt_row["receipt_id"]
+
+            # Save the actual cost and quantities for each delivered PO line.
+            for item_id, entry in submitted.items():
+                receive_now = entry.received_quantity
+                if receive_now <= 0:
+                    continue
+
+                line = lines[item_id]
                 cur.execute("""
-                    UPDATE purchase_order_items 
-                    SET damage_count = %s,
-                        received_quantity = %s,
-                        received_at = CURRENT_TIMESTAMP
-                    WHERE order_id = %s AND product_id = %s
-                """, (item_damage, recv_order_qty, order_id, pid))
-                damage_map[pid] = item_damage
+                    INSERT INTO stock_receipt_items (
+                        receipt_id,
+                        purchase_order_item_id,
+                        product_id,
+                        quantity_received,
+                        damaged_quantity,
+                        purchase_unit,
+                        conversion_rate,
+                        actual_unit_cost
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    receipt_id,
+                    item_id,
+                    line["product_id"],
+                    receive_now,
+                    entry.damage_count,
+                    line["purchase_unit"],
+                    line["conversion_rate"],
+                    entry.actual_unit_cost
+                ))
 
-                # Update Inventory Stock
+            # Apply only the current delivery. Received quantity is cumulative;
+            # damage_count is cumulative; inventory delta is delivery-specific.
+            for item_id, entry in submitted.items():
+                line = lines[item_id]
+                receive_now = entry.received_quantity
+                damage_now = entry.damage_count
+
+                if receive_now == 0:
+                    continue
+
+                pid = line["product_id"]
+                conv_rate = int(line["conversion_rate"] or 1)
+                net_qty = (receive_now * conv_rate) - damage_now
+
+                cur.execute("""
+                    UPDATE purchase_order_items
+                    SET received_quantity = COALESCE(received_quantity, 0) + %s,
+                        damage_count = COALESCE(damage_count, 0) + %s,
+                        received_at = CURRENT_TIMESTAMP
+                    WHERE order_id = %s AND item_id = %s
+                """, (receive_now, damage_now, order_id, item_id))
+
+                # Fully damaged deliveries do not add inventory.
+                if net_qty <= 0:
+                    continue
+
                 cur.execute("""
                     SELECT inventory_id, quantity, expected, actual
-                    FROM inventory WHERE product_id = %s FOR UPDATE
+                    FROM inventory
+                    WHERE product_id = %s
+                    FOR UPDATE
                 """, (pid,))
                 inv_row = cur.fetchone()
+
                 if not inv_row:
-                    raise HTTPException(status_code=400, detail=f"Product ID {pid} not found in inventory")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Product ID {pid} not found in inventory"
+                    )
 
                 quantity_before = inv_row["quantity"]
                 expected_before = inv_row["expected"]
                 actual_before = inv_row["actual"]
-                
-                # Add net_qty (good items in PCS) to all inventory counts
+
                 quantity_after = quantity_before + net_qty
                 expected_after = expected_before + net_qty
                 actual_after = actual_before + net_qty
@@ -634,10 +890,12 @@ def mark_order_as_received(
                         actual = %s,
                         last_updated = %s
                     WHERE product_id = %s
-                """, (quantity_after, expected_after, actual_after, date.today(), pid))
+                """, (
+                    quantity_after, expected_after, actual_after,
+                    date.today(), pid
+                ))
 
-                cur.execute(
-                    """
+                cur.execute("""
                     INSERT INTO inventory_stock_events (
                         inventory_id, product_id, event_type,
                         quantity_before, quantity_after,
@@ -647,85 +905,147 @@ def mark_order_as_received(
                         difference_before, difference_after,
                         reference_type, reference_id, reason
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inv_row["inventory_id"], pid, "PO_RECEIVED",
-                        quantity_before, quantity_after,
-                        expected_before, expected_after,
-                        actual_before, actual_after,
-                        net_qty, net_qty, net_qty,
-                        int(difference_before), int(difference_after),
-                        "purchase_orders", order_id, f"Received {net_qty} good items (Damages: {item_damage})"
-                    ),
-                )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """, (
+                    inv_row["inventory_id"], pid, "PO_RECEIVED",
+                    quantity_before, quantity_after,
+                    expected_before, expected_after,
+                    actual_before, actual_after,
+                    net_qty, net_qty, net_qty,
+                    int(difference_before), int(difference_after),
+                    "purchase_orders", order_id,
+                    f"Delivery received: {net_qty} good units; damaged: {damage_now}"
+                ))
 
-            # --- 2. Handle Automated Damages Return ---
-            # Group damaged items for a single return record
+            # Create one return for the damaged units in THIS delivery only.
             damaged_items = [
-                {"product_id": pid, "quantity": item_damage}
-                for pid, item_damage in damage_map.items()
-                if item_damage > 0
+                {"product_id": pid, "quantity": qty}
+                for pid, qty in damage_map.items() if qty > 0
             ]
 
             if damaged_items:
-                cur.execute(
-                    """
-                    INSERT INTO product_returns (supplier_id, status, reason, bypass_inventory)
+                cur.execute("""
+                    INSERT INTO product_returns (
+                        supplier_id, status, reason, bypass_inventory
+                    )
                     VALUES (%s, 'Pending', %s, TRUE)
                     RETURNING return_id
-                    """,
-                    (order_row["supplier_id"], f"Damaged on arrival (PO {order_id})")
+                """, (
+                    order_row["supplier_id"],
+                    f"Damaged on arrival (PO {order_id}, receipt {payload.receipt_number.strip()})"
+                ))
+                return_id = cur.fetchone()["return_id"]
+
+                for damaged in damaged_items:
+                    cur.execute("""
+                        INSERT INTO product_return_items (
+                            return_id, product_id, quantity
+                        ) VALUES (%s, %s, %s)
+                    """, (
+                        return_id,
+                        damaged["product_id"],
+                        damaged["quantity"]
+                    ))
+
+                logger.info(
+                    "Created damaged-item return #%s for PO %s",
+                    return_id, order_id
                 )
-                new_return_id = cur.fetchone()["return_id"]
 
-                for di in damaged_items:
-                    cur.execute(
-                        "INSERT INTO product_return_items (return_id, product_id, quantity) VALUES (%s, %s, %s)",
-                        (new_return_id, di["product_id"], di["quantity"])
-                    )
+            # Determine completion from the cumulative quantity on every line.
+            cur.execute("""
+                SELECT quantity, COALESCE(received_quantity, 0) AS received_quantity
+                FROM purchase_order_items
+                WHERE order_id = %s
+            """, (order_id,))
+            updated_lines = cur.fetchall()
 
-                logger.info(f"Auto-generated product return #{new_return_id} for damages in PO {order_id}")
+            all_received = bool(updated_lines) and all(
+                row["received_quantity"] >= row["quantity"]
+                for row in updated_lines
+            )
+            any_received = any(row["received_quantity"] > 0 for row in updated_lines)
 
-            # Update Order Status
+            new_status = (
+                "Received" if all_received
+                else "Partially Received" if any_received
+                else "Pending"
+            )
+
             cur.execute("""
                 UPDATE purchase_orders
-                SET status = 'Received', 
-                    received_at = CURRENT_TIMESTAMP,
+                SET status = %s,
+                    received_at = CASE
+                        WHEN %s = 'Received' THEN CURRENT_TIMESTAMP
+                        ELSE received_at
+                    END,
                     receipt_number = %s,
                     notes = %s
                 WHERE order_id = %s
-            """, (payload.receipt_number, payload.notes or order_row.get("notes"), order_id))
+            """, (
+                new_status,
+                new_status,
+                payload.receipt_number.strip(),
+                payload.notes if payload.notes is not None else order_row.get("notes"),
+                order_id
+            ))
 
             cur.execute("""
-                UPDATE supplier
-                SET completed_orders = completed_orders + 1
-                WHERE supplier_id = %s
-            """, (order_row["supplier_id"],))
+                UPDATE stock_receipts
+                SET result_status = %s,
+                    result_completed = %s
+                WHERE receipt_id = %s
+            """, (new_status, all_received, receipt_id))
 
-            # Notification and Audit Log
-            dispatch_notification(
-                type="order_completed",
-                title="Purchase Order Received",
-                message=f"Purchase order {order_id} received. Receipt: {payload.receipt_number}",
-                link=f"/orders?id={order_id}",
-                target_roles=["Administrator", "Manager"]
-            )
+            # Count a completed order only on the transition to fully received.
+            if new_status == "Received":
+                cur.execute("""
+                    UPDATE supplier
+                    SET completed_orders = COALESCE(completed_orders, 0) + 1
+                    WHERE supplier_id = %s
+                """, (order_row["supplier_id"],))
 
             if x_actor_user_id:
                 add_audit_log(
-                    cur, int(x_actor_user_id), "RECEIVE_ORDER", "order", 0,
-                    f"Received PO: {order_id} (Receipt: {payload.receipt_number})"
+                    cur,
+                    int(x_actor_user_id),
+                    "RECEIVE_ORDER",
+                    "order",
+                    0,
+                    (
+                        f"Recorded delivery for PO {order_id}; "
+                        f"receipt {payload.receipt_number.strip()}; "
+                        f"status {new_status}"
+                    )
                 )
 
             _invalidate_analytics_cache(cur)
             conn.commit()
-            return {"ok": True}
+            if new_status == "Received":
+                dispatch_notification(
+                   type="order_completed",
+                   title="Purchase Order Received",
+                   message=f"Purchase order {order_id} fully received. Receipt: {payload.receipt_number.strip()}",
+                   link=f"/orders?id={order_id}",
+                   target_roles=["Administrator", "Manager"]
+                )
+
+            return {
+                "ok": True,
+                "status": new_status,
+                "completed": all_received,
+                "receipt_number": payload.receipt_number.strip()
+            }
+
     except HTTPException:
         conn.rollback()
         raise
     except Exception as e:
         conn.rollback()
+        logger.exception("Failed to record delivery for PO %s", order_id)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
@@ -741,7 +1061,7 @@ def mark_order_as_not_received(
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT po.order_id, po.supplier_id, s.supplier_name, po.status 
+                SELECT po.order_id, po.supplier_id, s.supplier_name, po.status
                 FROM purchase_orders po
                 JOIN supplier s ON po.supplier_id = s.supplier_id
                 WHERE po.order_id = %s
@@ -749,8 +1069,12 @@ def mark_order_as_not_received(
             order_row = cur.fetchone()
             if not order_row:
                 raise HTTPException(status_code=404, detail="Purchase order not found")
-            if order_row["status"] == "Received":
-                raise HTTPException(status_code=400, detail="Cannot mark a received order as not received")
+
+            if order_row["status"] in ("Received", "Partially Received"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot mark a received or partially received order as not received"
+                )
             if order_row["status"] == "Not Received":
                 raise HTTPException(status_code=400, detail="Order is already marked as Not Received")
             if order_row["status"] == "Voided":
@@ -760,7 +1084,7 @@ def mark_order_as_not_received(
 
             cur.execute("""
                 UPDATE purchase_orders
-                SET status = 'Not Received', 
+                SET status = 'Not Received',
                     notes = %s
                 WHERE order_id = %s
             """, (reason, order_id))
@@ -807,8 +1131,11 @@ def delete_purchase_order(
             order_row = cur.fetchone()
             if not order_row:
                 raise HTTPException(status_code=404, detail="Purchase order not found")
-            if order_row["status"] == "Received":
-                raise HTTPException(status_code=400, detail="Cannot delete a received order")
+            if order_row["status"] in ("Received", "Partially Received"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot archive a received or partially received order"
+                )
 
             # Since Pending orders no longer affect inventory stocks, we just archive the order record.
             cur.execute("UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s", (order_id,))
@@ -854,9 +1181,14 @@ def archive_purchase_order(
                 raise HTTPException(status_code=404, detail="Purchase order not found")
             if order_row["status"] == "Pending":
                 raise HTTPException(status_code=400, detail="Cannot archive a pending order. Delete it instead.")
+            if order_row["status"] == "Partially Received":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot archive a partially received order. Complete or resolve the order first."
+                )
             if order_row["status"] == "Archived":
                 raise HTTPException(status_code=400, detail="Order is already archived")
-            
+
             cur.execute(
                 "UPDATE purchase_orders SET status = 'Archived' WHERE order_id = %s",
                 (order_id,),
@@ -871,7 +1203,7 @@ def archive_purchase_order(
                     0,
                     f"Archived purchase order: {order_id}"
                 )
-                
+
             conn.commit()
             return {"ok": True}
     except HTTPException:

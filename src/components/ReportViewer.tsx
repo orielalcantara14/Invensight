@@ -381,6 +381,11 @@ export function ReportViewer({ report, onClose, initialAction }: ReportViewerPro
           <p className="text-xl font-black text-emerald-900 mt-1">{ret.summary?.received_orders || 0}</p>
           <p className="text-[8px] text-gray-500">Orders</p>
         </div>
+        <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-center">
+          <p className="text-[8px] font-black text-sky-600 uppercase">PARTIALLY RECEIVED</p>
+          <p className="text-xl font-black text-sky-900 mt-1">{ret.summary?.partially_received_orders || 0}</p>
+          <p className="text-[8px] text-gray-500">Orders</p>
+        </div>
         <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center">
           <p className="text-[8px] font-black text-rose-600 uppercase">NOT RECEIVED</p>
           <p className="text-xl font-black text-rose-900 mt-1">{ret.summary?.not_received_orders || 0}</p>
@@ -430,6 +435,8 @@ export function ReportViewer({ report, onClose, initialAction }: ReportViewerPro
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     po.status === 'Received'
                       ? 'bg-emerald-100 text-emerald-800'
+                      : po.status === 'Partially Received'
+                      ? 'bg-sky-100 text-sky-800'
                       : po.status === 'Not Received'
                       ? 'bg-rose-100 text-rose-800'
                       : 'bg-amber-100 text-amber-800'
