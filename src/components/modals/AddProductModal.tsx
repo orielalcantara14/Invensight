@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BaseModal } from "./BaseModal";
 import { api, type Category, type Supplier } from "@/services/api";
 import { toast } from "sonner";
@@ -55,6 +55,8 @@ const SPECIFIC_CATEGORIES_BY_CATEGORY: Record<string, string[]> = {
         "Roller",
         "Clutch",
         "Clutch Lining",
+        "Clutch Spring",
+        "Flyball",
         "Variator",
         "Drive Gear",
         "Chain & Sprocket",
@@ -396,7 +398,7 @@ export function AddProductModal({
   		}
               className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">â€” Select Unit â€”</option>
+              <option value="">— Select Unit —</option>
               {UNIT_MEASUREMENT_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
